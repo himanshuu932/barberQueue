@@ -36,9 +36,9 @@ export default function MenuScreen() {
     AsyncStorage.getItem("uid").then((value) => setUid(value));
   }, []);
 
-  // Create a combined name: username + first 4 characters of uid.
+  // Create a combined name: first two letters of userName + first four letters of uid.
   const combinedName =
-    userName && uid ? `${userName}${uid.substring(0, 4)}` : null;
+    userName && uid ? `${userName.substring(0, 2)}${uid.substring(0, 4)}` : null;
 
   // Base API URL
   const API_BASE = "https://barber-queue.vercel.app";
@@ -77,7 +77,7 @@ export default function MenuScreen() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Determine the user's position (if they're in the queue)
+  // Determine the user's position (if they're in the queue) using combinedName
   const userPosition =
     combinedName && names.includes(combinedName)
       ? names.indexOf(combinedName) + 1
@@ -164,6 +164,10 @@ export default function MenuScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {/* Display the combined user code above the current queue */}
+      {combinedName && (
+        <Text style={styles.userCode}>{combinedName}</Text>
+      )}
       <Text style={styles.title}>Current Queue</Text>
       <Text style={styles.queue}>
         👤 {queueLength} {queueLength === 1 ? "Person" : "People"} Waiting
@@ -207,6 +211,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+  },
+  userCode: {
+    fontSize: 30,
+    fontWeight: "bold",
+    marginBottom: 15,
   },
   title: {
     fontSize: 24,
