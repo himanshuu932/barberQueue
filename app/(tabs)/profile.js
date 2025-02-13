@@ -7,7 +7,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 
 export default function TabProfileScreen() {
   const router = useRouter();
-
+  
   const paymentHistory = [
     { id: 1, date: "2025-01-10", amount: "$45.00", description: "Haircut" },
     { id: 2, date: "2024-12-05", amount: "$30.00", description: "Beard Trim" },
@@ -23,6 +23,7 @@ export default function TabProfileScreen() {
     try {
       await AsyncStorage.removeItem("userToken");
       await AsyncStorage.removeItem("userType");
+      await AsyncStorage.removeItem("userName");
       router.replace("../login");
     } catch (error) {
       console.error("Error logging out:", error);
@@ -37,7 +38,7 @@ export default function TabProfileScreen() {
           style={styles.profileImage}
         />
         <View style={styles.profileDetails}>
-          <Text style={styles.username}>John Doe</Text>
+          <Text style={styles.username}>{AsyncStorage.getItem("userName")}</Text>
           <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
             <LinearGradient colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} style={styles.button}>
               <Text style={styles.buttonText}>Logout</Text>
