@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -25,8 +26,19 @@ export default function MenuScreen() {
   const [loading, setLoading] = useState(true); // Used for initial load
   const [notified, setNotified] = useState(false); // Track if notification has been sent
 
-  // For demonstration, assume the current user's name is "John Doe"
-  const userName = "John Doe";
+  // State for user info
+  const [userName, setUserName] = useState(null);
+  const [uid, setUid] = useState(null);
+
+  // Retrieve userName and uid from AsyncStorage on mount
+  useEffect(() => {
+    AsyncStorage.getItem("userName").then((value) => setUserName(value));
+    AsyncStorage.getItem("uid").then((value) => setUid(value));
+  }, []);
+
+  // Create a combined name: username + first 4 characters of uid.
+  const combinedName =
+    userName && uid ? `${userName}${uid.substring(0, 4)}` : null;
 
   // Base API URL
   const API_BASE = "https://barber-queue.vercel.app";
@@ -67,7 +79,9 @@ export default function MenuScreen() {
 
   // Determine the user's position (if they're in the queue)
   const userPosition =
-    names.indexOf(userName) !== -1 ? names.indexOf(userName) + 1 : null;
+    combinedName && names.includes(combinedName)
+      ? names.indexOf(combinedName) + 1
+      : null;
   const avgServiceTime = 10; // Average service time per person in minutes
   const estimatedWait = userPosition ? userPosition * avgServiceTime : null;
 
@@ -89,13 +103,17 @@ export default function MenuScreen() {
     }
   }, [userPosition]);
 
-  // Handler to join the queue
+  // Handler to join the queue using combinedName
   const joinQueue = async () => {
+    if (!combinedName) {
+      Alert.alert("Error", "User information not loaded yet.");
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE}/queue`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: userName }),
+        body: JSON.stringify({ name: combinedName }),
       });
       if (response.ok) {
         fetchQueueData();
@@ -108,11 +126,15 @@ export default function MenuScreen() {
     }
   };
 
-  // Handler to leave the queue (assumes the backend supports removing a specific user)
+  // Handler to leave the queue using combinedName
   const leaveQueue = async () => {
+    if (!combinedName) {
+      Alert.alert("Error", "User information not loaded yet.");
+      return;
+    }
     try {
       const response = await fetch(
-        `${API_BASE}/queue?name=${encodeURIComponent(userName)}`,
+        `${API_BASE}/queue?name=${encodeURIComponent(combinedName)}`,
         {
           method: "DELETE",
         }
@@ -128,7 +150,7 @@ export default function MenuScreen() {
     }
   };
 
-  // If no data is loaded yet, show a spinner
+  // Show spinner only if initial data hasn't been loaded.
   if (queueLength === null) {
     return (
       <View style={styles.container}>
@@ -137,8 +159,8 @@ export default function MenuScreen() {
     );
   }
 
-  // Determine if the user is in the queue
-  const isUserInQueue = names.includes(userName);
+  // Determine if the user is in the queue using the combined name
+  const isUserInQueue = combinedName && names.includes(combinedName);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
