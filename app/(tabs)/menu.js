@@ -1,18 +1,20 @@
-// app/(tabs)/menu.js
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Button, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
   const [names, setNames] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Only used for the initial load
 
-  // Use the special IP for Android emulator (or your computer's IP address if testing on a device)
+  // Base API URL
   const API_BASE = "https://barber-queue.vercel.app";
 
   const fetchQueueData = async () => {
     try {
-      setLoading(true);
+      // Only show the spinner on the initial fetch (when no data is available)
+      if (queueLength === null) {
+        setLoading(true);
+      }
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
       setQueueLength(data.queueLength);
@@ -20,61 +22,52 @@ export default function MenuScreen() {
     } catch (error) {
       console.error("Error fetching queue data:", error);
     } finally {
-      setLoading(false);
-    }
-  };
-
-  // Increment the queue by adding a new person.
-  const handleIncrement = async () => {
-    try {
-      setLoading(true);
-      await fetch(`${API_BASE}/queue`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Dummy Person" }),
-      });
-      await fetchQueueData();
-    } catch (error) {
-      console.error("Error incrementing queue:", error);
-    }
-  };
-
-  // Decrement the queue by removing a person.
-  const handleDecrement = async () => {
-    try {
-      setLoading(true);
-      await fetch(`${API_BASE}/queue`, { method: "DELETE" });
-      await fetchQueueData();
-    } catch (error) {
-      console.error("Error decrementing queue:", error);
+      // After the first successful fetch, hide the spinner
+      if (queueLength === null) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    // Fetch immediately on component mount
     fetchQueueData();
+
+    // Set up polling every 5 seconds
+    const intervalId = setInterval(() => {
+      fetchQueueData();
+    }, 2000);
+
+    // Clean up the interval on unmount
+    return () => clearInterval(intervalId);
   }, []);
 
+  // If there's no data yet, show the spinner
+  if (queueLength === null) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  // Otherwise, always show the current queue data (which updates in the background)
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Current Queue</Text>
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
-      ) : (
-        <>
-          <Text style={styles.queue}>
-            👤 {queueLength} {queueLength === 1 ? "Person" : "People"} Waiting
-          </Text>
-          {names.length > 0 && (
-            <View style={styles.namesContainer}>
-              <Text style={styles.namesTitle}>Queue List:</Text>
-              {names.map((name, index) => (
-                <Text key={index} style={styles.name}>{name}</Text>
-              ))}
-            </View>
-          )}
-        </>
+      <Text style={styles.queue}>
+        👤 {queueLength} {queueLength === 1 ? "Person" : "People"} Waiting
+      </Text>
+      {names.length > 0 && (
+        <View style={styles.namesContainer}>
+          <Text style={styles.namesTitle}>Queue List:</Text>
+          {names.map((name, index) => (
+            <Text key={index} style={styles.name}>
+              {name}
+            </Text>
+          ))}
+        </View>
       )}
-   
     </ScrollView>
   );
 }
@@ -107,12 +100,5 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     marginVertical: 2,
-  },
-  buttonsContainer: {
-    flexDirection: "row",
-    marginTop: 20,
-  },
-  buttonWrapper: {
-    marginHorizontal: 10,
   },
 });
