@@ -126,12 +126,16 @@ app.get("/queue", async (req, res) => {
 
 // POST endpoint to add a person to the queue (increment)
 // When adding a new person, set their order to max(current orders)+1.
+// POST endpoint to add a person to the queue (increment)
 app.post("/queue", async (req, res) => {
   try {
     const { name } = req.body;
-    // Find the maximum order value currently in the queue
-    const lastInQueue = await Queue.findOne().sort({ order: -1 });
-    const newOrder = lastInQueue ? lastInQueue.order + 1 : 1;
+    // Find the document with the highest valid order value.
+    const lastInQueue = await Queue.findOne({ order: { $exists: true } }).sort({ order: -1 });
+    let newOrder = 1;
+    if (lastInQueue && !isNaN(lastInQueue.order)) {
+      newOrder = Number(lastInQueue.order) + 1;
+    }
     const newPerson = new Queue({ name: name || "Dummy Person", order: newOrder });
     await newPerson.save();
     res.status(201).json(newPerson);
@@ -140,6 +144,7 @@ app.post("/queue", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 // DELETE endpoint to remove a person from the queue.
 // If a query parameter "name" is provided, remove that specific person;
