@@ -74,7 +74,14 @@ export default function MenuScreen() {
           )}
         </>
       )}
-   
+      <View style={styles.buttonsContainer}>
+        <View style={styles.buttonWrapper}>
+          <Button title="+" onPress={handleIncrement} />
+        </View>
+        <View style={styles.buttonWrapper}>
+          <Button title="–" onPress={handleDecrement} />
+        </View>
+      </View>
     </ScrollView>
   );
 }
