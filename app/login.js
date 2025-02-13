@@ -26,6 +26,8 @@ export default function LoginScreen() {
         return;
       }
       await AsyncStorage.setItem("userToken", data.token);
+      await AsyncStorage.setItem("userName", data.user.name);
+      await AsyncStorage.setItem("uid", data.user.id);
       email==="admin"? await AsyncStorage.setItem("userType", 'admin'): await AsyncStorage.setItem("userType", 'user');
       Alert.alert("Success", `Logged in as: ${data.user.email}`);
       email === "admin" ? router.replace("/(admin)/menu") : router.replace("/(tabs)/menu");
