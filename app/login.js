@@ -7,14 +7,14 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
+  const API_BASE = "https://barber-queue.vercel.app";
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
       return;
     }
     try {
-      const response = await fetch("http://10.0.2.2:5000/login", {
+      const response = await fetch(`${API_BASE}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -26,6 +26,7 @@ export default function LoginScreen() {
       }
       // Save the token in AsyncStorage
       await AsyncStorage.setItem("userToken", data.token);
+      email==="admin"? await AsyncStorage.setItem("userType", 'admin'): await AsyncStorage.setItem("userType", 'user');
       Alert.alert("Success", `Logged in as: ${data.user.email}`);
       email==="admin"?router.replace("/(admin)/menu"):router.replace("/(tabs)/menu");
     } catch (error) {
