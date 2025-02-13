@@ -1,20 +1,13 @@
-// app/(tabs)/profile.js
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Button,
-  ScrollView,
-  Image,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { MaterialIcons } from "@expo/vector-icons";
 
-export default function TabProfileScreen({ navigation }) {
+export default function TabProfileScreen() {
   const router = useRouter();
-  // Extended dummy data for payment history
+
   const paymentHistory = [
     { id: 1, date: "2025-01-10", amount: "$45.00", description: "Haircut" },
     { id: 2, date: "2024-12-05", amount: "$30.00", description: "Beard Trim" },
@@ -26,39 +19,35 @@ export default function TabProfileScreen({ navigation }) {
     { id: 8, date: "2024-06-30", amount: "$65.00", description: "Luxury Treatment" },
   ];
 
-  // Handle the logout action
   const handleLogout = async () => {
     try {
-      // Remove the token from AsyncStorage
       await AsyncStorage.removeItem("userToken");
       await AsyncStorage.removeItem("userType");
-      console.log("User logged out");
-      // Navigate to the login screen
       router.replace("../login");
     } catch (error) {
       console.error("Error logging out:", error);
     }
   };
-  
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Header with profile image, username and logout button */}
-      <View style={styles.header}>
-        <View style={styles.profileContainer}>
-          <Image
-            source={{ uri: "https://via.placeholder.com/50" }} // Replace with your image URL or local asset
-            style={styles.profileImage}
-          />
+    <View style={styles.overlay}>
+      <View style={styles.profileBox}>
+        <Image
+          source={{ uri: "https://via.placeholder.com/100" }} // Replace with actual image
+          style={styles.profileImage}
+        />
+        <View style={styles.profileDetails}>
           <Text style={styles.username}>John Doe</Text>
+          <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
+            <LinearGradient colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} style={styles.button}>
+              <Text style={styles.buttonText}>Logout</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
-        <Button title="Logout" onPress={handleLogout} color="#FF4500" />
       </View>
 
-      {/* Payment History Section */}
       <View style={styles.paymentHistoryContainer}>
         <Text style={styles.sectionTitle}>Payment History</Text>
-        {/* Nested ScrollView for payment history items */}
         <ScrollView style={styles.paymentHistoryScroll} nestedScrollEnabled={true}>
           {paymentHistory.map((item) => (
             <View key={item.id} style={styles.paymentItem}>
@@ -71,50 +60,76 @@ export default function TabProfileScreen({ navigation }) {
           ))}
         </ScrollView>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-  header: {
-    marginBottom: 20,
+  overlay: {
+    flex: 1,
     alignItems: "center",
+    padding: 20,
+    backgroundColor: "rgba(62, 58, 58, 0.6)",
+    width: "100%",
   },
-  profileContainer: {
+  profileBox: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    backgroundColor: "rgba(5, 5, 5, 0.32)",
+    padding: 15,
+    borderRadius: 10,
+    width: "100%",
+    marginBottom: 20,
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderColor: "#fff",
+    borderWidth: 2,
+  },
+  profileDetails: {
+    marginLeft: 40,
+    flex: 1,
+    justifyContent: "center",
   },
   username: {
     fontSize: 24,
     fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  buttonContainer: {
+    width: "60%",
+    marginTop: 10,
+  },
+  button: {
+    padding: 12,
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   paymentHistoryContainer: {
-    marginTop: 20,
+    flex: 1,
+    width: "100%",
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 10,
+    color: "#FFFFFF",
   },
   paymentHistoryScroll: {
-    maxHeight: 400, // Adjust the height as needed
+    flex: 1,
+    width: "100%",
   },
   paymentItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+    borderBottomColor: "#444",
     marginBottom: 10,
   },
   paymentRow: {
@@ -123,16 +138,16 @@ const styles = StyleSheet.create({
   },
   paymentDate: {
     fontSize: 14,
-    color: "#555",
+    color: "#BBBBBB",
   },
   paymentAmount: {
     fontSize: 16,
-    color: "#1E90FF",
+    color: "#FFD700",
     fontWeight: "500",
   },
   paymentDescription: {
     fontSize: 16,
-    color: "#333",
+    color: "#EEEEEE",
     marginTop: 4,
   },
 });
