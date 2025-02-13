@@ -1,19 +1,18 @@
-// app/(tabs)/locate.js
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
-  Button,
+  TouchableOpacity,
   Linking,
 } from "react-native";
 import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import MapViewDirections from "react-native-maps-directions";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
-// Replace with your Google Maps API Key (ensure the Directions API is enabled)
-const GOOGLE_MAPS_APIKEY = "key";
+const GOOGLE_MAPS_APIKEY = "YOUR_GOOGLE_MAPS_API_KEY";
 
 export default function LocateScreen() {
   const [currentRegion, setCurrentRegion] = useState(null);
@@ -21,13 +20,11 @@ export default function LocateScreen() {
   const [showNavigation, setShowNavigation] = useState(false);
   const mapRef = useRef(null);
 
-  // Destination coordinate (e.g., a barber shop)
   const destination = {
     latitude: 26.7323339,
     longitude: 83.4292296,
   };
 
-  // Get user's current location
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -49,13 +46,12 @@ export default function LocateScreen() {
   if (!currentRegion) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        {errorMsg ? <Text>{errorMsg}</Text> : <Text>Fetching location...</Text>}
+        <ActivityIndicator size="large" color="#1E90FF" />
+        {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : <Text style={styles.loadingText}>Fetching location...</Text>}
       </View>
     );
   }
 
-  // "Locate" button handler: Animate map, show marker and draw in-app navigation route
   const handleLocate = () => {
     setShowNavigation(true);
     if (mapRef.current) {
@@ -66,12 +62,11 @@ export default function LocateScreen() {
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         },
-        1000 // animation duration in milliseconds
+        1000
       );
     }
   };
 
-  // "Navigate" button handler: Open external navigation (Google Maps)
   const handleNavigate = () => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}`;
     Linking.openURL(url);
@@ -79,87 +74,89 @@ export default function LocateScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Full-Screen Map */}
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={currentRegion}
-        showsUserLocation={true} // Shows your current location as a blue dot
+        showsUserLocation={true}
       >
-        {/* Destination Marker */}
-        <Marker
-          coordinate={destination}
-          title="Destination"
-          description="Your selected location"
-        />
-
-        {/* In-app navigation: Draw the blue route once the "Locate" button is pressed */}
+        <Marker coordinate={destination} title="Destination" description="Your selected location" />
         {showNavigation && (
           <MapViewDirections
-            origin={{
-              latitude: currentRegion.latitude,
-              longitude: currentRegion.longitude,
-            }}
+            origin={{ latitude: currentRegion.latitude, longitude: currentRegion.longitude }}
             destination={destination}
             apikey={GOOGLE_MAPS_APIKEY}
             strokeWidth={4}
-            strokeColor="blue"
-            onError={(errorMessage) =>
-              console.log("Error fetching directions", errorMessage)
-            }
+            strokeColor="#FF4500"
           />
         )}
       </MapView>
 
-      {/* Overlay title */}
-     
+      {/* Floating Buttons in Bottom Right */}
+      <View style={styles.floatingButtonContainer}>
+        <TouchableOpacity style={[styles.fab, styles.locateButton]} onPress={handleLocate}>
+          <Icon name="store" size={24} color="#fff" />
+        </TouchableOpacity>
 
-      {/* Two Buttons: "Locate" to show the blue line and "Navigate" for external maps */}
-      <View style={styles.buttonContainer}>
-       
-        <View style={styles.button}>
-          <Button title="Navigate" onPress={handleNavigate} color="#FF4500" />
-        </View>
-        <View style={styles.button}>
-          <Button title="Locate" onPress={handleLocate} color="#1E90FF" />
-        </View>
+        <TouchableOpacity style={[styles.fab, styles.navigateButton]} onPress={handleNavigate}>
+          <Icon name="navigation" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { flex: 1 },
-  overlay: {
-    position: "absolute",
-    top: 40,
-    left: 0,
-    right: 0,
-    alignItems: "center",
+  container: {
+    flex: 1,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    backgroundColor: "rgba(255,255,255,0.8)",
-    padding: 10,
-    borderRadius: 8,
+  map: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#1B1B1B",
   },
-  buttonContainer: {
+  loadingText: {
+    marginTop: 10,
+    color: "#C0C0C0",
+    fontSize: 16,
+  },
+  errorText: {
+    marginTop: 10,
+    color: "#FF6347",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  floatingButtonContainer: {
     position: "absolute",
-    bottom: 40,
-    left: 20,
+    bottom: 20,
     right: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
   },
-  button: {
-    flex: 1,
-    marginHorizontal: 5,
+  fab: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  locateButton: {
+    backgroundColor: "#1E90FF",
+  },
+  navigateButton: {
+    backgroundColor: "#28A745",
   },
 });
