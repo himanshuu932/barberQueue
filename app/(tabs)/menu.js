@@ -8,7 +8,7 @@ export default function MenuScreen() {
   const [loading, setLoading] = useState(true);
 
   // Use the special IP for Android emulator (or your computer's IP address if testing on a device)
-  const API_BASE = "http://10.0.2.2:5000";
+  const API_BASE = "https://barber-queue.vercel.app";
 
   const fetchQueueData = async () => {
     try {
