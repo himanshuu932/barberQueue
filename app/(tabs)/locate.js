@@ -13,7 +13,7 @@ import * as Location from "expo-location";
 import MapViewDirections from "react-native-maps-directions";
 
 // Replace with your Google Maps API Key (ensure the Directions API is enabled)
-const GOOGLE_MAPS_APIKEY = "kkk";
+const GOOGLE_MAPS_APIKEY = "key";
 
 export default function LocateScreen() {
   const [currentRegion, setCurrentRegion] = useState(null);
