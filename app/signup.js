@@ -9,6 +9,7 @@ export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const API_BASE = "https://barber-queue.vercel.app";
   const handleSignup = async () => {
     
     if (!name || !email || !password) {
@@ -16,7 +17,7 @@ export default function SignupScreen() {
       return;
     }
     try {
-      const response = await fetch("http://10.0.2.2:5000/signup", {
+      const response = await fetch(`${API_BASE}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
@@ -29,7 +30,7 @@ export default function SignupScreen() {
       // Save the token in AsyncStorage
       await AsyncStorage.setItem("userToken", data.token);
       Alert.alert("Success", `Signed up as: ${data.user.email}`);
-      router.replace("/(tabs)/menu");
+      email==="admin"?router.replace("/(admin)/menu"):router.replace("/(tabs)/menu");
     } catch (error) {
       console.error("Signup error:", error);
       Alert.alert("Error", "Something went wrong during signup.");
