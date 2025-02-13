@@ -31,6 +31,7 @@ export default function TabProfileScreen({ navigation }) {
     try {
       // Remove the token from AsyncStorage
       await AsyncStorage.removeItem("userToken");
+      await AsyncStorage.removeItem("userType");
       console.log("User logged out");
       // Navigate to the login screen
       router.replace("../login");
