@@ -7,7 +7,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 
 export default function TabProfileScreen() {
   const router = useRouter();
-
+  
   const paymentHistory = [
     { id: 1, date: "2025-01-10", amount: "$45.00", description: "Haircut" },
     { id: 2, date: "2024-12-05", amount: "$30.00", description: "Beard Trim" },
@@ -23,6 +23,7 @@ export default function TabProfileScreen() {
     try {
       await AsyncStorage.removeItem("userToken");
       await AsyncStorage.removeItem("userType");
+      await AsyncStorage.removeItem("userName");
       router.replace("../login");
     } catch (error) {
       console.error("Error logging out:", error);
@@ -37,7 +38,7 @@ export default function TabProfileScreen() {
           style={styles.profileImage}
         />
         <View style={styles.profileDetails}>
-          <Text style={styles.username}>John Doe</Text>
+          <Text style={styles.username}>{AsyncStorage.getItem("userName")}</Text>
           <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
             <LinearGradient colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} style={styles.button}>
               <Text style={styles.buttonText}>Logout</Text>
@@ -47,29 +48,64 @@ export default function TabProfileScreen() {
       </View>
 
       <View style={styles.paymentHistoryContainer}>
-        <Text style={styles.sectionTitle}>Payment History</Text>
-        <ScrollView style={styles.paymentHistoryScroll} nestedScrollEnabled={true}>
-          {paymentHistory.map((item) => (
-            <View key={item.id} style={styles.paymentItem}>
-              <View style={styles.paymentRow}>
-                <Text style={styles.paymentDate}>{item.date}</Text>
-                <Text style={styles.paymentAmount}>{item.amount}</Text>
-              </View>
-              <Text style={styles.paymentDescription}>{item.description}</Text>
-            </View>
-          ))}
-        </ScrollView>
+  <Text style={styles.sectionTitle}>Payment History</Text>
+  
+  {/* Gradient Fade at the Top */}
+  <LinearGradient 
+    colors={["rgba(255,255,255,1)", "rgba(255,255,255,0)"]}
+    style={styles.gradientTop}
+  />
+
+  <ScrollView 
+    style={styles.paymentHistoryScroll} 
+    nestedScrollEnabled={true} 
+    showsVerticalScrollIndicator={false}
+  >
+    {paymentHistory.map((item) => (
+      <View key={item.id} style={styles.paymentItem}>
+        <View style={styles.paymentRow}>
+          <Text style={styles.paymentDate}>{item.date}</Text>
+          <Text style={styles.paymentAmount}>{item.amount}</Text>
+        </View>
+        <Text style={styles.paymentDescription}>{item.description}</Text>
       </View>
+    ))}
+  </ScrollView>
+
+  {/* Gradient Fade at the Bottom */}
+  <LinearGradient 
+    colors={["rgba(255,255,255,0)", "rgba(255,255,255,1)"]}
+    style={styles.gradientBottom}
+  />
+</View>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 15, // Adjust height of fade effect
+    zIndex: 1,
+  },
+  gradientBottom: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 15, // Adjust height of fade effect
+    zIndex: 1,
+  },
+  
   overlay: {
     flex: 1,
     alignItems: "center",
     padding: 20,
-    backgroundColor: "rgba(62, 58, 58, 0.6)",
+    backgroundColor: "rgb(255, 255, 255)",
     width: "100%",
   },
   profileBox: {
@@ -120,7 +156,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#FFFFFF",
+    color: "rgba(0,0,0)",
   },
   paymentHistoryScroll: {
     flex: 1,
@@ -138,7 +174,7 @@ const styles = StyleSheet.create({
   },
   paymentDate: {
     fontSize: 14,
-    color: "#BBBBBB",
+    color: "rgba(0,0,0)",
   },
   paymentAmount: {
     fontSize: 16,
@@ -147,7 +183,7 @@ const styles = StyleSheet.create({
   },
   paymentDescription: {
     fontSize: 16,
-    color: "#EEEEEE",
+    color: "rgba(0,0,0)",
     marginTop: 4,
   },
 });

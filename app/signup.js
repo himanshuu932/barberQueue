@@ -28,6 +28,7 @@ export default function SignupScreen() {
         return;
       }
       await AsyncStorage.setItem("userToken", data.token);
+      await AsyncStorage.setItem("userName", data.user.name);
       Alert.alert("Success", `Signed up as: ${data.user.email}`);
       email==="admin"?router.replace("/(admin)/menu"):router.replace("/(tabs)/menu");
     } catch (error) {
