@@ -127,17 +127,18 @@ export default function MenuScreen() {
           </View>
         </LinearGradient>
       </View>
-  
+      
+      <Text style={styles.listTitle}>Queue List</Text>
       {/* Only the List Scrolls */}
-      <View style={styles.listBox}>
-        <Text style={styles.listTitle}>Queue List</Text>
-        <ScrollView style={styles.listScroll} nestedScrollEnabled={true}>
+        <ScrollView style={styles.listScroll} nestedScrollEnabled={true} 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={{ paddingBottom: 10 }}>
           {names.map((name, index) => (
             <View key={index} style={styles.card}>
               <Text style={styles.name}>{index + 1}. {name}</Text>
               <View style={styles.iconGroup}>
                 {index < 3 ? (
-                  <TouchableOpacity onPress={() => console.log(`${name} confirmed`)}>
+                  <TouchableOpacity onPress={() => removePerson(name)}>
                     <Icon name="check-circle" size={24} color="green" />
                   </TouchableOpacity>
                 ) : (
@@ -154,14 +155,10 @@ export default function MenuScreen() {
             </View>
           ))}
         </ScrollView>
-      </View>
   
       <View style={styles.buttonsContainer}>
         <TouchableOpacity style={styles.fab} onPress={handleIncrement}>
           <Icon name="add" size={30} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.fab} onPress={handleDecrement}>
-          <Icon name="remove" size={30} color="white" />
         </TouchableOpacity>
       </View>
     </View>
@@ -178,21 +175,18 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 20,
   },
-  listBox: {
-    width: "100%",
-    height: 400,  // Fixed height to prevent screen scroll
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-    overflow: "hidden",
-  },
   
   listScroll: {
-    maxHeight: 400,  // Prevents outer scroll
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    width: "100%",
+    padding: 10,
+    maxHeight: "72%",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },  // Prevents outer scroll
   },
   
   
@@ -245,9 +239,11 @@ const styles = StyleSheet.create({
   name: { fontSize: 16 },
   iconGroup: { flexDirection: "row", gap: 10 },
   buttonsContainer: {
+    position: "absolute",
+    bottom: "10%", // Adjust as needed
+    right: 25,  // Adjust as needed
     flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 20,
+    gap: 10, 
   },
   fab: {
     backgroundColor: "#007bff",
