@@ -8,10 +8,10 @@ import {
   ScrollView,
   Button,
   Alert,
+  ImageBackground,
 } from "react-native";
 import * as Notifications from "expo-notifications";
 
-// Configure notifications behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -23,69 +23,70 @@ Notifications.setNotificationHandler({
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
   const [names, setNames] = useState([]);
-  const [loading, setLoading] = useState(true); // Used for initial load
-  const [notified, setNotified] = useState(false); // Track if notification has been sent
-
-  // State for user info
+  const [loading, setLoading] = useState(true);
+  const [notified, setNotified] = useState(false);
   const [userName, setUserName] = useState(null);
   const [uid, setUid] = useState(null);
+  const [remainingTime, setRemainingTime] = useState(null);
 
-  // Retrieve userName and uid from AsyncStorage on mount
   useEffect(() => {
-    AsyncStorage.getItem("userName").then((value) => setUserName(value));
-    AsyncStorage.getItem("uid").then((value) => setUid(value));
+    const loadUserData = async () => {
+      const storedUserName = await AsyncStorage.getItem("userName");
+      const storedUid = await AsyncStorage.getItem("uid");
+      setUserName(storedUserName);
+      setUid(storedUid);
+    };
+    loadUserData();
   }, []);
 
-  // Create a combined name: first two letters of userName + first four letters of uid.
   const combinedName =
     userName && uid ? `${userName.substring(0, 2)}${uid.substring(0, 4)}` : null;
 
-  // Base API URL
   const API_BASE = "https://barber-queue.vercel.app";
 
-  // Request notification permissions on mount
   useEffect(() => {
     Notifications.requestPermissionsAsync();
   }, []);
 
-  // Function to fetch the latest queue data
   const fetchQueueData = async () => {
     try {
-      // Show spinner on the first load only
-      if (queueLength === null) {
-        setLoading(true);
-      }
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
-      setQueueLength(data.queueLength);
-      setNames(data.names);
+      if (data.queueLength !== queueLength || JSON.stringify(data.names) !== JSON.stringify(names)) {
+        setQueueLength(data.queueLength);
+        setNames(data.names);
+      }
     } catch (error) {
       console.error("Error fetching queue data:", error);
     } finally {
-      if (queueLength === null) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
-  // Poll the API every 2 seconds
   useEffect(() => {
     fetchQueueData();
     const intervalId = setInterval(() => {
       fetchQueueData();
-    }, 2000);
+    }, 5000);
     return () => clearInterval(intervalId);
   }, []);
 
-  // Determine the user's position (if they're in the queue) using combinedName
-  const userPosition =
-    combinedName && names.includes(combinedName)
-      ? names.indexOf(combinedName) + 1
-      : null;
-  const avgServiceTime = 10; // Average service time per person in minutes
-  const estimatedWait = userPosition ? userPosition * avgServiceTime : null;
+  const userPosition = combinedName && names.includes(combinedName) ? names.indexOf(combinedName) + 1 : null;
+  const avgServiceTime = 10;
+  const initialWaitTime = userPosition ? userPosition * avgServiceTime * 60 : null;
 
-  // Use push notifications if the user's position is 3 or less and they haven't been notified yet.
+  useEffect(() => {
+    setRemainingTime(initialWaitTime);
+
+    if (initialWaitTime) {
+      const timer = setInterval(() => {
+        setRemainingTime((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [userPosition]);
+
   useEffect(() => {
     if (userPosition !== null && userPosition <= 3 && !notified) {
       Notifications.scheduleNotificationAsync({
@@ -93,17 +94,14 @@ export default function MenuScreen() {
           title: "Almost Your Turn!",
           body: `You're number ${userPosition} in line. Please get ready for your service.`,
         },
-        trigger: null, // Trigger immediately
+        trigger: null,
       });
       setNotified(true);
-    }
-    // Reset notification flag if the user's position increases beyond 3
-    if (userPosition === null || userPosition > 3) {
+    } else if (userPosition === null || userPosition > 3) {
       setNotified(false);
     }
   }, [userPosition]);
 
-  // Handler to join the queue using combinedName
   const joinQueue = async () => {
     if (!combinedName) {
       Alert.alert("Error", "User information not loaded yet.");
@@ -126,7 +124,6 @@ export default function MenuScreen() {
     }
   };
 
-  // Handler to leave the queue using combinedName
   const leaveQueue = async () => {
     if (!combinedName) {
       Alert.alert("Error", "User information not loaded yet.");
@@ -135,9 +132,7 @@ export default function MenuScreen() {
     try {
       const response = await fetch(
         `${API_BASE}/queue?name=${encodeURIComponent(combinedName)}`,
-        {
-          method: "DELETE",
-        }
+        { method: "DELETE" }
       );
       if (response.ok) {
         fetchQueueData();
@@ -150,8 +145,14 @@ export default function MenuScreen() {
     }
   };
 
-  // Show spinner only if initial data hasn't been loaded.
-  if (queueLength === null) {
+  const formatTime = (seconds) => {
+    if (seconds === null || seconds <= 0) return "Ready!";
+    const minutes = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return `${minutes}m ${sec}s`;
+  };
+
+  if (loading) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#0000ff" />
@@ -159,96 +160,121 @@ export default function MenuScreen() {
     );
   }
 
-  // Determine if the user is in the queue using the combined name
-  const isUserInQueue = combinedName && names.includes(combinedName);
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Display the combined user code above the current queue */}
-      {combinedName && (
+    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
+      <View style={styles.overlay} /> 
+      <View style={styles.container}>
         <Text style={styles.userCode}>{combinedName}</Text>
-      )}
-      <Text style={styles.title}>Current Queue</Text>
-      <Text style={styles.queue}>
-        👤 {queueLength} {queueLength === 1 ? "Person" : "People"} Waiting
-      </Text>
-      {names.length > 0 && (
-        <View style={styles.namesContainer}>
-          <Text style={styles.namesTitle}>Queue List:</Text>
-          {names.map((name, index) => (
-            <Text key={index} style={styles.name}>
-              {index + 1}. {name}
-            </Text>
-          ))}
-        </View>
-      )}
-
-      {/* Show join or leave queue button based on whether the user is in the queue */}
-      <View style={styles.buttonContainer}>
-        {isUserInQueue ? (
-          <Button title="Leave Queue" onPress={leaveQueue} color="#FF4500" />
-        ) : (
-          <Button title="Join Queue" onPress={joinQueue} color="#008000" />
-        )}
-      </View>
-
-      {/* Show the user's position and estimated wait time if they are in the queue */}
-      {isUserInQueue && (
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoText}>Your position: {userPosition}</Text>
-          <Text style={styles.infoText}>
-            Estimated wait time: {estimatedWait} minutes
+        {userPosition && (
+          <Text style={styles.waitTime}>
+            Estimated Wait: <Text style={styles.timer}>{formatTime(remainingTime)}</Text>
           </Text>
+        )}
+        <Text style={styles.queue}>👤 {queueLength}</Text>
+        <Text style={styles.queueListTitle}>Queue List</Text>
+        <ScrollView style={styles.namesContainer}>
+          {names.map((name, index) => (
+            <View key={index} style={styles.queueCard}>
+              <Text style={styles.queueNumber}>{index + 1}</Text>
+              <Text style={styles.queueName}>{name}</Text>
+            </View>
+          ))}
+        </ScrollView>
+        <View style={styles.buttonContainer}>
+          {combinedName && names.includes(combinedName) ? (
+            <Button title="Leave Queue" onPress={leaveQueue} color="#FF4500" />
+          ) : (
+            <Button title="Join Queue" onPress={joinQueue} color="#008000" />
+          )}
         </View>
-      )}
-    </ScrollView>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)", // White overlay with 50% opacity
+  },
   container: {
-    flexGrow: 1,
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    paddingTop: 15,
+    paddingRight: 15,
+    paddingLeft: 15,
   },
   userCode: {
-    fontSize: 30,
+    fontSize: 70,
     fontWeight: "bold",
-    marginBottom: 15,
+    textAlign: "center",
+    marginVertical: 10,
+    color: "black",  // Ensure text is visible on background
   },
-  title: {
-    fontSize: 24,
+  waitTime: {
+    fontSize: 16,
     fontWeight: "bold",
+    color: "black",
     marginBottom: 10,
+  },
+  timer: {
+    color: "red",
+    fontWeight: "bold",
   },
   queue: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "black",
+  },
+  queueListTitle: {
     fontSize: 20,
-    marginVertical: 10,
+    fontWeight: "bold",
+    marginTop: 10,
+    marginBottom: 5,
+    color: "black",
   },
   namesContainer: {
-    marginTop: 20,
+    backgroundColor: "rgba(151, 151, 151, 0.76)", // Slight transparency
+    borderRadius: 12,
     width: "100%",
-    paddingHorizontal: 20,
+    padding: 10,
+    maxHeight: "auto",
+    elevation: 5,
   },
-  namesTitle: {
+  queueCard: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
+  },
+  queueNumber: {
     fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 10,
+    fontWeight: "bold",
+    color: "#333",
   },
-  name: {
-    fontSize: 16,
-    marginVertical: 2,
+  queueName: {
+    fontSize: 15,
+    color: "#777",
   },
   buttonContainer: {
-    marginTop: 20,
-  },
-  infoContainer: {
-    marginTop: 20,
-    alignItems: "center",
-  },
-  infoText: {
-    fontSize: 16,
-    marginVertical: 5,
+    position: "absolute",
+    bottom: 20,
+    right: 25,
+    borderRadius: 10,
   },
 });
+
