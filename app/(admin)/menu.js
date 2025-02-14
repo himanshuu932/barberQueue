@@ -1,208 +1,259 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   View, 
   Text, 
   StyleSheet, 
   ActivityIndicator, 
-  Button, 
   ScrollView, 
-  Alert 
+  TouchableOpacity,
+  Animated
 } from "react-native";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
   const [names, setNames] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // Base API URL
   const API_BASE = "https://barber-queue.vercel.app";
+  const shineAnimation = useRef(new Animated.Value(0)).current;
 
-  // Function to fetch the current queue data
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shineAnimation, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shineAnimation, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [shineAnimation]);
+
+  const shineTranslateX = shineAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-200, 900],
+  });
+
+  const shineTranslateY = shineAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-200, 250],
+  });
+
   const fetchQueueData = async () => {
     try {
-      // Optionally set loading only for the first load; after that, queueLength is not null.
-      if (queueLength === null) {
-        setLoading(true);
-      }
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
       setQueueLength(data.queueLength);
       setNames(data.names);
     } catch (error) {
       console.error("Error fetching queue data:", error);
-    } finally {
-      // Only update loading state if this is the initial load.
-      if (queueLength === null) {
-        setLoading(false);
-      }
     }
   };
 
-  // Poll the API every 2 seconds
   useEffect(() => {
     fetchQueueData();
-    const intervalId = setInterval(() => {
-      fetchQueueData();
-    }, 2000);
+    const intervalId = setInterval(fetchQueueData, 2000);
     return () => clearInterval(intervalId);
   }, []);
 
-  // Handler to remove a specific person (tick button)
-  const removePerson = async (personName) => {
-    try {
-      const response = await fetch(
-        `${API_BASE}/queue?name=${encodeURIComponent(personName)}`,
-        { method: "DELETE" }
-      );
-      if (!response.ok) {
-        Alert.alert("Error", "Failed to remove the person.");
-      }
-      await fetchQueueData();
-    } catch (error) {
-      console.error("Error removing person:", error);
-      Alert.alert("Error", "An error occurred while removing the person.");
-    }
+  const removePerson = async (name) => {
+    await fetch(`${API_BASE}/queue?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+    fetchQueueData();
   };
 
-  // Handler to move a person one position down (down arrow button)
-  const moveDownPerson = async (personName) => {
-    try {
-      const response = await fetch(`${API_BASE}/queue/move`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: personName }),
-      });
-      if (!response.ok) {
-        Alert.alert("Error", "Failed to move the person down.");
-      }
-      await fetchQueueData();
-    } catch (error) {
-      console.error("Error moving person down:", error);
-      Alert.alert("Error", "An error occurred while moving the person down.");
-    }
+  const moveDownPerson = async (name) => {
+    await fetch(`${API_BASE}/queue/move`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    fetchQueueData();
   };
 
-  // Increment the queue by adding a new dummy person.
-  // The dummy person's name is appended with a number based on the count of previously added dummy persons.
   const handleIncrement = async () => {
-    try {
-      const dummyCount = names.filter((name) =>
-        name.startsWith("Dummy Person")
-      ).length;
-      const newName = `Dummy Person ${dummyCount + 1}`;
-      await fetch(`${API_BASE}/queue`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName }),
-      });
-      await fetchQueueData();
-    } catch (error) {
-      console.error("Error incrementing queue:", error);
-    }
+    const newName = `Dummy Person ${names.length + 1}`;
+    await fetch(`${API_BASE}/queue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName }),
+    });
+    fetchQueueData();
   };
 
-  // Decrement the queue by removing the person at the front.
   const handleDecrement = async () => {
-    try {
-      await fetch(`${API_BASE}/queue`, { method: "DELETE" });
-      await fetchQueueData();
-    } catch (error) {
-      console.error("Error decrementing queue:", error);
-    }
+    await fetch(`${API_BASE}/queue`, { method: "DELETE" });
+    fetchQueueData();
   };
 
-  // Show spinner only if initial data hasn't been loaded.
   if (queueLength === null) {
     return (
-      <View style={styles.container}>
+      <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color="#0000ff" />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Current Queue</Text>
-      <Text style={styles.queue}>
-        👤 {queueLength} {queueLength === 1 ? "Person" : "People"} Waiting
-      </Text>
-      {names.length > 0 && (
-        <View style={styles.namesContainer}>
-          <Text style={styles.namesTitle}>Queue List:</Text>
+    <View style={styles.container}>  
+      <View style={styles.queueBox}>
+        <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
+          <Animated.View
+            style={[
+              styles.shine,
+              {
+                transform: [
+                  { translateX: shineTranslateX },
+                  { translateY: shineTranslateY },
+                  { rotate: "45deg" },
+                ],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.shineGradient}
+            />
+          </Animated.View>
+          <View style={styles.queueContent}>
+            <Text style={styles.title}>Current Queue</Text>
+            <Text style={styles.queueText}>👤 {queueLength} {queueLength === 1 ? "Person" : "People"} Waiting</Text>
+          </View>
+        </LinearGradient>
+      </View>
+  
+      {/* Only the List Scrolls */}
+      <View style={styles.listBox}>
+        <Text style={styles.listTitle}>Queue List</Text>
+        <ScrollView style={styles.listScroll} nestedScrollEnabled={true}>
           {names.map((name, index) => (
-            <View key={index} style={styles.personRow}>
-              <Text style={styles.name}>
-                {index + 1}. {name}
-              </Text>
-              <View style={styles.buttonGroup}>
-                <View style={styles.buttonWrapper}>
-                  <Button title="✓" onPress={() => removePerson(name)} />
-                </View>
-                {/* Show the down arrow button only for the top 3 people */}
+            <View key={index} style={styles.card}>
+              <Text style={styles.name}>{index + 1}. {name}</Text>
+              <View style={styles.iconGroup}>
+                {index < 3 ? (
+                  <TouchableOpacity onPress={() => console.log(`${name} confirmed`)}>
+                    <Icon name="check-circle" size={24} color="green" />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={() => removePerson(name)}>
+                    <Icon name="delete" size={24} color="red" />
+                  </TouchableOpacity>
+                )}
                 {index < 3 && (
-                  <View style={styles.buttonWrapper}>
-                    <Button title="↓" onPress={() => moveDownPerson(name)} />
-                  </View>
+                  <TouchableOpacity onPress={() => moveDownPerson(name)}>
+                    <Icon name="arrow-downward" size={24} color="blue" />
+                  </TouchableOpacity>
                 )}
               </View>
             </View>
           ))}
-        </View>
-      )}
-      <View style={styles.buttonsContainer}>
-        <View style={styles.buttonWrapper}>
-          <Button title="+" onPress={handleIncrement} />
-        </View>
-        <View style={styles.buttonWrapper}>
-          <Button title="–" onPress={handleDecrement} />
-        </View>
+        </ScrollView>
       </View>
-    </ScrollView>
+  
+      <View style={styles.buttonsContainer}>
+        <TouchableOpacity style={styles.fab} onPress={handleIncrement}>
+          <Icon name="add" size={30} color="white" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.fab} onPress={handleDecrement}>
+          <Icon name="remove" size={30} color="white" />
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flexGrow: 1,
+  container: { flexGrow: 1, alignItems: "center", padding: 20 },
+  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  queueBox: {
+    width: "100%",
+    height: 150,
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 20,
+  },
+  listBox: {
+    width: "100%",
+    height: 400,  // Fixed height to prevent screen scroll
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
+    overflow: "hidden",
+  },
+  
+  listScroll: {
+    maxHeight: 400,  // Prevents outer scroll
+  },
+  
+  
+  profileBackground: {
+    width: "100%",
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
   },
-  title: { 
-    fontSize: 24,
-    fontWeight: "bold",
+  shine: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 300,
+    height: "300%",
   },
-  queue: { 
-    fontSize: 20,
-    marginTop: 10,
-  },
-  namesContainer: {
-    marginTop: 20,
+  shineGradient: {
     width: "100%",
-    paddingHorizontal: 20,
+    height: "100%",
   },
-  namesTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-  personRow: {
-    flexDirection: "row",
+  queueContent: {
     alignItems: "center",
-    justifyContent: "space-between",
-    marginVertical: 5,
   },
-  name: {
-    fontSize: 16,
+  title: { fontSize: 22, fontWeight: "bold", color: "#fff" },
+  queueText: { fontSize: 18, marginTop: 5, color: "#fff" },
+  listBox: {
+    width: "100%",
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
   },
-  buttonGroup: {
+  listTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
+  card: {
     flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#f9f9f9",
+    padding: 10,
+    borderRadius: 8,
+    marginVertical: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  buttonWrapper: {
-    marginHorizontal: 5,
-  },
+  name: { fontSize: 16 },
+  iconGroup: { flexDirection: "row", gap: 10 },
   buttonsContainer: {
     flexDirection: "row",
+    justifyContent: "center",
     marginTop: 20,
+  },
+  fab: {
+    backgroundColor: "#007bff",
+    padding: 15,
+    borderRadius: 50,
+    marginHorizontal: 10,
+    elevation: 3,
   },
 });
