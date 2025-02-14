@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { TouchableOpacity } from "react-native";
+import Icon from "react-native-vector-icons/FontAwesome";
+import Svg, { Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
@@ -107,43 +110,78 @@ export default function MenuScreen() {
       Alert.alert("Error", "User information not loaded yet.");
       return;
     }
-    try {
-      const response = await fetch(`${API_BASE}/queue`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: combinedName }),
-      });
-      if (response.ok) {
-        fetchQueueData();
-      } else {
-        Alert.alert("Error", "Failed to join the queue.");
-      }
-    } catch (error) {
-      console.error("Error joining queue:", error);
-      Alert.alert("Error", "An error occurred while joining the queue.");
-    }
+  
+    Alert.alert(
+      "Confirm Join",
+      "Are you sure you want to join the queue?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "OK",
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE}/queue`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: combinedName }),
+              });
+  
+              if (response.ok) {
+                fetchQueueData();
+              } else {
+                Alert.alert("Error", "Failed to join the queue.");
+              }
+            } catch (error) {
+              console.error("Error joining queue:", error);
+              Alert.alert("Error", "An error occurred while joining the queue.");
+            }
+          },
+        },
+      ]
+    );
   };
-
+  
   const leaveQueue = async () => {
     if (!combinedName) {
       Alert.alert("Error", "User information not loaded yet.");
       return;
     }
-    try {
-      const response = await fetch(
-        `${API_BASE}/queue?name=${encodeURIComponent(combinedName)}`,
-        { method: "DELETE" }
-      );
-      if (response.ok) {
-        fetchQueueData();
-      } else {
-        Alert.alert("Error", "Failed to leave the queue.");
-      }
-    } catch (error) {
-      console.error("Error leaving queue:", error);
-      Alert.alert("Error", "An error occurred while leaving the queue.");
-    }
+  
+    Alert.alert(
+      "Confirm Leave",
+      "Are you sure you want to leave the queue?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "OK",
+          onPress: async () => {
+            try {
+              const response = await fetch(
+                `${API_BASE}/queue?name=${encodeURIComponent(combinedName)}`,
+                { method: "DELETE" }
+              );
+  
+              if (response.ok) {
+                fetchQueueData();
+              } else {
+                Alert.alert("Error", "Failed to leave the queue.");
+              }
+            } catch (error) {
+              console.error("Error leaving queue:", error);
+              Alert.alert("Error", "An error occurred while leaving the queue.");
+            }
+          },
+        },
+      ]
+    );
   };
+  
 
   const formatTime = (seconds) => {
     if (seconds === null || seconds <= 0) return "Ready!";
@@ -172,19 +210,37 @@ export default function MenuScreen() {
         )}
         <Text style={styles.queue}>👤 {queueLength}</Text>
         <Text style={styles.queueListTitle}>Queue List</Text>
-        <ScrollView style={styles.namesContainer}>
+        <ScrollView style={styles.namesContainer} nestedScrollEnabled={true} 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={{ paddingBottom: 10 }}>
           {names.map((name, index) => (
             <View key={index} style={styles.queueCard}>
-              <Text style={styles.queueNumber}>{index + 1}</Text>
+              <Text style={styles.queueNumber}>{index + 1}.</Text>
               <Text style={styles.queueName}>{name}</Text>
             </View>
           ))}
         </ScrollView>
         <View style={styles.buttonContainer}>
           {combinedName && names.includes(combinedName) ? (
-            <Button title="Leave Queue" onPress={leaveQueue} color="#FF4500" />
+            <TouchableOpacity style={styles.leaveButton} onPress={leaveQueue}>
+              <Icon name="sign-out" size={24} color="white" />
+            </TouchableOpacity>
           ) : (
-            <Button title="Join Queue" onPress={joinQueue} color="#008000" />
+            <TouchableOpacity style={styles.joinButton} onPress={joinQueue}>
+  <Svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="25"
+    height="25"
+    viewBox="0 0 16 16"
+    fill="white"
+  >
+    <Path
+      fillRule="evenodd"
+      d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
+    />
+  </Svg>
+</TouchableOpacity>
+
           )}
         </View>
       </View>
@@ -216,14 +272,12 @@ const styles = StyleSheet.create({
     fontSize: 70,
     fontWeight: "bold",
     textAlign: "center",
-    marginVertical: 10,
     color: "black",  // Ensure text is visible on background
   },
   waitTime: {
     fontSize: 16,
     fontWeight: "bold",
     color: "black",
-    marginBottom: 10,
   },
   timer: {
     color: "red",
@@ -245,21 +299,31 @@ const styles = StyleSheet.create({
     color: "black",
   },
   namesContainer: {
-    backgroundColor: "rgba(151, 151, 151, 0.76)", // Slight transparency
+    backgroundColor: "#fff",
     borderRadius: 12,
     width: "100%",
     padding: 10,
-    maxHeight: "auto",
+    maxHeight: "72%",
     elevation: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
   },
   queueCard: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginVertical: 5,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 15,
+    alignItems:"center",
+    gap: 10,
+    backgroundColor: "#F9F9F9",
+    padding: 20,
+    borderRadius: 10,
+    marginBottom: 10,
+    width: "100%",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
   queueNumber: {
     fontSize: 18,
@@ -270,11 +334,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#777",
   },
+  joinButton: {
+    width: 50, // Circular button size
+    height: 50,
+    borderRadius: 12, // Fully round button
+    backgroundColor: "rgb(48, 139, 36)",
+    justifyContent: "center", // Center icon vertically
+    alignItems: "center", // Center icon horizontally
+    elevation: 3,
+  },
+  
+  leaveButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: "rgb(212, 53, 53)",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 3,
+  },
+
   buttonContainer: {
     position: "absolute",
-    bottom: 20,
-    right: 25,
-    borderRadius: 10,
+    bottom: 20, // Adjust as needed
+    right: 25,  // Adjust as needed
+    flexDirection: "row",
+    gap: 10, // Space between join & leave buttons
   },
+  
 });
 

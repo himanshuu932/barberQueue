@@ -54,7 +54,7 @@ export default function TabProfileScreen() {
     animateShine();
   }, [shineAnimation]);
 
-  const shineTranslateX = shineAnimation.interpolate({
+   const shineTranslateX = shineAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: [-200, 900], // Horizontal movement (adjust to cover the box)
   });
@@ -66,81 +66,83 @@ export default function TabProfileScreen() {
 
   return (
     <View style={styles.overlay}>
-      {/* Profile Box with Diagonal Shine Animation */}
-      <View style={styles.profileBox}>
-        <LinearGradient
-          colors={["#1a1a1a", "#333333", "#1a1a1a"]} // Darker gradient
-          style={styles.profileBackground}
+    {/* Profile Box with Diagonal Shine Animation */}
+    <View style={styles.profileBox}>
+      <LinearGradient
+        colors={["#1a1a1a", "#333333", "#1a1a1a"]} // Darker gradient
+        style={styles.profileBackground}
+      >
+        {/* Shine Effect */}
+        <Animated.View
+          style={[
+            styles.shine,
+            {
+              transform: [
+                { translateX: shineTranslateX },
+                { translateY: shineTranslateY },
+                { rotate: "45deg" }, // Rotate the shine diagonally
+              ],
+            },
+          ]}
         >
-          {/* Shine Effect */}
-          <Animated.View
-            style={[
-              styles.shine,
-              {
-                transform: [
-                  { translateX: shineTranslateX },
-                  { translateY: shineTranslateY },
-                  { rotate: "45deg" }, // Rotate the shine diagonally
-                ],
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} // Shine gradient
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.shineGradient}
-            />
-          </Animated.View>
+          <LinearGradient
+            colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} // Shine gradient
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.shineGradient}
+          />
+        </Animated.View>
 
-          {/* Profile Content */}
-          <View style={styles.profileContent}>
-            <Image source={require("../image/user.png")} style={styles.profileImage} />
-            <View style={styles.profileDetails}>
-              <Text style={styles.username}>{AsyncStorage.getItem("userName") || "User Name"}</Text>
-              <Text style={styles.userInfo}>+1 234 567 8900</Text>
-              <Text style={styles.userInfo}>user@example.com</Text>
-            </View>
+        {/* Profile Content */}
+        <View style={styles.profileContent}>
+          <Image source={require("../image/user.png")} style={styles.profileImage} />
+          <View style={styles.profileDetails}>
+            <Text style={styles.username}>{AsyncStorage.getItem("userName") || "User Name"}</Text>
+            <Text style={styles.userInfo}>+1 234 567 8900</Text>
+            <Text style={styles.userInfo}>user@example.com</Text>
           </View>
-        </LinearGradient>
-      </View>
-
-      {/* Payment History Section */}
-      <View style={styles.paymentHistoryContainer}>
-        <Text style={styles.sectionTitle}>Payment History</Text>
-        <View style={styles.paymentBox}>
-          <ScrollView
-            style={styles.paymentHistoryScroll}
-            nestedScrollEnabled={true}
-            showsVerticalScrollIndicator={false}
-          >
-            {paymentHistory.map((item) => (
-              <View key={item.id} style={styles.paymentCard}>
-                <View style={styles.paymentRow}>
-                  <Text style={styles.paymentDate}>{item.date}</Text>
-                  <Text style={styles.paymentAmount}>{item.amount}</Text>
-                </View>
-                <Text style={styles.paymentDescription}>{item.description}</Text>
-              </View>
-            ))}
-          </ScrollView>
         </View>
-      </View>
-
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
-        <LinearGradient colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} style={styles.button}>
-          <Text style={styles.buttonText}>Logout</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+      </LinearGradient>
     </View>
-  );
+
+    
+        {/* Payment History - Sirf ye scroll karega */}
+        <View style={styles.paymentHistoryContainer}>
+          <Text style={styles.sectionTitle}>Payment History</Text>
+          <View style={styles.paymentBox}>
+            <ScrollView 
+              nestedScrollEnabled={true} 
+              style={{ maxHeight: 450 }} 
+              showsVerticalScrollIndicator={false}
+            >
+              {paymentHistory.map((item) => (
+                <View key={item.id} style={styles.paymentCard}>
+                  <View style={styles.paymentRow}>
+                    <Text style={styles.paymentDate}>{item.date}</Text>
+                    <Text style={styles.paymentAmount}>{item.amount}</Text>
+                  </View>
+                  <Text style={styles.paymentDescription}>{item.description}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+    
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
+          <LinearGradient colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} style={styles.button}>
+            <Text style={styles.buttonText}>Logout</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
 }
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "space-between", // Make sure button stays at the bottom
     padding: 20,
     backgroundColor: "#ffffff",
     width: "100%",
@@ -207,14 +209,14 @@ const styles = StyleSheet.create({
   paymentHistoryContainer: {
     width: "100%",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: "auto",
   },
   paymentBox: {
     backgroundColor: "#fff",
     borderRadius: 12,
     width: "100%",
     padding: 10,
-    maxHeight: 450,
+    maxHeight: "72%",
     elevation: 5,
     shadowColor: "#000",
     shadowOpacity: 0.2,
@@ -253,8 +255,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   buttonContainer: {
+    position: "absolute",
+    bottom: 10, // Fix at bottom
     width: "90%",
-    marginBottom: 10,
+    alignSelf: "center",
   },
   button: {
     padding: 12,
