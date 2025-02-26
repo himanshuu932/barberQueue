@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@gradio/client": "^0.5.2",
@@ -15,11 +16,23 @@
   "name": "sample",
   "version": "1.0.0",
   "main": "script.js",
+=======
+  "name": "server",
+  "version": "1.0.0",
+  "main": "server.js",
+>>>>>>> f0b7212c8a91457d711a4a7e7fc2fb3ebfda05b8
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon server.js"
   },
   "author": "",
   "license": "ISC",
+<<<<<<< HEAD
   "description": ""
+=======
+  "description": "",
+  "dependencies": {
+    "socket.io": "^4.8.1"
+  }
+>>>>>>> f0b7212c8a91457d711a4a7e7fc2fb3ebfda05b8
 }

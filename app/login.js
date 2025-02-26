@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Alert, TouchableOpacity, ImageBackground, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Alert,
+  TouchableOpacity,
+  ImageBackground,
+  StyleSheet,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -8,29 +16,50 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const API_BASE = "https://barber-queue.vercel.app";
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
       return;
     }
+
     try {
-      const response = await fetch("https://barber-queue.vercel.app/login", {
+      const response = await fetch("http://10.0.2.2:5000/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
       const data = await response.json();
+
       if (!response.ok) {
         Alert.alert("Error", data.error || "Login failed");
         return;
       }
+
+      // Store token and user data
       await AsyncStorage.setItem("userToken", data.token);
       await AsyncStorage.setItem("userName", data.user.name);
       await AsyncStorage.setItem("uid", data.user.id);
-      email==="admin"? await AsyncStorage.setItem("userType", 'admin'): await AsyncStorage.setItem("userType", 'user');
-      Alert.alert("Success", `Logged in as: ${data.user.email}`);
-      email === "admin" ? router.replace("/(admin)/menu") : router.replace("/(tabs)/menu");
+
+      // Determine userType (example logic)
+      let userType = "user";
+      if (email === "admin") {
+        userType = "admin";
+      } else if (email === "superadmin") {
+        userType = "superadmin";
+      }
+      await AsyncStorage.setItem("userType", userType);
+
+      Alert.alert("Success", `Logged in as: ${email}`);
+
+      // Navigate based on userType
+      if (userType === "admin") {
+        router.replace("/(admin)/menu");
+      } else if (userType === "superadmin") {
+        router.replace("/(superadmin)/menu");
+      } else {
+        router.replace("/(tabs)/menu");
+      }
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
@@ -38,7 +67,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <ImageBackground source={require("./image/bglogin.png")} style={styles.background}>
+    <ImageBackground
+      source={require("./image/bglogin.png")}
+      style={styles.background}
+    >
       <View style={styles.overlay}>
         <View style={styles.formContainer}>
           <Text style={styles.title}>Login</Text>
@@ -46,7 +78,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="rgb(0, 0, 0)" // Lighter gray for placeholders
+            placeholderTextColor="rgb(0, 0, 0)"
             keyboardType="email-address"
             autoCapitalize="none"
             value={email}
@@ -56,7 +88,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="rgb(0, 0, 0)" // Lighter gray for placeholders
+            placeholderTextColor="rgb(0, 0, 0)"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -65,7 +97,7 @@ export default function LoginScreen() {
           {/* Metallic Gradient Button */}
           <TouchableOpacity style={styles.buttonContainer} onPress={handleLogin}>
             <LinearGradient
-              colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} // Metallic gradient colors
+              colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.button}
@@ -97,14 +129,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "rgba(129, 125, 125, 0.64)", // Semi-transparent background for readability
+    backgroundColor: "rgba(129, 125, 125, 0.64)",
     width: "100%",
   },
   formContainer: {
-    backgroundColor: "rgba(0, 0, 0, 0.3)", // Barely visible background for the form container
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     padding: 20,
     borderRadius: 15,
-    width: "85%", // Adjust the width as needed
+    width: "85%",
     alignItems: "center",
   },
   title: {
@@ -115,18 +147,18 @@ const styles = StyleSheet.create({
   },
   input: {
     width: "100%",
-     fontWeight: "400",
-     fontSize: 16,
+    fontWeight: "400",
+    fontSize: 16,
     padding: 12,
     borderRadius: 8,
     marginBottom: 15,
-    backgroundColor: "rgba(255, 255, 255, 0.8)", // Semi-transparent input
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
     color: "rgb(0, 0, 0)",
   },
   buttonContainer: {
     width: "100%",
     borderRadius: 8,
-    overflow: "hidden", // Ensures the gradient stays inside the button's border radius
+    overflow: "hidden",
   },
   button: {
     padding: 12,

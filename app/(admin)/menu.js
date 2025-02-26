@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { 
   View, 
   Text, 
@@ -6,16 +6,34 @@ import {
   ActivityIndicator, 
   ScrollView, 
   TouchableOpacity,
-  Animated
+  ImageBackground,
+  Animated,
+  Modal,
+  TextInput,
+  Alert
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
+import { PlusButtonContext } from "./_layout"; // Adjust this import path as needed
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
-  const [names, setNames] = useState([]);
-  const API_BASE = "https://barber-queue.vercel.app";
+  // Now storing an array of objects with _id and name.
+  const [queueItems, setQueueItems] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newName, setNewName] = useState("");
+  const API_BASE = "http://10.0.2.2:5000";
   const shineAnimation = useRef(new Animated.Value(0)).current;
+
+  // Get the setter from context to register our plus button handler
+  const { setPlusButtonHandler } = useContext(PlusButtonContext);
+
+  // Register handleIncrement as the plus button handler when this screen mounts.
+  useEffect(() => {
+    setPlusButtonHandler(() => handleIncrement);
+    return () => setPlusButtonHandler(() => {});
+  }, [setPlusButtonHandler]);
 
   useEffect(() => {
     Animated.loop(
@@ -44,12 +62,13 @@ export default function MenuScreen() {
     outputRange: [-200, 250],
   });
 
+  // Updated fetchQueueData: expects { queueLength, data } where data is an array of objects.
   const fetchQueueData = async () => {
     try {
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
       setQueueLength(data.queueLength);
-      setNames(data.names);
+      setQueueItems(data.data);
     } catch (error) {
       console.error("Error fetching queue data:", error);
     }
@@ -60,6 +79,52 @@ export default function MenuScreen() {
     const intervalId = setInterval(fetchQueueData, 2000);
     return () => clearInterval(intervalId);
   }, []);
+
+  // Mark user as served by updating their history and then removing them from the queue.
+  // Notice that we now pass the MongoDB _id as userId, and the name is used to remove the user.
+  const markUserServed = async (userId, userName) => {
+    console.log("Mark user as served", userId, userName);
+    if(!userId)
+    {
+       removePerson(userName);
+       return;
+    }
+    try {
+      // Retrieve the stored token from AsyncStorage
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Authentication Error", "User not authenticated.");
+        return;
+      }
+  
+      const response = await fetch(`${API_BASE}/barber/add-history`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId, service: "Haircut" }),
+      });
+      if (!response.ok) {
+        // Log error details from the backend response
+        const errorData = await response.json();
+        console.error("Backend error response:", errorData);
+        throw new Error("Failed to mark user as served");
+      }
+      // Remove user from queue by their name.
+      await fetch(`${API_BASE}/queue?name=${encodeURIComponent(userName)}`, {
+        method: "DELETE",
+      });
+      fetchQueueData();
+      Alert.alert(
+        "Success",
+        "User has been marked as served and removed from the queue."
+      );
+    } catch (error) {
+      console.error("Error marking user served:", error);
+      Alert.alert("Error", "Failed to mark user as served.");
+    }
+  };
 
   const removePerson = async (name) => {
     await fetch(`${API_BASE}/queue?name=${encodeURIComponent(name)}`, { method: "DELETE" });
@@ -75,14 +140,36 @@ export default function MenuScreen() {
     fetchQueueData();
   };
 
-  const handleIncrement = async () => {
-    const newName = `Dummy Person ${names.length + 1}`;
+  const addPerson = async (name) => {
     await fetch(`${API_BASE}/queue`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName }),
+      body: JSON.stringify({ name }),
     });
     fetchQueueData();
+  };
+
+  // Plus button functionality: open the modal with an empty value.
+  const handleIncrement = () => {
+    setNewName("");
+    setModalVisible(true);
+  };
+
+  const handleConfirm = async () => {
+    let finalName = newName.trim();
+    if (finalName === "") {
+      const now = new Date();
+      const minutes = now.getMinutes().toString().padStart(2, "0");
+      const seconds = now.getSeconds().toString().padStart(2, "0");
+      finalName = `User ${minutes}${seconds}`; 
+    }
+    await addPerson(finalName);
+    setModalVisible(false);
+  };
+
+  // Cancel button in modal
+  const handleCancel = () => {
+    setModalVisible(false);
   };
 
   const handleDecrement = async () => {
@@ -99,56 +186,43 @@ export default function MenuScreen() {
   }
 
   return (
-    <View style={styles.container}>  
-      <View style={styles.queueBox}>
-        <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
-          <Animated.View
-            style={[
-              styles.shine,
-              {
-                transform: [
-                  { translateX: shineTranslateX },
-                  { translateY: shineTranslateY },
-                  { rotate: "45deg" },
-                ],
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.shineGradient}
-            />
-          </Animated.View>
-          <View style={styles.queueContent}>
-            <Text style={styles.title}>Current Queue</Text>
-            <Text style={styles.queueText}>👤 {queueLength} {queueLength === 1 ? "Person" : "People"} Waiting</Text>
-          </View>
-        </LinearGradient>
-      </View>
-      
-      <Text style={styles.listTitle}>Queue List</Text>
-      {/* Only the List Scrolls */}
-        <ScrollView style={styles.listScroll} nestedScrollEnabled={true} 
+    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
+      <View style={styles.overlay} /> 
+      <View style={styles.container}>
+        <Text style={styles.userCode}>
+          {queueItems[0] ? queueItems[0].name : "Aaj kdki h!"}
+        </Text>
+        <Text style={styles.queue}>👤 {queueLength}</Text>
+        <Text style={styles.queueListTitle}>Queue List</Text>
+        <ScrollView 
+          style={styles.namesContainer} 
+          nestedScrollEnabled={true} 
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={{ paddingBottom: 10 }}>
-          {names.map((name, index) => (
-            <View key={index} style={styles.card}>
-              <Text style={styles.name}>{index + 1}. {name}</Text>
+          {queueItems.map((item, index) => (
+            <View key={item._id} style={styles.queueCard}>
+              <View style={styles.nameText}>
+                <Text style={styles.queueNumber}>{index + 1}.</Text>
+                <View>
+                  <Text style={styles.queueName}>{item.name}</Text>
+                  <Text style={styles.queueId}>ID: {item._id}</Text>
+                </View>
+              </View>
               <View style={styles.iconGroup}>
                 {index < 3 ? (
-                  <TouchableOpacity onPress={() => removePerson(name)}>
-                    <Icon name="check-circle" size={24} color="green" />
+                  <TouchableOpacity
+                    style={styles.doneButton}
+                    onPress={() => markUserServed(item._id, item.name)}>
+                    <Icon name="check" size={24} color="white" />
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => removePerson(name)}>
+                  <TouchableOpacity onPress={() => removePerson(item.name)}>
                     <Icon name="delete" size={24} color="red" />
                   </TouchableOpacity>
                 )}
                 {index < 3 && (
-                  <TouchableOpacity onPress={() => moveDownPerson(name)}>
-                    <Icon name="arrow-downward" size={24} color="blue" />
+                  <TouchableOpacity style={styles.downButton} onPress={() => moveDownPerson(item.name)}>
+                    <Icon name="arrow-downward" size={24} color="white" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -156,27 +230,85 @@ export default function MenuScreen() {
           ))}
         </ScrollView>
   
-      <View style={styles.buttonsContainer}>
-        <TouchableOpacity style={styles.fab} onPress={handleIncrement}>
-          <Icon name="add" size={30} color="white" />
-        </TouchableOpacity>
+        {/* Modal Overlay for adding a new name */}
+        <Modal
+          transparent={true}
+          animationType="slide"
+          visible={modalVisible}
+          onRequestClose={handleCancel}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Enter Name</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={newName}
+                onChangeText={setNewName}
+                placeholder="Enter your name"
+                onFocus={() => setNewName("")}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.modalButton} onPress={handleCancel}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalButton} onPress={handleConfirm}>
+                  <Text style={styles.modalButtonText}>OK</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, alignItems: "center", padding: 20 },
-  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  queueBox: {
-    width: "100%",
-    height: 150,
-    borderRadius: 10,
-    overflow: "hidden",
-    marginBottom: 20,
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  
-  listScroll: {
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
+  },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 15,
+    paddingRight: 15,
+    paddingLeft: 15,
+  },
+  userCode: {
+    fontSize: 70,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "black",
+  },
+  queue: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "black",
+  },
+  queueListTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginTop: 10,
+    marginBottom: 5,
+    color: "black",
+  },
+  namesContainer: {
     backgroundColor: "#fff",
     borderRadius: 12,
     width: "100%",
@@ -186,70 +318,127 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.2,
     shadowRadius: 5,
-    shadowOffset: { width: 0, height: 3 },  // Prevents outer scroll
+    shadowOffset: { width: 0, height: 3 },
   },
-  
-  
-  profileBackground: {
+  queueCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    backgroundColor: "#F9F9F9",
+    padding: 20,
+    borderRadius: 10,
+    marginBottom: 10,
     width: "100%",
-    height: "100%",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  queueNumber: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  queueName: {
+    top: "5%",
+    fontSize: 20,
+    color: "#777",
+  },
+  queueId: {
+    fontSize: 10,
+    color: "#555",
+  },
+  joinButton: {
+    width: 50, 
+    height: 50,
+    borderRadius: 10,
+    backgroundColor: "rgb(0, 0, 0)",
+    justifyContent: "center",
+    alignItems: "center", 
+    elevation: 4,
+  },
+  doneButton: {
+    width: 50, 
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: "rgb(48, 139, 36)",
+    justifyContent: "center", 
+    alignItems: "center", 
+    elevation: 3,
+  },
+  downButton: {
+    width: 50, 
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: "rgb(7, 55, 229)",
+    justifyContent: "center", 
+    alignItems: "center", 
+    elevation: 3,
+  },
+  leaveButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: "rgb(212, 53, 53)",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 3,
+  },
+  buttonContainer: {
+    position: "absolute",
+    bottom: 5, 
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconGroup: {
+    flexDirection: "row",
+    gap: 5,
+  },
+  nameText: {
+    flexDirection: "row",
+    gap: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
-  shine: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: 300,
-    height: "300%",
-  },
-  shineGradient: {
-    width: "100%",
-    height: "100%",
-  },
-  queueContent: {
+  modalContent: {
+    width: "80%",
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
     alignItems: "center",
   },
-  title: { fontSize: 22, fontWeight: "bold", color: "#fff" },
-  queueText: { fontSize: 18, marginTop: 5, color: "#fff" },
-  listBox: {
-    width: "100%",
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
   },
-  listTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
-  card: {
+  modalInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 20,
+  },
+  modalButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
     padding: 10,
-    borderRadius: 8,
-    marginVertical: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    alignItems: "center",
   },
-  name: { fontSize: 16 },
-  iconGroup: { flexDirection: "row", gap: 10 },
-  buttonsContainer: {
-    position: "absolute",
-    bottom: "10%", // Adjust as needed
-    right: 25,  // Adjust as needed
-    flexDirection: "row",
-    gap: 10, 
-  },
-  fab: {
-    backgroundColor: "#007bff",
-    padding: 15,
-    borderRadius: 50,
-    marginHorizontal: 10,
-    elevation: 3,
+  modalButtonText: {
+    fontSize: 16,
+    color: "blue",
   },
 });

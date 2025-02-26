@@ -1,148 +1,163 @@
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Animated } from "react-native";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  Image, 
+  TouchableOpacity, 
+  Animated, 
+  ActivityIndicator 
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function TabProfileScreen() {
   const router = useRouter();
   const shineAnimation = useRef(new Animated.Value(0)).current;
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const paymentHistory = [
-    { id: 1, date: "2025-01-10", amount: "$45.00", description: "Haircut" },
-    { id: 2, date: "2024-12-05", amount: "$30.00", description: "Beard Trim" },
-    { id: 3, date: "2024-11-20", amount: "$50.00", description: "Full Service" },
-    { id: 4, date: "2024-10-15", amount: "$60.00", description: "Premium Service" },
-    { id: 5, date: "2024-09-01", amount: "$35.00", description: "Regular Cut" },
-    { id: 6, date: "2025-01-10", amount: "$45.00", description: "Haircut" },
-    { id: 7, date: "2024-12-05", amount: "$30.00", description: "Beard Trim" },
-    { id: 8, date: "2024-11-20", amount: "$50.00", description: "Full Service" },
-    { id: 9, date: "2024-10-15", amount: "$60.00", description: "Premium Service" },
-    { id: 10, date: "2024-09-01", amount: "$35.00", description: "Regular Cut" },
-    { id: 11, date: "2024-09-01", amount: "$35.00", description: "Regular Cut" },
-  ];
+  const fetchProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const response = await fetch("http://10.0.2.2:5000/profile", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      setProfile(data);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // useFocusEffect ensures that fetchProfile runs every time this screen is focused.
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [])
+  );
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shineAnimation, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shineAnimation, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [shineAnimation]);
+
+  const shineTranslateX = shineAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-200, 900],
+  });
+
+  const shineTranslateY = shineAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-200, 250],
+  });
 
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem("userToken");
-      await AsyncStorage.removeItem("userType");
-      await AsyncStorage.removeItem("userName");
       router.replace("../login");
     } catch (error) {
       console.error("Error logging out:", error);
     }
   };
 
-  useEffect(() => {
-    const animateShine = () => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(shineAnimation, {
-            toValue: 1,
-            duration: 2000, // Adjust speed here (2 seconds)
-            useNativeDriver: true,
-          }),
-          Animated.timing(shineAnimation, {
-            toValue: 0,
-            duration: 0, // Reset instantly to start again
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    };
-
-    animateShine();
-  }, [shineAnimation]);
-
-   const shineTranslateX = shineAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-200, 900], // Horizontal movement (adjust to cover the box)
-  });
-
-  const shineTranslateY = shineAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-200, 250], // Vertical movement (adjust to cover the box)
-  });
-
   return (
-    <View style={styles.overlay}>
-    {/* Profile Box with Diagonal Shine Animation */}
-    <View style={styles.profileBox}>
-      <LinearGradient
-        colors={["#1a1a1a", "#333333", "#1a1a1a"]} // Darker gradient
-        style={styles.profileBackground}
-      >
-        {/* Shine Effect */}
-        <Animated.View
-          style={[
-            styles.shine,
-            {
-              transform: [
-                { translateX: shineTranslateX },
-                { translateY: shineTranslateY },
-                { rotate: "45deg" }, // Rotate the shine diagonally
-              ],
-            },
-          ]}
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.profileBox}>
+        <LinearGradient 
+          colors={["#1a1a1a", "#333333", "#1a1a1a"]} 
+          style={styles.profileBackground}
         >
-          <LinearGradient
-            colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} // Shine gradient
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.shineGradient}
-          />
-        </Animated.View>
-
-        {/* Profile Content */}
-        <View style={styles.profileContent}>
-          <Image source={require("../image/user.png")} style={styles.profileImage} />
-          <View style={styles.profileDetails}>
-            <Text style={styles.username}>{AsyncStorage.getItem("userName") || "User Name"}</Text>
-            <Text style={styles.userInfo}>+1 234 567 8900</Text>
-            <Text style={styles.userInfo}>user@example.com</Text>
+          <Animated.View
+            style={[
+              styles.shine,
+              { 
+                transform: [
+                  { translateX: shineTranslateX },
+                  { translateY: shineTranslateY },
+                  { rotate: "45deg" }
+                ]
+              }
+            ]}
+          >
+            <LinearGradient 
+              colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} 
+              style={styles.shineGradient} 
+            />
+          </Animated.View>
+          <View style={styles.profileContent}>
+            <Image 
+              source={require("../image/user.png")} 
+              style={styles.profileImage} 
+            />
+            <View style={styles.profileDetails}>
+              {loading ? (
+                <ActivityIndicator size="large" color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.username}>{profile?.name || "User Name"}</Text>
+                  <Text style={styles.userInfo}>{profile?.phone || "N/A"}</Text>
+                  <Text style={styles.userInfo}>{profile?.email || "N/A"}</Text>
+                </>
+              )}
+            </View>
           </View>
-        </View>
-      </LinearGradient>
-    </View>
-
-    
-        {/* Payment History - Sirf ye scroll karega */}
-        <View style={styles.paymentHistoryContainer}>
-          <Text style={styles.sectionTitle}>Payment History</Text>
-          <View style={styles.paymentBox}>
-            <ScrollView 
-              nestedScrollEnabled={true} 
-              style={{ maxHeight: 450 }} 
-              showsVerticalScrollIndicator={false}
-            >
-              {paymentHistory.map((item) => (
-                <View key={item.id} style={styles.paymentCard}>
-                  <View style={styles.paymentRow}>
-                    <Text style={styles.paymentDate}>{item.date}</Text>
-                    <Text style={styles.paymentAmount}>{item.amount}</Text>
-                  </View>
-                  <Text style={styles.paymentDescription}>{item.description}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-    
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
-          <LinearGradient colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} style={styles.button}>
-            <Text style={styles.buttonText}>Logout</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        </LinearGradient>
       </View>
-    );
+
+      <Text style={styles.historyTitle}>Haircut History</Text>
+      <View style={styles.historyContainer}>
+        {loading ? (
+          <ActivityIndicator size="large" color="#333" />
+        ) : profile?.history?.length > 0 ? (
+          profile.history.map((item, index) => (
+            <View key={index} style={styles.historyItem}>
+              <Text style={styles.historyService}>{item.service}</Text>
+              <Text style={styles.historyDate}>
+                {new Date(item.date).toLocaleDateString()}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noHistory}>No haircut history available.</Text>
+        )}
+      </View>
+
+      <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
+        <LinearGradient 
+          colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} 
+          style={styles.button}
+        >
+          <Text style={styles.buttonText}>Logout</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
+  container: {
+    flexGrow: 1,
     alignItems: "center",
-    justifyContent: "space-between", // Make sure button stays at the bottom
     padding: 20,
     backgroundColor: "#ffffff",
     width: "100%",
@@ -165,8 +180,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: 0,
-    width: 300, // Increase width to cover the box diagonally
-    height: "300%", // Increase height to cover the box diagonally
+    width: 300,
+    height: "300%",
   },
   shineGradient: {
     width: "100%",
@@ -192,73 +207,50 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#fff", // White text for contrast
+    color: "#fff",
   },
   userInfo: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#fff", // White text for contrast
+    color: "#fff",
     marginTop: 2,
   },
-  sectionTitle: {
+  historyTitle: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#000",
+    alignSelf: "flex-start",
   },
-  paymentHistoryContainer: {
+  historyContainer: {
     width: "100%",
-    alignItems: "center",
-    marginBottom: "auto",
-  },
-  paymentBox: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    width: "100%",
-    padding: 10,
-    maxHeight: "72%",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  paymentCard: {
-    backgroundColor: "#F9F9F9",
-    padding: 11,
+    backgroundColor: "#f8f8f8",
     borderRadius: 10,
-    marginBottom: 10,
-    width: "100%",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    padding: 15,
   },
-  paymentRow: {
+  historyItem: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
   },
-  paymentDate: {
-    fontSize: 14,
-    color: "#555",
-  },
-  paymentAmount: {
+  historyService: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "rgb(16, 98, 13)",
+    color: "#333",
   },
-  paymentDescription: {
-    fontSize: 15,
-    color: "#777",
-    marginTop: 4,
+  historyDate: {
+    fontSize: 14,
+    color: "#666",
+  },
+  noHistory: {
+    fontSize: 16,
+    color: "#999",
+    textAlign: "center",
   },
   buttonContainer: {
-    position: "absolute",
-    bottom: 10, // Fix at bottom
+    marginTop: 20,
     width: "90%",
-    alignSelf: "center",
   },
   button: {
     padding: 12,
