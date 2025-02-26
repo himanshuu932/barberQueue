@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const SECRET_KEY = "your-secret-key"; // Use an environment variable in productio
+const SECRET_KEY = "your-secret-key"; // Use an environment variable in production
 
 // Middleware
 app.use(cors());
