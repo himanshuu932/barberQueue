@@ -5,17 +5,39 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function Index() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
   const [userType, setUserType] = useState(null);
+
   useEffect(() => {
     const checkLoginStatus = async () => {
-      const token = await AsyncStorage.getItem("userToken");
-      const type = await AsyncStorage.getItem("userType");
-      setUserType(type);
-      setIsLoggedIn(!!token);
+      try {
+        const token = await AsyncStorage.getItem("userToken");
+        const type = await AsyncStorage.getItem("userType");
+        setUserType(type);
+        setIsLoggedIn(!!token);
+      } catch (error) {
+        console.error("Error reading AsyncStorage", error);
+        setIsLoggedIn(false);
+      }
     };
     checkLoginStatus();
   }, []);
 
-  if (isLoggedIn === null) return null; // While checking login status
+  // While we’re checking AsyncStorage, render nothing (or a splash/loading)
+  if (isLoggedIn === null) {
+    return null;
+  }
 
-  return <Redirect href={isLoggedIn ? userType==='admin'? "/(admin)/menu" :"/(tabs)/menu" : "/login"} />;
+  // Use a nested (or chained) ternary to redirect properly
+  return (
+    <Redirect
+      href={
+        isLoggedIn
+          ? userType === "admin"
+            ? "/(admin)/menu"
+            : userType === "superadmin"
+            ? "/(superadmin)/menu"
+            : "/(tabs)/menu"
+          : "/login"
+      }
+    />
+  );
 }
