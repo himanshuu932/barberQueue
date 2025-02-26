@@ -24,7 +24,7 @@ export default function LoginScreen() {
     }
 
     try {
-      const response = await fetch("http://10.0.2.2:5000/login", {
+      const response = await fetch("barber-queue-6qv4p2fg8-himanshus-projects-34e8d8a2.vercel.app/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

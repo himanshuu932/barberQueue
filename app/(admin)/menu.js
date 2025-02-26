@@ -23,7 +23,7 @@ export default function MenuScreen() {
   const [queueItems, setQueueItems] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
-  const API_BASE = "http://10.0.2.2:5000";
+  const API_BASE = "barber-queue-6qv4p2fg8-himanshus-projects-34e8d8a2.vercel.app";
   const shineAnimation = useRef(new Animated.Value(0)).current;
 
   // Get the setter from context to register our plus button handler
