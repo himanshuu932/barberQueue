@@ -43,15 +43,7 @@ export default function Layout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="locate"
-          options={{
-            title: "Locate",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="locate" size={size} color={color} />
-            ),
-          }}
-        />
+       
         <Tabs.Screen
           name="profile"
           options={{

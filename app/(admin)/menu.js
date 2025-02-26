@@ -111,7 +111,7 @@ export default function MenuScreen() {
       const now = new Date();
       const minutes = now.getMinutes().toString().padStart(2, "0");
       const seconds = now.getSeconds().toString().padStart(2, "0");
-      finalName = 'User${minutes}${seconds}'; // e.g., "User0406" if current time is 22:04:06
+      finalName =`User ${minutes}${seconds}`; 
     }
     await addPerson(finalName);
     setModalVisible(false);

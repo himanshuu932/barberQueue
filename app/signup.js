@@ -30,7 +30,7 @@ export default function SignupScreen() {
       await AsyncStorage.setItem("userToken", data.token);
       await AsyncStorage.setItem("userName", data.user.name);
       Alert.alert("Success", `Signed up as: ${data.user.email}`);
-      email==="admin"?router.replace("/(admin)/menu"):router.replace("/(tabs)/menu");
+      router.replace("/login");
     } catch (error) {
       console.error("Signup error:", error);
       Alert.alert("Error", "Something went wrong during signup.");
