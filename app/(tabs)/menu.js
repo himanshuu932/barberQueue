@@ -45,7 +45,7 @@ export default function MenuScreen() {
   const combinedName =
     userName && uid ? `${userName.substring(0, 2)}${uid.substring(0, 4)}` : null;
 
-  const API_BASE = "barber-queue-6qv4p2fg8-himanshus-projects-34e8d8a2.vercel.app";
+  const API_BASE = "https://barber-queue.vercel.app";
 
   useEffect(() => {
     Notifications.requestPermissionsAsync();
