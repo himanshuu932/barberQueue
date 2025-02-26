@@ -30,6 +30,7 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // In production, hash your passwords!
+  history: [{ service: String, date: Date }],
 });
 const User = mongoose.model("User", UserSchema);
 
@@ -198,6 +199,78 @@ app.patch("/queue/move", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// Auth Middleware
+const authMiddleware = (req, res, next) => {
+  const token = req.header("Authorization");
+  if (!token) {
+    return res.status(401).json({ error: "Access denied. No token provided." });
+  }
+  try {
+    const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY);
+    req.user = decoded; // Attach user info to request
+    next();
+  } catch (error) {
+    res.status(401).json({ error: "Invalid or expired token." });
+  }
+};
+
+// Profile Endpoint (Protected)
+app.get("/profile", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json(user);  // Includes history field
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+app.post("/history", authMiddleware, async (req, res) => {
+  try {
+    const { service } = req.body;
+    if (!service) {
+      return res.status(400).json({ error: "Service type is required" });
+    }
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    user.history.push({ service, date: new Date() });
+    await user.save();
+    res.json({ message: "History updated", history: user.history });
+  } catch (error) {
+    console.error("Error updating history:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/barber/add-history", authMiddleware, async (req, res) => {
+  try {
+    const { userId, service } = req.body;
+    if (!userId || !service) {
+      return res.status(400).json({ error: "User ID and service are required" });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    user.history.push({ service, date: new Date() });
+    await user.save();
+    res.json({ message: "Service history added successfully", history: user.history });
+  } catch (error) {
+    console.error("Error adding history:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
