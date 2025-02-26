@@ -1,7 +1,16 @@
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Animated, ActivityIndicator } from "react-native";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  Image, 
+  TouchableOpacity, 
+  Animated, 
+  ActivityIndicator 
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function TabProfileScreen() {
@@ -10,45 +19,46 @@ export default function TabProfileScreen() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const token = await AsyncStorage.getItem("userToken");
-        const response = await fetch("https://barber-queue.vercel.app/profile", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        setProfile(data);
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
+  const fetchProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const response = await fetch("http://10.0.2.2:5000/profile", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      setProfile(data);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // useFocusEffect ensures that fetchProfile runs every time this screen is focused.
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [])
+  );
 
   useEffect(() => {
-    const animateShine = () => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(shineAnimation, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(shineAnimation, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    };
-    animateShine();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shineAnimation, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shineAnimation, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   }, [shineAnimation]);
 
   const shineTranslateX = shineAnimation.interpolate({
@@ -73,14 +83,32 @@ export default function TabProfileScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.profileBox}>
-        <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
+        <LinearGradient 
+          colors={["#1a1a1a", "#333333", "#1a1a1a"]} 
+          style={styles.profileBackground}
+        >
           <Animated.View
-            style={[styles.shine, { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] }]}
+            style={[
+              styles.shine,
+              { 
+                transform: [
+                  { translateX: shineTranslateX },
+                  { translateY: shineTranslateY },
+                  { rotate: "45deg" }
+                ]
+              }
+            ]}
           >
-            <LinearGradient colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} style={styles.shineGradient} />
+            <LinearGradient 
+              colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} 
+              style={styles.shineGradient} 
+            />
           </Animated.View>
           <View style={styles.profileContent}>
-            <Image source={require("../image/user.png")} style={styles.profileImage} />
+            <Image 
+              source={require("../image/user.png")} 
+              style={styles.profileImage} 
+            />
             <View style={styles.profileDetails}>
               {loading ? (
                 <ActivityIndicator size="large" color="#fff" />
@@ -104,7 +132,9 @@ export default function TabProfileScreen() {
           profile.history.map((item, index) => (
             <View key={index} style={styles.historyItem}>
               <Text style={styles.historyService}>{item.service}</Text>
-              <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
+              <Text style={styles.historyDate}>
+                {new Date(item.date).toLocaleDateString()}
+              </Text>
             </View>
           ))
         ) : (
@@ -113,7 +143,10 @@ export default function TabProfileScreen() {
       </View>
 
       <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
-        <LinearGradient colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} style={styles.button}>
+        <LinearGradient 
+          colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} 
+          style={styles.button}
+        >
           <Text style={styles.buttonText}>Logout</Text>
         </LinearGradient>
       </TouchableOpacity>
@@ -230,4 +263,3 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
-

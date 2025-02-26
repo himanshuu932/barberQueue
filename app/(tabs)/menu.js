@@ -9,7 +9,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Button,
   Alert,
   ImageBackground,
 } from "react-native";
@@ -25,7 +24,8 @@ Notifications.setNotificationHandler({
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
-  const [names, setNames] = useState([]);
+  // Now we store an array of objects: each object contains _id, name, and order.
+  const [queueItems, setQueueItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notified, setNotified] = useState(false);
   const [userName, setUserName] = useState(null);
@@ -45,19 +45,24 @@ export default function MenuScreen() {
   const combinedName =
     userName && uid ? `${userName.substring(0, 2)}${uid.substring(0, 4)}` : null;
 
-  const API_BASE = "https://barber-queue.vercel.app";
+  const API_BASE = "http://10.0.2.2:5000";
 
   useEffect(() => {
     Notifications.requestPermissionsAsync();
   }, []);
 
+  // Updated fetchQueueData to expect a "data" property containing objects with _id and name.
   const fetchQueueData = async () => {
     try {
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
-      if (data.queueLength !== queueLength || JSON.stringify(data.names) !== JSON.stringify(names)) {
+      // data should have { queueLength, data: [...] }
+      if (
+        data.queueLength !== queueLength ||
+        JSON.stringify(data.data) !== JSON.stringify(queueItems)
+      ) {
         setQueueLength(data.queueLength);
-        setNames(data.names);
+        setQueueItems(data.data);
       }
     } catch (error) {
       console.error("Error fetching queue data:", error);
@@ -74,7 +79,9 @@ export default function MenuScreen() {
     return () => clearInterval(intervalId);
   }, []);
 
-  const userPosition = combinedName && names.includes(combinedName) ? names.indexOf(combinedName) + 1 : null;
+  // Calculate user position by searching in the queueItems array.
+  const index = queueItems.findIndex((item) => item.name === combinedName);
+  const userPosition = index >= 0 ? index + 1 : null;
   const avgServiceTime = 10;
   const initialWaitTime = userPosition ? userPosition * avgServiceTime * 60 : null;
 
@@ -105,20 +112,18 @@ export default function MenuScreen() {
     }
   }, [userPosition]);
 
+  // The joinQueue and leaveQueue functions remain using HTTP calls.
   const joinQueue = async () => {
     if (!combinedName) {
       Alert.alert("Error", "User information not loaded yet.");
       return;
     }
-  
+
     Alert.alert(
       "Confirm Join",
       "Are you sure you want to join the queue?",
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "OK",
           onPress: async () => {
@@ -126,9 +131,9 @@ export default function MenuScreen() {
               const response = await fetch(`${API_BASE}/queue`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: combinedName }),
+                body: JSON.stringify({ name: combinedName,id:uid }),
               });
-  
+
               if (response.ok) {
                 fetchQueueData();
               } else {
@@ -143,21 +148,18 @@ export default function MenuScreen() {
       ]
     );
   };
-  
+
   const leaveQueue = async () => {
     if (!combinedName) {
       Alert.alert("Error", "User information not loaded yet.");
       return;
     }
-  
+
     Alert.alert(
       "Confirm Leave",
       "Are you sure you want to leave the queue?",
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "OK",
           onPress: async () => {
@@ -166,7 +168,7 @@ export default function MenuScreen() {
                 `${API_BASE}/queue?name=${encodeURIComponent(combinedName)}`,
                 { method: "DELETE" }
               );
-  
+
               if (response.ok) {
                 fetchQueueData();
               } else {
@@ -181,7 +183,6 @@ export default function MenuScreen() {
       ]
     );
   };
-  
 
   const formatTime = (seconds) => {
     if (seconds === null || seconds <= 0) return "Ready!";
@@ -200,7 +201,7 @@ export default function MenuScreen() {
 
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
-      <View style={styles.overlay} /> 
+      <View style={styles.overlay} />
       <View style={styles.container}>
         <Text style={styles.userCode}>{combinedName}</Text>
         {userPosition && (
@@ -210,37 +211,42 @@ export default function MenuScreen() {
         )}
         <Text style={styles.queue}>👤 {queueLength}</Text>
         <Text style={styles.queueListTitle}>Queue List</Text>
-        <ScrollView style={styles.namesContainer} nestedScrollEnabled={true} 
-          showsVerticalScrollIndicator={false} 
-          contentContainerStyle={{ paddingBottom: 10 }}>
-          {names.map((name, index) => (
-            <View key={index} style={styles.queueCard}>
+        <ScrollView
+          style={styles.namesContainer}
+          nestedScrollEnabled={true}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 10 }}
+        >
+          {queueItems.map((item, index) => (
+            <View key={item._id} style={styles.queueCard}>
               <Text style={styles.queueNumber}>{index + 1}.</Text>
-              <Text style={styles.queueName}>{name}</Text>
+              <View>
+                <Text style={styles.queueName}>{item.name}</Text>
+                <Text style={styles.queueId}>ID: {item._id}</Text>
+              </View>
             </View>
           ))}
         </ScrollView>
         <View style={styles.buttonContainer}>
-          {combinedName && names.includes(combinedName) ? (
+          {combinedName && queueItems.some((item) => item.name === combinedName) ? (
             <TouchableOpacity style={styles.leaveButton} onPress={leaveQueue}>
               <Icon name="sign-out" size={24} color="white" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.joinButton} onPress={joinQueue}>
-  <Svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="25"
-    height="25"
-    viewBox="0 0 16 16"
-    fill="white"
-  >
-    <Path
-      fillRule="evenodd"
-      d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
-    />
-  </Svg>
-</TouchableOpacity>
-
+              <Svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="25"
+                height="25"
+                viewBox="0 0 16 16"
+                fill="white"
+              >
+                <Path
+                  fillRule="evenodd"
+                  d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
+                />
+              </Svg>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -258,7 +264,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(237, 236, 236, 0.77)", // White overlay with 50% opacity
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
   },
   container: {
     flex: 1,
@@ -272,7 +278,7 @@ const styles = StyleSheet.create({
     fontSize: 70,
     fontWeight: "bold",
     textAlign: "center",
-    color: "black",  // Ensure text is visible on background
+    color: "black",
   },
   waitTime: {
     fontSize: 16,
@@ -312,7 +318,7 @@ const styles = StyleSheet.create({
   },
   queueCard: {
     flexDirection: "row",
-    alignItems:"center",
+    alignItems: "center",
     gap: 10,
     backgroundColor: "#F9F9F9",
     padding: 20,
@@ -334,16 +340,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#777",
   },
+  queueId: {
+    fontSize: 10,
+    color: "#555",
+  },
   joinButton: {
-    width: 50, // Circular button size
+    width: 50,
     height: 50,
-    borderRadius: 12, // Fully round button
+    borderRadius: 12,
     backgroundColor: "rgb(48, 139, 36)",
-    justifyContent: "center", // Center icon vertically
-    alignItems: "center", // Center icon horizontally
+    justifyContent: "center",
+    alignItems: "center",
     elevation: 3,
   },
-  
   leaveButton: {
     width: 50,
     height: 50,
@@ -353,14 +362,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 3,
   },
-
   buttonContainer: {
     position: "absolute",
-    bottom: 20, // Adjust as needed
-    right: 25,  // Adjust as needed
+    bottom: 20,
+    right: 25,
     flexDirection: "row",
-    gap: 10, // Space between join & leave buttons
+    gap: 10,
   },
-  
 });
-

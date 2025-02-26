@@ -9,24 +9,27 @@ import {
   ImageBackground,
   Animated,
   Modal,
-  TextInput
+  TextInput,
+  Alert
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { PlusButtonContext } from "./_layout"; // Adjust this import path as needed
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
-  const [names, setNames] = useState([]);
+  // Now storing an array of objects with _id and name.
+  const [queueItems, setQueueItems] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
-  const API_BASE = "https://barber-queue.vercel.app";
+  const API_BASE = "http://10.0.2.2:5000";
   const shineAnimation = useRef(new Animated.Value(0)).current;
 
-  // Get the setter from the context so we can register our plus button handler
+  // Get the setter from context to register our plus button handler
   const { setPlusButtonHandler } = useContext(PlusButtonContext);
 
-  // Register our handleIncrement as the plus button handler when this screen mounts.
+  // Register handleIncrement as the plus button handler when this screen mounts.
   useEffect(() => {
     setPlusButtonHandler(() => handleIncrement);
     return () => setPlusButtonHandler(() => {});
@@ -59,12 +62,13 @@ export default function MenuScreen() {
     outputRange: [-200, 250],
   });
 
+  // Updated fetchQueueData: expects { queueLength, data } where data is an array of objects.
   const fetchQueueData = async () => {
     try {
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
       setQueueLength(data.queueLength);
-      setNames(data.names);
+      setQueueItems(data.data);
     } catch (error) {
       console.error("Error fetching queue data:", error);
     }
@@ -75,6 +79,52 @@ export default function MenuScreen() {
     const intervalId = setInterval(fetchQueueData, 2000);
     return () => clearInterval(intervalId);
   }, []);
+
+  // Mark user as served by updating their history and then removing them from the queue.
+  // Notice that we now pass the MongoDB _id as userId, and the name is used to remove the user.
+  const markUserServed = async (userId, userName) => {
+    console.log("Mark user as served", userId, userName);
+    if(!userId)
+    {
+       removePerson(userName);
+       return;
+    }
+    try {
+      // Retrieve the stored token from AsyncStorage
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Authentication Error", "User not authenticated.");
+        return;
+      }
+  
+      const response = await fetch(`${API_BASE}/barber/add-history`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId, service: "Haircut" }),
+      });
+      if (!response.ok) {
+        // Log error details from the backend response
+        const errorData = await response.json();
+        console.error("Backend error response:", errorData);
+        throw new Error("Failed to mark user as served");
+      }
+      // Remove user from queue by their name.
+      await fetch(`${API_BASE}/queue?name=${encodeURIComponent(userName)}`, {
+        method: "DELETE",
+      });
+      fetchQueueData();
+      Alert.alert(
+        "Success",
+        "User has been marked as served and removed from the queue."
+      );
+    } catch (error) {
+      console.error("Error marking user served:", error);
+      Alert.alert("Error", "Failed to mark user as served.");
+    }
+  };
 
   const removePerson = async (name) => {
     await fetch(`${API_BASE}/queue?name=${encodeURIComponent(name)}`, { method: "DELETE" });
@@ -99,7 +149,7 @@ export default function MenuScreen() {
     fetchQueueData();
   };
 
-  // Plus button functionality: open the modal with a default (empty) value.
+  // Plus button functionality: open the modal with an empty value.
   const handleIncrement = () => {
     setNewName("");
     setModalVisible(true);
@@ -111,7 +161,7 @@ export default function MenuScreen() {
       const now = new Date();
       const minutes = now.getMinutes().toString().padStart(2, "0");
       const seconds = now.getSeconds().toString().padStart(2, "0");
-      finalName =`User ${minutes}${seconds}`; 
+      finalName = `User ${minutes}${seconds}`; 
     }
     await addPerson(finalName);
     setModalVisible(false);
@@ -139,30 +189,39 @@ export default function MenuScreen() {
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
       <View style={styles.overlay} /> 
       <View style={styles.container}>
-        <Text style={styles.userCode}>{names[0] ? names[0] : "Aaj kdki h!"}</Text>
+        <Text style={styles.userCode}>
+          {queueItems[0] ? queueItems[0].name : "Aaj kdki h!"}
+        </Text>
         <Text style={styles.queue}>👤 {queueLength}</Text>
         <Text style={styles.queueListTitle}>Queue List</Text>
-        <ScrollView style={styles.namesContainer} nestedScrollEnabled={true} 
+        <ScrollView 
+          style={styles.namesContainer} 
+          nestedScrollEnabled={true} 
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={{ paddingBottom: 10 }}>
-          {names.map((name, index) => (
-            <View key={index} style={styles.queueCard}>
+          {queueItems.map((item, index) => (
+            <View key={item._id} style={styles.queueCard}>
               <View style={styles.nameText}>
                 <Text style={styles.queueNumber}>{index + 1}.</Text>
-                <Text style={styles.queueName}>{name}</Text>
+                <View>
+                  <Text style={styles.queueName}>{item.name}</Text>
+                  <Text style={styles.queueId}>ID: {item._id}</Text>
+                </View>
               </View>
               <View style={styles.iconGroup}>
                 {index < 3 ? (
-                  <TouchableOpacity style={styles.doneButton} onPress={() => removePerson(name)}>
+                  <TouchableOpacity
+                    style={styles.doneButton}
+                    onPress={() => markUserServed(item._id, item.name)}>
                     <Icon name="check" size={24} color="white" />
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => removePerson(name)}>
+                  <TouchableOpacity onPress={() => removePerson(item.name)}>
                     <Icon name="delete" size={24} color="red" />
                   </TouchableOpacity>
                 )}
                 {index < 3 && (
-                  <TouchableOpacity style={styles.downButton} onPress={() => moveDownPerson(name)}>
+                  <TouchableOpacity style={styles.downButton} onPress={() => moveDownPerson(item.name)}>
                     <Icon name="arrow-downward" size={24} color="white" />
                   </TouchableOpacity>
                 )}
@@ -171,15 +230,12 @@ export default function MenuScreen() {
           ))}
         </ScrollView>
   
-      
-        
         {/* Modal Overlay for adding a new name */}
         <Modal
           transparent={true}
           animationType="slide"
           visible={modalVisible}
-          onRequestClose={handleCancel}
-        >
+          onRequestClose={handleCancel}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Enter Name</Text>
@@ -289,6 +345,10 @@ const styles = StyleSheet.create({
     top: "5%",
     fontSize: 20,
     color: "#777",
+  },
+  queueId: {
+    fontSize: 10,
+    color: "#555",
   },
   joinButton: {
     width: 50, 

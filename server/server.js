@@ -42,6 +42,7 @@ const QueueSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     order: { type: Number, required: true },
+    uid: { type: String},
   },
   { timestamps: true }
 );
@@ -112,32 +113,40 @@ app.post("/login", async (req, res) => {
    Queue Endpoints
    =============================== */
 
-// GET endpoint to fetch the current queue length and names (sorted by order)
-app.get("/queue", async (req, res) => {
-  try {
-    const queueItems = await Queue.find({}, "name order").sort({ order: 1 });
-    const queueLength = queueItems.length;
-    const names = queueItems.map((item) => item.name);
-    res.json({ queueLength, names });
-  } catch (error) {
-    console.error("Error fetching queue:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+// GET endpoint to fetch the current queue length and names (sorted by order)app.get("/queue", async (req, res) => {
+  app.get("/queue", async (req, res) => {
+    try {
+      const queueItems = await Queue.find({}, "name order uid").sort({ order: 1 });
+      const queueLength = queueItems.length;
+
+      const data = queueItems.map((item) => ({
+        _id: item.uid,
+        name: item.name,
+        order: item.order,
+      }));
+     // console.log(data);
+      res.json({ queueLength, data });
+    } catch (error) {
+      console.error("Error fetching queue:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+  
+
 
 // POST endpoint to add a person to the queue (increment)
 // When adding a new person, set their order to max(current orders)+1.
 // POST endpoint to add a person to the queue (increment)
 app.post("/queue", async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name,id } = req.body;
     // Find the document with the highest valid order value.
     const lastInQueue = await Queue.findOne({ order: { $exists: true } }).sort({ order: -1 });
     let newOrder = 1;
     if (lastInQueue && !isNaN(lastInQueue.order)) {
       newOrder = Number(lastInQueue.order) + 1;
     }
-    const newPerson = new Queue({ name: name || "Dummy Person", order: newOrder });
+    const newPerson = new Queue({ name: name || "Dummy Person", order: newOrder,uid: id || null});
     await newPerson.save();
     res.status(201).json(newPerson);
   } catch (error) {
@@ -250,6 +259,7 @@ app.post("/history", authMiddleware, async (req, res) => {
 });
 
 app.post("/barber/add-history", authMiddleware, async (req, res) => {
+  //console.log("here")
   try {
     const { userId, service } = req.body;
     if (!userId || !service) {
@@ -259,14 +269,19 @@ app.post("/barber/add-history", authMiddleware, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
+    // Add a new history record with the service type and current date.
     user.history.push({ service, date: new Date() });
     await user.save();
-    res.json({ message: "Service history added successfully", history: user.history });
+    return res.status(200).json({
+      message: "User marked as served and history updated successfully",
+      history: user.history,
+    });
   } catch (error) {
-    console.error("Error adding history:", error);
+    console.error("Error updating service history:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 
 
