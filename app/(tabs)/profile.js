@@ -81,86 +81,104 @@ export default function TabProfileScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.profileBox}>
-        <LinearGradient 
-          colors={["#1a1a1a", "#333333", "#1a1a1a"]} 
-          style={styles.profileBackground}
-        >
-          <Animated.View
-            style={[
-              styles.shine,
-              { 
-                transform: [
-                  { translateX: shineTranslateX },
-                  { translateY: shineTranslateY },
-                  { rotate: "45deg" }
-                ]
-              }
-            ]}
+    <View style={styles.container}>
+      {/* Fixed header */}
+      <View style={styles.header}>
+        <View style={styles.profileBox}>
+          <LinearGradient 
+            colors={["#1a1a1a", "#333333", "#1a1a1a"]} 
+            style={styles.profileBackground}
           >
-            <LinearGradient 
-              colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} 
-              style={styles.shineGradient} 
-            />
-          </Animated.View>
-          <View style={styles.profileContent}>
-            <Image 
-              source={require("../image/user.png")} 
-              style={styles.profileImage} 
-            />
-            <View style={styles.profileDetails}>
-              {loading ? (
-                <ActivityIndicator size="large" color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.username}>{profile?.name || "User Name"}</Text>
-                  <Text style={styles.userInfo}>{profile?.phone || "N/A"}</Text>
-                  <Text style={styles.userInfo}>{profile?.email || "N/A"}</Text>
-                </>
-              )}
+            <Animated.View
+              style={[
+                styles.shine,
+                { 
+                  transform: [
+                    { translateX: shineTranslateX },
+                    { translateY: shineTranslateY },
+                    { rotate: "45deg" }
+                  ]
+                }
+              ]}
+            >
+              <LinearGradient 
+                colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} 
+                style={styles.shineGradient} 
+              />
+            </Animated.View>
+            <View style={styles.profileContent}>
+              <Image 
+                source={require("../image/user.png")} 
+                style={styles.profileImage} 
+              />
+              <View style={styles.profileDetails}>
+                {loading ? (
+                  <ActivityIndicator size="large" color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.username}>{profile?.name || "User Name"}</Text>
+                    <Text style={styles.userInfo}>{profile?.phone || "N/A"}</Text>
+                    <Text style={styles.userInfo}>{profile?.email || "N/A"}</Text>
+                  </>
+                )}
+              </View>
             </View>
-          </View>
-        </LinearGradient>
+          </LinearGradient>
+        </View>
+        <Text style={styles.historyTitle}>Service History</Text>
       </View>
 
-      <Text style={styles.historyTitle}>Haircut History</Text>
-      <View style={styles.historyContainer}>
-        {loading ? (
-          <ActivityIndicator size="large" color="#333" />
-        ) : profile?.history?.length > 0 ? (
-          profile.history.map((item, index) => (
-            <View key={index} style={styles.historyItem}>
-              <Text style={styles.historyService}>{item.service}</Text>
-              <Text style={styles.historyDate}>
-                {new Date(item.date).toLocaleDateString()}
-              </Text>
-            </View>
-          ))
-        ) : (
-          <Text style={styles.noHistory}>No haircut history available.</Text>
-        )}
+      {/* Scrollable history list */}
+      <ScrollView 
+         style={styles.historyScroll}
+         contentContainerStyle={styles.historyScrollContent}
+         showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.historyContainer}>
+          {loading ? (
+            <ActivityIndicator size="large" color="#333" />
+          ) : profile?.history?.length > 0 ? (
+            profile.history.map((item, index) => (
+                
+                <View key={index} style={styles.historyItem}>
+                  <View style={styles.paymentRow}>
+                <Text style={styles.historyService}>{item.service}</Text>
+                <Text style={styles.paymentAmount}>₹100</Text>
+               
+                </View>
+                <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noHistory}>No haircut history available.</Text>
+          )}
+        </View>
+      </ScrollView>
+  
+      {/* Fixed logout button */}
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
+          <LinearGradient 
+            colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} 
+            style={styles.button}
+          >
+            <Text style={styles.buttonText}>Logout</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
-        <LinearGradient 
-          colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} 
-          style={styles.button}
-        >
-          <Text style={styles.buttonText}>Logout</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    alignItems: "center",
-    padding: 20,
+    flex: 1,
     backgroundColor: "#ffffff",
     width: "100%",
+  },
+  header: {
+    padding: 20,
+    alignItems: "center",
   },
   profileBox: {
     width: "100%",
@@ -193,6 +211,7 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingHorizontal: 20,
   },
+  paymentRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   profileImage: {
     width: 80,
     height: 80,
@@ -221,35 +240,37 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     alignSelf: "flex-start",
   },
+  historyScroll: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  historyScrollContent: {
+    paddingBottom: 20,
+  },
   historyContainer: {
     width: "100%",
     backgroundColor: "#f8f8f8",
     borderRadius: 10,
     padding: 15,
   },
-  historyItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
+  historyItem: { backgroundColor: "#F9F9F9", padding: 11, borderRadius: 10, marginBottom: 10, elevation: 3 },
   historyService: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 15, color: "#777", marginTop: 4
   },
+  paymentAmount: { fontSize: 16, fontWeight: "bold", color: "rgb(16, 98, 13)" },
   historyDate: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 14, color: "#555" 
   },
   noHistory: {
     fontSize: 16,
     color: "#999",
     textAlign: "center",
   },
+  footer: {
+    padding: 20,
+    alignItems: "center",
+  },
   buttonContainer: {
-    marginTop: 20,
     width: "90%",
   },
   button: {

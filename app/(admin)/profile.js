@@ -10,8 +10,8 @@ import {
   TouchableOpacity,
   Animated,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 
+import { LinearGradient } from "expo-linear-gradient";
 export default function TabProfileScreen({ navigation }) {
   const router = useRouter();
   const shineAnimation = useRef(new Animated.Value(0)).current;
