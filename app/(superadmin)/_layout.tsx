@@ -1,25 +1,11 @@
-import React, { createContext, useState, Dispatch, SetStateAction } from "react";
+import React from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
-
-// Define a type for the context
-interface PlusButtonContextType {
-  plusButtonHandler: () => void;
-  setPlusButtonHandler: Dispatch<SetStateAction<() => void>>;
-}
-
-// Create the context with the proper types
-export const PlusButtonContext = createContext<PlusButtonContextType>({
-  plusButtonHandler: () => {},
-  setPlusButtonHandler: () => {},
-});
+import { View, Text, StyleSheet } from "react-native";
 
 export default function Layout() {
-  const [plusButtonHandler, setPlusButtonHandler] = useState<() => void>(() => () => {});
-
   return (
-    <PlusButtonContext.Provider value={{ plusButtonHandler, setPlusButtonHandler }}>
+    <View style={styles.container}>
       {/* Custom Header */}
       <View style={styles.header}>
         <Text style={styles.title}>My App</Text>
@@ -43,7 +29,6 @@ export default function Layout() {
             ),
           }}
         />
-       
         <Tabs.Screen
           name="profile"
           options={{
@@ -54,16 +39,12 @@ export default function Layout() {
           }}
         />
       </Tabs>
-
-      {/* Floating Plus Button integrated with the navbar (with slight bulge) */}
-      <TouchableOpacity style={styles.floatingButton} onPress={plusButtonHandler}>
-        <Ionicons name="add" size={36} color="#fff" />
-      </TouchableOpacity>
-    </PlusButtonContext.Provider>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   header: {
     height: 60,
     backgroundColor: "black",
@@ -75,22 +56,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 20,
     marginLeft: 15,
-  },
-  floatingButton: {
-    position: "absolute",
-    bottom: 0,
-    alignSelf: "center",
-    transform: [{ translateY: -20 }], // Slight bulge above the navbar
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "rgba(0, 123, 255, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
   },
 });

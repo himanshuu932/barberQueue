@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { TouchableOpacity } from "react-native";
-import Icon from "react-native-vector-icons/FontAwesome";
-import Svg, { Path } from "react-native-svg";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  TouchableOpacity,
+  Modal,
+  Alert,
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Alert,
   ImageBackground,
+  FlatList,
+  Platform,
 } from "react-native";
+import Icon from "react-native-vector-icons/FontAwesome";
+import Svg, { Path } from "react-native-svg";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
+import { io } from "socket.io-client";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -24,13 +29,29 @@ Notifications.setNotificationHandler({
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
-  // Now we store an array of objects: each object contains _id, name, and order.
   const [queueItems, setQueueItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notified, setNotified] = useState(false);
   const [userName, setUserName] = useState(null);
   const [uid, setUid] = useState(null);
+  const [socket, setSocket] = useState(null);
+
+  const API_BASE = "https://servercheckbarber.vercel.app";
   const [remainingTime, setRemainingTime] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [checklist, setChecklist] = useState([
+    { id: 1, text: "Haircut", price: "$10", checked: false },
+    { id: 2, text: "Beard Trim", price: "$8", checked: false },
+    { id: 3, text: "Shave", price: "$6", checked: false },
+    { id: 4, text: "Hair Wash", price: "$5", checked: false },
+    { id: 5, text: "Head Massage", price: "$12", checked: false },
+    { id: 6, text: "Facial", price: "$15", checked: false },
+    { id: 7, text: "Hair Color", price: "$20", checked: false },
+  ]);
+
+  const totalSelectedPrice = checklist
+    .filter((item) => item.checked)
+    .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -45,18 +66,61 @@ export default function MenuScreen() {
   const combinedName =
     userName && uid ? `${userName.substring(0, 2)}${uid.substring(0, 4)}` : null;
 
-  const API_BASE = "http://10.0.2.2:5000";
-
   useEffect(() => {
     Notifications.requestPermissionsAsync();
   }, []);
 
-  // Updated fetchQueueData to expect a "data" property containing objects with _id and name.
+  // Register for push notifications when uid is available
+  useEffect(() => {
+    async function registerForPushNotifications() {
+      if (!Constants.isDevice) {
+        console.log("Must use a physical device for Push Notifications");
+        return;
+      }
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== "granted") {
+        console.log("Failed to get push token for push notification!");
+        return;
+      }
+      const token = (await Notifications.getExpoPushTokenAsync()).data;
+      console.log("Expo Push Token:", token);
+      // Send token to your backend
+      await fetch(`${API_BASE}/register-push-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, token }),
+      });
+    }
+    if (uid) {
+      registerForPushNotifications();
+    }
+  }, [uid]);
+
+  // Initialize WebSocket connection
+  useEffect(() => {
+    const newSocket = io(API_BASE);
+    setSocket(newSocket);
+    return () => newSocket.disconnect();
+  }, []);
+
+  // Listen for queue updates
+  useEffect(() => {
+    if (socket) {
+      socket.on("queueUpdated", () => {
+        fetchQueueData();
+      });
+    }
+  }, [socket]);
+
   const fetchQueueData = async () => {
     try {
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
-      // data should have { queueLength, data: [...] }
       if (
         data.queueLength !== queueLength ||
         JSON.stringify(data.data) !== JSON.stringify(queueItems)
@@ -73,13 +137,8 @@ export default function MenuScreen() {
 
   useEffect(() => {
     fetchQueueData();
-    const intervalId = setInterval(() => {
-      fetchQueueData();
-    }, 5000);
-    return () => clearInterval(intervalId);
   }, []);
 
-  // Calculate user position by searching in the queueItems array.
   const index = queueItems.findIndex((item) => item.name === combinedName);
   const userPosition = index >= 0 ? index + 1 : null;
   const avgServiceTime = 10;
@@ -87,66 +146,96 @@ export default function MenuScreen() {
 
   useEffect(() => {
     setRemainingTime(initialWaitTime);
-
     if (initialWaitTime) {
       const timer = setInterval(() => {
         setRemainingTime((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
       }, 1000);
-
       return () => clearInterval(timer);
     }
   }, [userPosition]);
 
+  // When near the front, ask backend to send a push notification (for offline delivery)
   useEffect(() => {
     if (userPosition !== null && userPosition <= 3 && !notified) {
-      Notifications.scheduleNotificationAsync({
-        content: {
+      fetch(`${API_BASE}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid,
           title: "Almost Your Turn!",
           body: `You're number ${userPosition} in line. Please get ready for your service.`,
-        },
-        trigger: null,
-      });
+        }),
+      }).catch((error) => console.error("Error notifying:", error));
       setNotified(true);
     } else if (userPosition === null || userPosition > 3) {
       setNotified(false);
     }
   }, [userPosition]);
 
-  // The joinQueue and leaveQueue functions remain using HTTP calls.
+  const formatTime = (seconds) => {
+    if (seconds === null || seconds <= 0) return "Ready!";
+    const minutes = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return `${minutes}m ${sec}s`;
+  };
+
   const joinQueue = async () => {
-    if (!combinedName) {
-      Alert.alert("Error", "User information not loaded yet.");
+    // Get the list of selected services from your checklist
+    const selectedServices = checklist
+    .filter((item) => item.checked)
+    .map((item) => {
+     
+      return item.text;
+    });
+  
+
+    // Ensure at least one service is selected
+    if (selectedServices.length === 0) {
+      Alert.alert(
+        "No Service Selected",
+        "Please select at least one service before proceeding."
+      );
       return;
     }
 
-    Alert.alert(
-      "Confirm Join",
-      "Are you sure you want to join the queue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "OK",
-          onPress: async () => {
-            try {
-              const response = await fetch(`${API_BASE}/queue`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: combinedName,id:uid }),
-              });
+    // Close the modal (from your modal component)
+    setModalVisible(false);
+   Alert.alert("Join Queue",`${totalSelectedPrice}`);
+    try {
+      // Send an API request to join the queue with the selected services
+      const response = await fetch(`${API_BASE}/queue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: combinedName,
+          id: uid,
+          services: selectedServices,
+        }),
+      });
 
-              if (response.ok) {
-                fetchQueueData();
-              } else {
-                Alert.alert("Error", "Failed to join the queue.");
-              }
-            } catch (error) {
-              console.error("Error joining queue:", error);
-              Alert.alert("Error", "An error occurred while joining the queue.");
-            }
-          },
-        },
-      ]
-    );
+      if (response.ok) {
+        // Optionally, parse the response data
+        const data = await response.json();
+
+        // Update the queue data (this function should update your state accordingly)
+        fetchQueueData();
+
+        // Emit a socket event to notify the server that a new user has joined the queue,
+        // including the selected services for further processing
+        if (socket) {
+          socket.emit("joinQueue", {
+            id: uid,
+            name: combinedName,
+            services: selectedServices,
+          });
+        }
+      } else {
+        Alert.alert("Error", "Failed to join the queue.");
+      }
+    } catch (error) {
+      console.error("Error joining queue:", error);
+      Alert.alert("Error", "An error occurred while joining the queue.");
+    }
   };
 
   const leaveQueue = async () => {
@@ -154,7 +243,6 @@ export default function MenuScreen() {
       Alert.alert("Error", "User information not loaded yet.");
       return;
     }
-
     Alert.alert(
       "Confirm Leave",
       "Are you sure you want to leave the queue?",
@@ -165,11 +253,13 @@ export default function MenuScreen() {
           onPress: async () => {
             try {
               const response = await fetch(
-                `${API_BASE}/queue?name=${encodeURIComponent(combinedName)}`,
+                `${API_BASE}/queue?uid=${encodeURIComponent(uid)}`,
                 { method: "DELETE" }
               );
-
               if (response.ok) {
+                if (socket) {
+                  socket.emit("leaveQueue", { name: combinedName, id: uid });
+                }
                 fetchQueueData();
               } else {
                 Alert.alert("Error", "Failed to leave the queue.");
@@ -182,13 +272,6 @@ export default function MenuScreen() {
         },
       ]
     );
-  };
-
-  const formatTime = (seconds) => {
-    if (seconds === null || seconds <= 0) return "Ready!";
-    const minutes = Math.floor(seconds / 60);
-    const sec = seconds % 60;
-    return `${minutes}m ${sec}s`;
   };
 
   if (loading) {
@@ -218,22 +301,24 @@ export default function MenuScreen() {
           contentContainerStyle={{ paddingBottom: 10 }}
         >
           {queueItems.map((item, index) => (
-            <View key={item._id} style={styles.queueCard}>
+            <View key={item.uid} style={styles.queueCard}>
               <Text style={styles.queueNumber}>{index + 1}.</Text>
               <View>
                 <Text style={styles.queueName}>{item.name}</Text>
-                <Text style={styles.queueId}>ID: {item._id}</Text>
+                <Text style={styles.queueId}>ID: {item.uid}</Text>
               </View>
+              {item.uid === uid && <Text style={styles.queueService}>${totalSelectedPrice}</Text>}
             </View>
           ))}
         </ScrollView>
+
         <View style={styles.buttonContainer}>
           {combinedName && queueItems.some((item) => item.name === combinedName) ? (
             <TouchableOpacity style={styles.leaveButton} onPress={leaveQueue}>
               <Icon name="sign-out" size={24} color="white" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.joinButton} onPress={joinQueue}>
+            <TouchableOpacity style={styles.joinButton} onPress={() => setModalVisible(true)}>
               <Svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="25"
@@ -249,6 +334,45 @@ export default function MenuScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        <Modal visible={modalVisible} animationType="slide" transparent>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Checklist Before Joining</Text>
+              <FlatList
+                data={checklist}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.checklistItem}
+                    onPress={() =>
+                      setChecklist((prev) =>
+                        prev.map((i) =>
+                          i.id === item.id ? { ...i, checked: !i.checked } : i
+                        )
+                      )
+                    }
+                  >
+                    <View style={styles.checklistRow}>
+                      <Text style={styles.checklistText}>{item.text}</Text>
+                      <Text style={styles.checklistPrice}>{item.price}</Text>
+                      <Icon
+                        name={item.checked ? "check-square" : "square-o"}
+                        size={24}
+                        color="green"
+                      />
+                    </View>
+                  </TouchableOpacity>
+                
+              )}
+                keyExtractor={(item) => item.id.toString()}
+              />
+              <Text style={styles.totalPrice}>Total Price: ${totalSelectedPrice}</Text>
+              <TouchableOpacity style={styles.confirmButton} onPress={joinQueue}>
+                <Text style={styles.buttonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     </ImageBackground>
   );
@@ -331,6 +455,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
   },
+  queueService: {
+    fontSize: 14,
+    color: "#555",
+    position: "absolute",
+    right: "8%",
+  },
   queueNumber: {
     fontSize: 18,
     fontWeight: "bold",
@@ -368,5 +498,80 @@ const styles = StyleSheet.create({
     right: 25,
     flexDirection: "row",
     gap: 10,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+    alignItems: "center",
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  checklistItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 10,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
+    marginVertical: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    width: "100%",
+  },
+  checklistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  checklistText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    flex: 1,
+    marginLeft: "auto",
+  },
+  checklistPrice: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#555",
+    marginRight: "5%",
+  },
+  confirmButton: {
+    backgroundColor: "#007bff",
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 10,
+    alignItems: "center",
+    width: "100%",
+    elevation: 5,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  totalPrice: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+    marginTop: 10,
   },
 });

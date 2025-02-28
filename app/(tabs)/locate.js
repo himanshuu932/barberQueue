@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,43 +11,91 @@ import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import MapViewDirections from "react-native-maps-directions";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import Constants from "expo-constants";
+import { useFocusEffect } from "@react-navigation/native";
 
-const GOOGLE_MAPS_APIKEY = "";
+const GOOGLE_MAPS_APIKEY = Constants.expoConfig?.extra?.googleMapsApiKey;
+console.log("API Key:", GOOGLE_MAPS_APIKEY);
 
 export default function LocateScreen() {
   const [currentRegion, setCurrentRegion] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [showNavigation, setShowNavigation] = useState(false);
   const mapRef = useRef(null);
+  const locationSubscription = useRef(null);
 
   const destination = {
     latitude: 26.7323339,
     longitude: 83.4292296,
   };
 
+  // Function to request permission and get the current location
+  const requestLocationPermissionAndSetLocation = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      setErrorMsg("Permission to access location was denied");
+      return;
+    }
+    let location = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = location.coords;
+    setCurrentRegion({
+      latitude,
+      longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    });
+  };
+
+  // Run on mount: request permission and subscribe to location changes
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setErrorMsg("Permission to access location was denied");
-        return;
-      }
-      let location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-      setCurrentRegion({
-        latitude,
-        longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
+      await requestLocationPermissionAndSetLocation();
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 5000,
+          distanceInterval: 1,
+        },
+        (newLocation) => {
+          const { latitude, longitude } = newLocation.coords;
+          setCurrentRegion({
+            latitude,
+            longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
+        }
+      );
+      locationSubscription.current = subscription;
     })();
+    return () => {
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+      }
+    };
   }, []);
+
+  // Check for permissions on screen focus and prompt if not granted
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== "granted") {
+          await requestLocationPermissionAndSetLocation();
+        }
+      })();
+    }, [])
+  );
 
   if (!currentRegion) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#1E90FF" />
-        {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : <Text style={styles.loadingText}>Fetching location...</Text>}
+        {errorMsg ? (
+          <Text style={styles.errorText}>{errorMsg}</Text>
+        ) : (
+          <Text style={styles.loadingText}>Fetching location...</Text>
+        )}
       </View>
     );
   }
@@ -74,7 +122,6 @@ export default function LocateScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Full-Screen Map */}
       <MapView
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
@@ -82,10 +129,17 @@ export default function LocateScreen() {
         initialRegion={currentRegion}
         showsUserLocation={true}
       >
-        <Marker coordinate={destination} title="Destination" description="Your selected location" />
+        <Marker
+          coordinate={destination}
+          title="Destination"
+          description="Your selected location"
+        />
         {showNavigation && (
           <MapViewDirections
-            origin={{ latitude: currentRegion.latitude, longitude: currentRegion.longitude }}
+            origin={{
+              latitude: currentRegion.latitude,
+              longitude: currentRegion.longitude,
+            }}
             destination={destination}
             apikey={GOOGLE_MAPS_APIKEY}
             strokeWidth={4}
@@ -94,13 +148,17 @@ export default function LocateScreen() {
         )}
       </MapView>
 
-      {/* Floating Buttons in Bottom Right */}
       <View style={styles.floatingButtonContainer}>
-        <TouchableOpacity style={[styles.fab, styles.locateButton]} onPress={handleLocate}>
+        <TouchableOpacity
+          style={[styles.fab, styles.locateButton]}
+          onPress={handleLocate}
+        >
           <Icon name="store" size={24} color="#fff" />
         </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.fab, styles.navigateButton]} onPress={handleNavigate}>
+        <TouchableOpacity
+          style={[styles.fab, styles.navigateButton]}
+          onPress={handleNavigate}
+        >
           <Icon name="navigation" size={24} color="#fff" />
         </TouchableOpacity>
       </View>

@@ -10,14 +10,14 @@ export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const API_BASE = "https://barber-queue.vercel.app";
+  const API_BASE = "https://servercheckbarber.vercel.app";
   const handleSignup = async () => {
     if (!name || !email || !password) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
     try {
-      const response = await fetch("https://barber-queue.vercel.app/signup", {
+      const response = await fetch(`${API_BASE}/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),

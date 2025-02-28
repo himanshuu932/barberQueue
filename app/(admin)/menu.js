@@ -1,30 +1,33 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ActivityIndicator, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
   TouchableOpacity,
   ImageBackground,
   Animated,
   Modal,
   TextInput,
-  Alert
+  Alert,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
 import { PlusButtonContext } from "./_layout"; // Adjust this import path as needed
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { io } from "socket.io-client"; // Import socket.io-client
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
-  // Now storing an array of objects with _id and name.
   const [queueItems, setQueueItems] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
-  const API_BASE = "http://10.0.2.2:5000";
+  const API_BASE = "https://servercheckbarber.vercel.app";
   const shineAnimation = useRef(new Animated.Value(0)).current;
+
+  // WebSocket connection
+  const [socket, setSocket] = useState(null);
 
   // Get the setter from context to register our plus button handler
   const { setPlusButtonHandler } = useContext(PlusButtonContext);
@@ -35,34 +38,25 @@ export default function MenuScreen() {
     return () => setPlusButtonHandler(() => {});
   }, [setPlusButtonHandler]);
 
+  // Initialize WebSocket connection
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(shineAnimation, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shineAnimation, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [shineAnimation]);
+    const newSocket = io(API_BASE); // Connect to the WebSocket server
+    setSocket(newSocket);
 
-  const shineTranslateX = shineAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-200, 900],
-  });
+    // Cleanup on unmount
+    return () => newSocket.disconnect();
+  }, []);
 
-  const shineTranslateY = shineAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-200, 250],
-  });
+  // Listen for queue updates from the server
+  useEffect(() => {
+    if (socket) {
+      socket.on("queueUpdated", () => {
+        fetchQueueData(); // Fetch updated queue data when notified
+      });
+    }
+  }, [socket]);
 
-  // Updated fetchQueueData: expects { queueLength, data } where data is an array of objects.
+  // Fetch queue data from the server
   const fetchQueueData = async () => {
     try {
       const response = await fetch(`${API_BASE}/queue`);
@@ -76,19 +70,12 @@ export default function MenuScreen() {
 
   useEffect(() => {
     fetchQueueData();
-    const intervalId = setInterval(fetchQueueData, 2000);
-    return () => clearInterval(intervalId);
   }, []);
 
   // Mark user as served by updating their history and then removing them from the queue.
-  // Notice that we now pass the MongoDB _id as userId, and the name is used to remove the user.
   const markUserServed = async (userId, userName) => {
     console.log("Mark user as served", userId, userName);
-    if(!userId)
-    {
-       removePerson(userName);
-       return;
-    }
+   
     try {
       // Retrieve the stored token from AsyncStorage
       const token = await AsyncStorage.getItem("userToken");
@@ -96,7 +83,7 @@ export default function MenuScreen() {
         Alert.alert("Authentication Error", "User not authenticated.");
         return;
       }
-  
+
       const response = await fetch(`${API_BASE}/barber/add-history`, {
         method: "POST",
         headers: {
@@ -105,14 +92,12 @@ export default function MenuScreen() {
         },
         body: JSON.stringify({ userId, service: "Haircut" }),
       });
-      if (!response.ok) {
+      if (response.ok) {
         // Log error details from the backend response
-        const errorData = await response.json();
-        console.error("Backend error response:", errorData);
-        throw new Error("Failed to mark user as served");
+        socket.emit("markedServed",{userId, userName});
       }
       // Remove user from queue by their name.
-      await fetch(`${API_BASE}/queue?name=${encodeURIComponent(userName)}`, {
+      await fetch(`${API_BASE}/queue?uid=${encodeURIComponent(userId)}`, {
         method: "DELETE",
       });
       fetchQueueData();
@@ -126,26 +111,41 @@ export default function MenuScreen() {
     }
   };
 
-  const removePerson = async (name) => {
-    await fetch(`${API_BASE}/queue?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+  const removePerson = async (name,uid) => {
+    const res = await fetch(`${API_BASE}/queue?uid=${encodeURIComponent(uid)}`, { method: "DELETE" });
+    if(res.ok){
+      socket.emit("removedFromQueue", {name,uid});
+    }
     fetchQueueData();
+    
   };
 
-  const moveDownPerson = async (name) => {
-    await fetch(`${API_BASE}/queue/move`, {
+  const moveDownPerson = async (name,id,uid) => {
+    const res = await fetch(`${API_BASE}/queue/move`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name,id }),
     });
+    if(res.ok){
+      socket.emit("moveDownQueue", { name: name, id: id,uid: uid });
+    }
     fetchQueueData();
   };
 
   const addPerson = async (name) => {
-    await fetch(`${API_BASE}/queue`, {
+    const now = new Date();
+    const hour = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    const seconds = now.getSeconds().toString().padStart(2, "0");
+    const id = `${name}${hour}${minutes}${seconds}=`;
+    const res = await fetch(`${API_BASE}/queue`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name,id }),
     });
+    if(res.ok){
+      socket.emit("joinQueue", { name: name, id: id });
+    }
     fetchQueueData();
   };
 
@@ -159,9 +159,10 @@ export default function MenuScreen() {
     let finalName = newName.trim();
     if (finalName === "") {
       const now = new Date();
+      const hour = now.getHours().toString().padStart(2, "0");
       const minutes = now.getMinutes().toString().padStart(2, "0");
       const seconds = now.getSeconds().toString().padStart(2, "0");
-      finalName = `User ${minutes}${seconds}`; 
+      finalName = `User${hour}${minutes}${seconds}`;
     }
     await addPerson(finalName);
     setModalVisible(false);
@@ -187,41 +188,43 @@ export default function MenuScreen() {
 
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
-      <View style={styles.overlay} /> 
+      <View style={styles.overlay} />
       <View style={styles.container}>
         <Text style={styles.userCode}>
           {queueItems[0] ? queueItems[0].name : "Aaj kdki h!"}
         </Text>
         <Text style={styles.queue}>👤 {queueLength}</Text>
         <Text style={styles.queueListTitle}>Queue List</Text>
-        <ScrollView 
-          style={styles.namesContainer} 
-          nestedScrollEnabled={true} 
-          showsVerticalScrollIndicator={false} 
-          contentContainerStyle={{ paddingBottom: 10 }}>
+        <ScrollView
+          style={styles.namesContainer}
+          nestedScrollEnabled={true}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 10 }}
+        >
           {queueItems.map((item, index) => (
-            <View key={item._id} style={styles.queueCard}>
+            <View key={item.uid} style={styles.queueCard}>
               <View style={styles.nameText}>
                 <Text style={styles.queueNumber}>{index + 1}.</Text>
                 <View>
                   <Text style={styles.queueName}>{item.name}</Text>
-                  <Text style={styles.queueId}>ID: {item._id}</Text>
+                  <Text style={styles.queueId}>ID: {item.uid}</Text>
                 </View>
               </View>
               <View style={styles.iconGroup}>
                 {index < 3 ? (
                   <TouchableOpacity
                     style={styles.doneButton}
-                    onPress={() => markUserServed(item._id, item.name)}>
+                    onPress={() => markUserServed(item.uid, item.name)}
+                  >
                     <Icon name="check" size={24} color="white" />
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => removePerson(item.name)}>
+                  <TouchableOpacity onPress={() => removePerson(item.name,item.uid)}>
                     <Icon name="delete" size={24} color="red" />
                   </TouchableOpacity>
                 )}
                 {index < 3 && (
-                  <TouchableOpacity style={styles.downButton} onPress={() => moveDownPerson(item.name)}>
+                  <TouchableOpacity style={styles.downButton} onPress={() => moveDownPerson(item.name,item._id,item.uid)}>
                     <Icon name="arrow-downward" size={24} color="white" />
                   </TouchableOpacity>
                 )}
@@ -229,13 +232,14 @@ export default function MenuScreen() {
             </View>
           ))}
         </ScrollView>
-  
+
         {/* Modal Overlay for adding a new name */}
         <Modal
           transparent={true}
           animationType="slide"
           visible={modalVisible}
-          onRequestClose={handleCancel}>
+          onRequestClose={handleCancel}
+        >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Enter Name</Text>
@@ -351,30 +355,30 @@ const styles = StyleSheet.create({
     color: "#555",
   },
   joinButton: {
-    width: 50, 
+    width: 50,
     height: 50,
     borderRadius: 10,
     backgroundColor: "rgb(0, 0, 0)",
     justifyContent: "center",
-    alignItems: "center", 
+    alignItems: "center",
     elevation: 4,
   },
   doneButton: {
-    width: 50, 
+    width: 50,
     height: 50,
     borderRadius: 12,
     backgroundColor: "rgb(48, 139, 36)",
-    justifyContent: "center", 
-    alignItems: "center", 
+    justifyContent: "center",
+    alignItems: "center",
     elevation: 3,
   },
   downButton: {
-    width: 50, 
+    width: 50,
     height: 50,
     borderRadius: 12,
     backgroundColor: "rgb(7, 55, 229)",
-    justifyContent: "center", 
-    alignItems: "center", 
+    justifyContent: "center",
+    alignItems: "center",
     elevation: 3,
   },
   leaveButton: {
@@ -388,7 +392,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     position: "absolute",
-    bottom: 5, 
+    bottom: 5,
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
