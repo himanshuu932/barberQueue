@@ -7,10 +7,56 @@ import {
   TouchableOpacity,
   ImageBackground,
   StyleSheet,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
+
+async function registerForPushNotifications(uid) {
+  console.log("Registering for push notifications for uid:", uid);
+  if (!Constants.isDevice) {
+    console.log("Must use a physical device for Push Notifications");
+    return;
+  }
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  console.log("Existing permission status:", existingStatus);
+  let finalStatus = existingStatus;
+  if (existingStatus !== "granted") {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+    console.log("Requested permission status:", finalStatus);
+  }
+  if (finalStatus !== "granted") {
+    console.log("Failed to get push token for push notifications!");
+    return;
+  }
+  const token = (await Notifications.getExpoPushTokenAsync()).data;
+  console.log("Expo Push Token generated:", token);
+  // Send token to your backend so it can be stored in the user record
+  try {
+    const response = await fetch("https://servercheckbarber.vercel.app/register-push-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, token }),
+    });
+    const resData = await response.json();
+    console.log("Backend response for push token registration:", resData);
+  } catch (error) {
+    console.error("Error sending push token to backend:", error);
+  }
+  if (Platform.OS === "android") {
+    Notifications.setNotificationChannelAsync("default", {
+      name: "default",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#FF231F7C",
+    });
+  }
+}
+
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -22,20 +68,17 @@ export default function LoginScreen() {
       Alert.alert("Error", "Please enter both email and password.");
       return;
     }
-
     try {
-      const response = await fetch("https://barber-queue.vercel.app/login", {
+      const response = await fetch("https://servercheckbarber.vercel.app/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
       const data = await response.json();
-
       if (!response.ok) {
         Alert.alert("Error", data.error || "Login failed");
         return;
       }
-
       // Store token and user data
       await AsyncStorage.setItem("userToken", data.token);
       await AsyncStorage.setItem("userName", data.user.name);
@@ -51,6 +94,9 @@ export default function LoginScreen() {
       await AsyncStorage.setItem("userType", userType);
 
       Alert.alert("Success", `Logged in as: ${email}`);
+
+      // Register push notifications for this user
+      await registerForPushNotifications(data.user.id);
 
       // Navigate based on userType
       if (userType === "admin") {
@@ -94,7 +140,6 @@ export default function LoginScreen() {
             onChangeText={setPassword}
           />
 
-          {/* Metallic Gradient Button */}
           <TouchableOpacity style={styles.buttonContainer} onPress={handleLogin}>
             <LinearGradient
               colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}

@@ -143,7 +143,7 @@ export default function TabProfileScreen() {
                 <View key={index} style={styles.historyItem}>
                   <View style={styles.paymentRow}>
                 <Text style={styles.historyService}>{item.service}</Text>
-                <Text style={styles.paymentAmount}>₹100</Text>
+                <Text style={styles.paymentAmount}>₹100.00</Text>
                
                 </View>
                 <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>

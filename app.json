@@ -4,17 +4,22 @@
     "slug": "barber",
     "version": "1.0.0",
     "orientation": "portrait",
-    
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "projectId": "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-      
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.x2023021235.barber",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB_qepC3UG7dcdWG645NtYZHa3aserIJoY"
+        }
       }
     },
     "web": {
@@ -36,6 +41,16 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "googleMapsApiKey": "AIzaSyB_qepC3UG7dcdWG645NtYZHa3aserIJoY",
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "fdeb8267-b069-40e7-9b4e-1a0c50ee6246"
+      }
     }
   }
 }
+ 
