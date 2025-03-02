@@ -31,12 +31,12 @@ export default function Index() {
     <Redirect
       href={
         isLoggedIn
-          ? userType === "admin"
+          ? userType === "barber"
             ? "/(admin)/menu"
             : userType === "superadmin"
             ? "/(superadmin)/menu"
             : "/(tabs)/menu"
-          : "/login"
+          : "/pre-login"
       }
     />
   );

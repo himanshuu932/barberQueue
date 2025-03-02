@@ -1,17 +1,16 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { View, Text, StyleSheet } from "react-native";
+import { StyleSheet,  Text,View } from "react-native";
+import ScissorsIcon from "../../components/ScissorsIcon"; // Adjust the path as needed
 
 export default function Layout() {
-  return (
+  return (<>
+    <View style={styles.header}>
+        
+          <Text style={styles.title}>My App</Text>
+        </View>
     <View style={styles.container}>
-      {/* Custom Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>My App</Text>
-      </View>
-
-      {/* Tabs Component */}
       <Tabs
         screenOptions={{
           tabBarStyle: { backgroundColor: "black", height: 60 },
@@ -29,6 +28,24 @@ export default function Layout() {
             ),
           }}
         />
+               <Tabs.Screen
+          name="barber"
+          options={{
+            title: "Barber",
+            tabBarIcon: ({ color, size }) => (
+              <ScissorsIcon color={color} size={size} />
+            ),
+          }}
+        />
+         <Tabs.Screen
+          name="history"
+          options={{
+            title: "History",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="book-outline" size={size} color={color} />
+            ),
+          }}
+        />
         <Tabs.Screen
           name="profile"
           options={{
@@ -40,11 +57,16 @@ export default function Layout() {
         />
       </Tabs>
     </View>
+  </>
   );
 }
 
+ 
+
+  
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
   header: {
     height: 60,
     backgroundColor: "black",
@@ -58,3 +80,4 @@ const styles = StyleSheet.create({
     marginLeft: 15,
   },
 });
+

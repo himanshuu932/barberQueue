@@ -35,20 +35,22 @@ export default function MenuScreen() {
   const [userName, setUserName] = useState(null);
   const [uid, setUid] = useState(null);
   const [socket, setSocket] = useState(null);
-
-  const API_BASE = "https://servercheckbarber.vercel.app";
+  const [selectedServicesForInfo, setSelectedServicesForInfo] = useState([]);
+  const [totalCostForInfo, setTotalCostForInfo] = useState(0);
+  const API_BASE = "http://10.0.2.2:5000";
   const [remainingTime, setRemainingTime] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [infomodalVisible, setinfomodalVisible] = useState(false);
   const [checklist, setChecklist] = useState([
-    { id: 1, text: "Haircut", price: "$10", checked: false },
-    { id: 2, text: "Beard Trim", price: "$8", checked: false },
-    { id: 3, text: "Shave", price: "$6", checked: false },
-    { id: 4, text: "Hair Wash", price: "$5", checked: false },
-    { id: 5, text: "Head Massage", price: "$12", checked: false },
-    { id: 6, text: "Facial", price: "$15", checked: false },
-    { id: 7, text: "Hair Color", price: "$20", checked: false },
+    { id: 1, text: "Haircut", price: "₹70", checked: false },
+    { id: 2, text: "Beard Trim", price: "₹40", checked: false },
+    { id: 3, text: "Shave", price: "₹30", checked: false },
+    { id: 4, text: "Hair Wash", price: "₹300", checked: false },
+    { id: 5, text: "Head Massage", price: "₹120", checked: false },
+    { id: 6, text: "Facial", price: "₹150", checked: false },
+    { id: 7, text: "Hair Color", price: "₹200", checked: false },
   ]);
-
+  const [infoModalChecklist, setInfoModalChecklist] = useState([]);
   const totalSelectedPrice = checklist
     .filter((item) => item.checked)
     .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0);
@@ -139,7 +141,8 @@ export default function MenuScreen() {
     fetchQueueData();
   }, []);
 
-  const index = queueItems.findIndex((item) => item.name === combinedName);
+  const index = queueItems.findIndex((item) => item.uid === uid);
+  //Alert.alert("Index",`${index}`);
   const userPosition = index >= 0 ? index + 1 : null;
   const avgServiceTime = 10;
   const initialWaitTime = userPosition ? userPosition * avgServiceTime * 60 : null;
@@ -153,7 +156,35 @@ export default function MenuScreen() {
       return () => clearInterval(timer);
     }
   }, [userPosition]);
-
+  const updateUserServices = async (selectedServices, totalCost) => {
+    if (!selectedServices || selectedServices.length === 0) {
+      Alert.alert(
+        "No Service Selected",
+        "Please select at least one service before proceeding."
+      );
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/update-services`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid, 
+          services: selectedServices,
+          totalCost: totalCost, 
+        }),
+      });
+  
+      if (response.ok) {
+        const data = await response.json();
+       // console.log("Services updated:", data);
+      } else {
+        console.error("Failed to update services");
+      }
+    } catch (error) {
+      console.error("Error updating services:", error);
+    }
+  };
   // When near the front, ask backend to send a push notification (for offline delivery)
   useEffect(() => {
     if (userPosition !== null && userPosition <= 3 && !notified) {
@@ -207,9 +238,11 @@ export default function MenuScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: combinedName,
+          name: userName,
           id: uid,
           services: selectedServices,
+          code: combinedName,
+          totalCost: totalSelectedPrice,
         }),
       });
 
@@ -225,8 +258,10 @@ export default function MenuScreen() {
         if (socket) {
           socket.emit("joinQueue", {
             id: uid,
-            name: combinedName,
+            name: userName,
+            code: combinedName,
             services: selectedServices,
+            totalCost: totalSelectedPrice,
           });
         }
       } else {
@@ -258,7 +293,7 @@ export default function MenuScreen() {
               );
               if (response.ok) {
                 if (socket) {
-                  socket.emit("leaveQueue", { name: combinedName, id: uid });
+                  socket.emit("leaveQueue", { name: userName, id: uid });
                 }
                 fetchQueueData();
               } else {
@@ -300,20 +335,37 @@ export default function MenuScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 10 }}
         >
-          {queueItems.map((item, index) => (
-            <View key={item.uid} style={styles.queueCard}>
-              <Text style={styles.queueNumber}>{index + 1}.</Text>
-              <View>
-                <Text style={styles.queueName}>{item.name}</Text>
-                <Text style={styles.queueId}>ID: {item.uid}</Text>
-              </View>
-              {item.uid === uid && <Text style={styles.queueService}>${totalSelectedPrice}</Text>}
-            </View>
-          ))}
+       {queueItems.map((item, index) => (
+  <View key={item.uid} style={styles.queueCard}>
+    <Text style={styles.queueNumber}>{index + 1}.</Text>
+    <View>
+      <Text style={styles.queueName}>{item.name}</Text>
+      <Text style={styles.queueId}>ID: {item.code}</Text>
+    </View>
+  
+    {item.uid === uid && <Text style={styles.cost}>₹{item.totalCost}</Text>}
+    {item.uid === uid && (
+      <TouchableOpacity
+        onPress={() => {
+          // Initialize the checklist with the user's selected services
+          const updatedChecklist = checklist.map((service) => ({
+            ...service,
+            checked: item.services.includes(service.text),
+          }));
+          setInfoModalChecklist(updatedChecklist);
+          setTotalCostForInfo(item.totalCost);
+          setinfomodalVisible(true);
+        }}
+      >
+        <Icon name="info-circle" size={16} color="black" />
+      </TouchableOpacity>
+    )}
+  </View>
+))}
         </ScrollView>
 
         <View style={styles.buttonContainer}>
-          {combinedName && queueItems.some((item) => item.name === combinedName) ? (
+          {combinedName && queueItems.some((item) => item.uid === uid) ? (
             <TouchableOpacity style={styles.leaveButton} onPress={leaveQueue}>
               <Icon name="sign-out" size={24} color="white" />
             </TouchableOpacity>
@@ -334,11 +386,83 @@ export default function MenuScreen() {
             </TouchableOpacity>
           )}
         </View>
+        <Modal visible={infomodalVisible} animationType="slide" transparent>
+  <View style={styles.modalContainer}>
+    <View style={styles.modalContent}>
+      <TouchableOpacity
+        onPress={() => setinfomodalVisible(false)}
+        style={styles.closeButton}
+      >
+        <Icon name="times-circle" size={20} color="black" />
+      </TouchableOpacity>
+      <Text style={styles.modalTitle}>Edit Selected Services</Text>
+      <FlatList
+        data={infoModalChecklist}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.checklistItem}
+            onPress={() =>
+              setInfoModalChecklist((prev) =>
+                prev.map((i) =>
+                  i.id === item.id ? { ...i, checked: !i.checked } : i
+                )
+              )
+            }
+          >
+            <View style={styles.checklistRow}>
+              <Text style={styles.checklistText}>{item.text}</Text>
+              <Text style={styles.checklistPrice}>
+                <Text style={{ color: 'green' }}>₹</Text>
+                {item.price}
+              </Text>
+              <Icon
+                name={item.checked ? "check-square" : "square-o"}
+                size={24}
+                color="green"
+              />
+            </View>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item) => item.id.toString()}
+      />
+      <Text style={styles.totalPrice}>
+        Total Price: {infoModalChecklist
+          .filter((item) => item.checked)
+          .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0)}
+      </Text>
+      <TouchableOpacity
+        style={styles.confirmButton}
+        onPress={() => {
+          const selectedServices = infoModalChecklist
+            .filter((item) => item.checked)
+            .map((item) => item.text);
+          const totalCost = infoModalChecklist
+            .filter((item) => item.checked)
+            .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0);
 
+          // Alert the new selected services
+        
+
+          // Update the backend with the new selected services
+          updateUserServices(selectedServices, totalCost);
+          setinfomodalVisible(false);
+        }}
+      >
+        <Text style={styles.buttonText}>Confirm</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
         <Modal visible={modalVisible} animationType="slide" transparent>
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
+              {/* Cross Button in Upper Right Corner */}
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
+                <Icon name="times-circle" size={20} color="black" />
+              </TouchableOpacity>
+
               <Text style={styles.modalTitle}>Checklist Before Joining</Text>
+              
               <FlatList
                 data={checklist}
                 renderItem={({ item }) => (
@@ -354,7 +478,7 @@ export default function MenuScreen() {
                   >
                     <View style={styles.checklistRow}>
                       <Text style={styles.checklistText}>{item.text}</Text>
-                      <Text style={styles.checklistPrice}>{item.price}</Text>
+                      <Text style={styles.checklistPrice}><Text style={{color: 'green'}}></Text>{item.price}</Text>
                       <Icon
                         name={item.checked ? "check-square" : "square-o"}
                         size={24}
@@ -362,23 +486,31 @@ export default function MenuScreen() {
                       />
                     </View>
                   </TouchableOpacity>
-                
-              )}
+                )}
                 keyExtractor={(item) => item.id.toString()}
               />
-              <Text style={styles.totalPrice}>Total Price: ${totalSelectedPrice}</Text>
+              
+              <Text style={styles.totalPrice}>Total Price: ₹{totalSelectedPrice}</Text>
+              
               <TouchableOpacity style={styles.confirmButton} onPress={joinQueue}>
                 <Text style={styles.buttonText}>Confirm</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
+
       </View>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  closeButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 10, // Ensures it stays on top
+  },
   backgroundImage: {
     flex: 1,
     resizeMode: "cover",
@@ -466,8 +598,15 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
+  cost: {
+    fontSize: 18,
+    fontWeight: "bold",
+   color: "rgb(16, 98, 13)",
+    marginLeft: "auto",
+  },
   queueName: {
     fontSize: 15,
+    fontWeight: "bold",
     color: "#777",
   },
   queueId: {

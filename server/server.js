@@ -46,7 +46,11 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // In production, hash your passwords!
   expoPushToken: { type: String }, // New field for push notifications
-  history: [{ service: String, date: Date }],
+  history: [{ 
+    service: String, 
+    date: Date,
+    cost: Number  // Added cost field
+  }],
 });
 const User = mongoose.model("User", UserSchema);
 
@@ -58,6 +62,9 @@ const QueueSchema = new mongoose.Schema(
     name: { type: String, required: true },
     order: { type: Number, required: true },
     uid: { type: String },
+    services: [{ type: String }], 
+    code:{ type: String, required: true },
+    totalCost: { type: Number } 
   },
   { timestamps: true }
 );
@@ -228,15 +235,20 @@ app.post("/login", async (req, res) => {
 // GET endpoint to fetch the current queue length and names (sorted by order)
 app.get("/queue", async (req, res) => {
   try {
-    const queueItems = await Queue.find({}, "name order uid _id").sort({ order: 1 });
-    const queueLength = queueItems.length;
-    const data = queueItems.map((item) => ({
+    const queueItems = await Queue.find({}, "name order uid _id services code totalCost")
+      .sort({ order: 1 });
+
+    const data = queueItems.map(item => ({
       _id: item._id,
       uid: item.uid,
       name: item.name,
       order: item.order,
+      code: item.code,
+      services: item.services,
+      totalCost: item.totalCost
     }));
-    res.json({ queueLength, data });
+
+    res.json({ queueLength: data.length, data });
   } catch (error) {
     console.error("Error fetching queue:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -245,24 +257,45 @@ app.get("/queue", async (req, res) => {
 
 // POST endpoint to add a person to the queue
 app.post("/queue", async (req, res) => {
+  console.log("Queue", req.body);
   try {
-    const { name, id } = req.body;
-    // Find the document with the highest valid order value.
-    const lastInQueue = await Queue.findOne({ order: { $exists: true } }).sort({ order: -1 });
-    let newOrder = 1;
-    if (lastInQueue && !isNaN(lastInQueue.order)) {
-      newOrder = Number(lastInQueue.order) + 1;
+    // Destructure values and default to null if they are undefined.
+    // Using nullish coalescing operator (??) to allow falsy values (like 0) to pass.
+    let { name, id, services, code, totalCost } = req.body;
+    name = name ?? null;
+    id = id ?? null;
+    services = services ?? null;
+    code = code ?? null;
+    totalCost = totalCost ?? null;
+
+    // If services is provided but not an array, you might want to convert it.
+    if (services && !Array.isArray(services)) {
+      services = [services];
     }
-    const newPerson = new Queue({ name: name || "Dummy Person", order: newOrder, uid: id || null });
+
+    // Get the new order based on the last document in the queue.
+    const lastInQueue = await Queue.findOne().sort({ order: -1 });
+    const newOrder = lastInQueue ? lastInQueue.order + 1 : 1;
+
+    // Create the new queue entry.
+    const newPerson = new Queue({
+      name,
+      order: newOrder,
+      uid: id,
+      code,
+      services,
+      totalCost,
+    });
+
     await newPerson.save();
-    // Emit a WebSocket event to notify all clients about the updated queue
-    io.emit("queueUpdated", { message: "Queue has been updated" });
+    io.emit("queueUpdated", { message: "Queue updated" });
     res.status(201).json(newPerson);
   } catch (error) {
     console.error("Error adding to queue:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 // PATCH endpoint to move a person one position down in the queue.
 app.patch("/queue/move", async (req, res) => {
@@ -293,6 +326,45 @@ app.patch("/queue/move", async (req, res) => {
     res.json({ message: "Person moved down successfully" });
   } catch (error) {
     console.error("Error moving person down:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// PATCH endpoint to update user's services in the queue
+app.patch("/update-services", async (req, res) => {
+ // console.log("Update services", req.body);
+  try {
+    const { uid, services, totalCost } = req.body;
+
+    // Validate input
+    if (!uid || !services || !Array.isArray(services) || typeof totalCost !== "number") {
+      return res.status(400).json({ error: "UID, services (array), and totalCost (number) are required" });
+    }
+
+    // Find the user in the queue
+    const userInQueue = await Queue.findOne({ uid });
+
+    if (!userInQueue) {
+      return res.status(404).json({ error: "User not found in the queue" });
+    }
+
+    // Update the user's services and total cost
+    userInQueue.services = services;
+    userInQueue.totalCost = totalCost;
+
+    // Save the updated user
+    await userInQueue.save();
+
+    // Emit a WebSocket event to notify all clients about the updated queue
+    io.emit("queueUpdated", { message: "Queue has been updated" });
+
+    // Respond with the updated user
+    res.json({
+      message: "Services updated successfully",
+      updatedUser: userInQueue,
+    });
+  } catch (error) {
+    console.error("Error updating services:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -370,32 +442,270 @@ app.post("/history", authMiddleware, async (req, res) => {
   }
 });
 
-app.post("/barber/add-history", authMiddleware, async (req, res) => {
+
+/* ===============================
+   Barber Schema and Model
+   =============================== */
+   const BarberHistorySchema = new mongoose.Schema({
+    services: { type: [String], required: true },
+    totalCost: { type: Number, required: true },
+    date: { type: Date, default: Date.now }
+  });
+  
+  const BarberSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    phone: { type: String, required: true },
+    password: { type: String, required: true },
+    totalCustomersServed: { type: Number, default: 0 },
+    totalStarsEarned: { type: Number, default: 0 },
+    totalRatings: { type: Number, default: 0 },
+    ratings: { type: [Number], default: [] },
+    history: { type: [BarberHistorySchema], default: [] }
+  });
+  
+  const Barber = mongoose.model("Barber", BarberSchema);
+/* ===============================
+   Get All Barbers Endpoint
+   =============================== */
+   app.get("/barbers", async (req, res) => {
+    try {
+      const barbers = await Barber.find({}, "-password -__v");
+      res.json(barbers);
+    } catch (error) {
+      console.error("Error fetching barbers:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+  /* ===============================
+   Fetch Barber Details by UID
+   =============================== */
+app.get("/barber/:uid", async (req, res) => {
   try {
-    const { userId, service } = req.body;
-    if (!userId || !service) {
-      return res.status(400).json({ error: "User ID and service are required" });
+    const { uid } = req.params;
+
+    // Validate UID
+    if (!mongoose.isValidObjectId(uid)) {
+      return res.status(400).json({ error: "Invalid Barber ID" });
     }
-    if (userId.endsWith("=")) {
-      return res.status(200).json({
-        message: "User marked as served (skipped history update)",
-      });
+
+    // Find the barber by UID
+    const barber = await Barber.findById(uid).select("-password -__v"); // Exclude sensitive fields
+    if (!barber) {
+      return res.status(404).json({ error: "Barber not found" });
     }
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    user.history.push({ service, date: new Date() });
-    await user.save();
-    return res.status(200).json({
-      message: "User marked as served and history updated successfully",
-      history: user.history,
-    });
+
+    // Return the barber details
+    res.json(barber);
   } catch (error) {
-    console.error("Error updating service history:", error);
+    console.error("Error fetching barber details:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+  /* ===============================
+     Mark Customer as Served Endpoint
+     =============================== */
+     /* ===============================
+   Barber Auth Middleware
+   =============================== */
+   /* ===============================
+   Barber Signup Endpoint
+   =============================== */
+app.post("/barber/signup", async (req, res) => {
+  try {
+    const { name, email, phone, password } = req.body;
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const existingBarber = await Barber.findOne({ email });
+    if (existingBarber) {
+      return res.status(400).json({ error: "Barber already exists" });
+    }
+
+    const newBarber = new Barber({ name, email, phone, password });
+    await newBarber.save();
+
+    const token = jwt.sign(
+      { id: newBarber._id, email: newBarber.email, role: "barber" },
+      SECRET_KEY,
+      { expiresIn: "1h" }
+    );
+
+    res.status(201).json({
+      token,
+      barber: {
+        id: newBarber._id,
+        name: newBarber.name,
+        email: newBarber.email,
+        phone: newBarber.phone
+      }
+    });
+  } catch (error) {
+    console.error("Barber signup error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/* ===============================
+   Barber Login Endpoint
+   =============================== */
+app.post("/barber/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password required" });
+    }
+
+    const barber = await Barber.findOne({ email });
+    if (!barber || barber.password !== password) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: barber._id, email: barber.email, role: "barber" },
+      SECRET_KEY,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      token,
+      barber: {
+        id: barber._id,
+        name: barber.name,
+        email: barber.email,
+        phone: barber.phone
+      }
+    });
+  } catch (error) {
+    console.error("Barber login error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+const barberAuthMiddleware = (req, res, next) => {
+  const token = req.header("Authorization");
+  if (!token) {
+    return res.status(401).json({ error: "Access denied. No token provided." });
+  }
+
+  try {
+    const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY);
+    if (decoded.role !== "barber") {
+      return res.status(401).json({ error: "Invalid token for barber." });
+    }
+    req.barber = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: "Invalid or expired token." });
+  }
+};
+app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
+  try {
+    const { userId, barberId, service, cost } = req.body;
+
+    console.log("Received request to add history:", { userId, barberId, service, cost });
+
+    // Validate required fields
+  
+
+    // Handle dummy users (mobile users without account)
+    if (userId.endsWith("=")) {
+      console.log("Dummy user detected, skipping history update");
+      return res.json({ message: "Dummy user skipped history update" });
+    }
+    if (!userId || !barberId || !service || !cost) {
+      console.error("Missing required fields in request body");
+      return res.status(400).json({ error: "User ID, Barber ID, service, and cost are required" });
+    }
+    // Find the user and barber
+    console.log("Fetching user and barber from the database...");
+    const user = await User.findById(userId);
+    const barber = await Barber.findById(barberId);
+
+    if (!user) {
+      console.error("User not found with ID:", userId);
+      return res.status(404).json({ error: "User not found" });
+    }
+    if (!barber) {
+      console.error("Barber not found with ID:", barberId);
+      return res.status(404).json({ error: "Barber not found" });
+    }
+
+    console.log("User and barber found:", { user: user._id, barber: barber._id });
+
+    // If service is an array, join the elements into a single comma-separated string
+    const serviceString = Array.isArray(service) ? service.join(", ") : service;
+    console.log("Service string:", serviceString);
+
+    // Update user history
+    console.log("Updating user history...");
+    user.history.push({ service: serviceString, cost, date: new Date() });
+    await user.save();
+    console.log("User history updated successfully");
+
+    // Update barber history and statistics
+    console.log("Updating barber history and statistics...");
+    barber.history.push({ services: serviceString, totalCost: cost, date: new Date() });
+    barber.totalCustomersServed += 1;
+    await barber.save();
+    console.log("Barber history and statistics updated successfully");
+
+    // Remove the user from the queue
+    console.log("Removing user from the queue...");
+    const removedPerson = await Queue.findOneAndDelete({ uid: userId });
+    if (!removedPerson) {
+      console.error("User not found in the queue with UID:", userId);
+      return res.status(404).json({ error: "User not found in the queue" });
+    }
+    console.log("User removed from the queue:", removedPerson);
+
+    // Emit WebSocket event to notify clients of queue updates
+    console.log("Emitting queueUpdated event via WebSocket...");
+    io.emit("queueUpdated", { message: "Queue has been updated" });
+
+    // Respond with success
+    console.log("Request completed successfully");
+    res.json({
+      message: "History updated and user removed from queue",
+      userHistory: user.history,
+      barberHistory: barber.history,
+      removedPerson,
+    });
+  } catch (error) {
+    console.error("Error in /barber/add-history route:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+  
+  /* ===============================
+     Rate Barber Endpoint
+     =============================== */
+  app.post("/barber/rate", authMiddleware, async (req, res) => {
+    try {
+      const { barberId, rating } = req.body;
+      if (!barberId || !rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Invalid rating data" });
+      }
+  
+      const barber = await Barber.findById(barberId);
+      if (!barber) {
+        return res.status(404).json({ error: "Barber not found" });
+      }
+  
+      barber.ratings.push(rating);
+      barber.totalStarsEarned += rating;
+      barber.totalRatings += 1;
+      await barber.save();
+  
+      res.json({
+        message: "Rating submitted",
+        averageRating: barber.totalStarsEarned / barber.totalRatings
+      });
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
 
 // Start the server
 server.listen(PORT, () => {

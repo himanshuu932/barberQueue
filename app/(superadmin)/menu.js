@@ -1,171 +1,187 @@
-import React from 'react';
-import { ScrollView, View, Text, StyleSheet, Dimensions } from 'react-native';
-import { Card, Title, Paragraph } from 'react-native-paper';
-import { LineChart, BarChart } from 'react-native-chart-kit';
-import * as Animatable from 'react-native-animatable'; // Import Animatable
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  Dimensions,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import Icon from "react-native-vector-icons/FontAwesome";
+import { format, utcToZonedTime } from "date-fns-tz";
 
-const MenuScreen = () => {
-  // Dummy data
-  const employeeData = [
-    { name: 'John', customers: 15, revenue: 1200, avgTime: '30 mins', rating: 4.5 },
-    { name: 'Jane', customers: 12, revenue: 1000, avgTime: '35 mins', rating: 4.7 },
-    { name: 'Mike', customers: 10, revenue: 900, avgTime: '40 mins', rating: 4.2 },
-  ];
+const IST_TIMEZONE = "Asia/Kolkata";
+const { width: screenWidth } = Dimensions.get("window");
 
-  const serviceData = {
-    labels: ['Haircut', 'Shave', 'Beard Trim', 'Styling'],
-    datasets: [
-      {
-        data: [40, 30, 20, 10], // Popularity percentages
-      },
-    ],
+// Carousel data with Picsum image URLs
+const carouselData = [
+  "https://picsum.photos/seed/1/600/300",
+  "https://picsum.photos/seed/2/600/300",
+  "https://picsum.photos/seed/3/600/300",
+];
+
+const Menu = () => {
+  const [todayStats, setTodayStats] = useState({
+    earnings: 0,
+    customers: 0,
+    popularService: "Loading...",
+    topEmployee: "Loading...",
+  });
+
+  useEffect(() => {
+    fetchTodayStats();
+  }, []);
+
+  const fetchTodayStats = async () => {
+    try {
+      // Fetch barbers data
+      const barbersResponse = await fetch("http://10.0.2.2:5000/barbers");
+      const barbersData = await barbersResponse.json();
+
+      // Get current date in IST timezone
+      const now = new Date();
+      const todayIST = utcToZonedTime(now, IST_TIMEZONE);
+      const todayDateString = format(todayIST, "yyyy-MM-dd", {
+        timeZone: IST_TIMEZONE,
+      });
+
+      // Process all transactions
+      let totalEarnings = 0;
+      let customerCount = 0;
+      const serviceCount = {};
+      const barberEarnings = {};
+
+      barbersData.forEach((barber) => {
+        // Initialize barber earnings
+        barberEarnings[barber.name] = 0;
+
+        barber.history.forEach((transaction) => {
+          const transactionDate = utcToZonedTime(
+            new Date(transaction.date),
+            IST_TIMEZONE
+          );
+          const transactionDateString = format(
+            transactionDate,
+            "yyyy-MM-dd",
+            { timeZone: IST_TIMEZONE }
+          );
+
+          // Only count today's transactions
+          if (transactionDateString === todayDateString) {
+            totalEarnings += transaction.totalCost;
+            customerCount += 1;
+
+            // Track service popularity (if services exist and is a string)
+            if (
+              transaction.services &&
+              typeof transaction.services === "string"
+            ) {
+              transaction.services
+                .split(",")
+                .map((service) => service.trim())
+                .forEach((service) => {
+                  serviceCount[service] = (serviceCount[service] || 0) + 1;
+                });
+            }
+
+            // Track barber earnings
+            barberEarnings[barber.name] += transaction.totalCost;
+          }
+        });
+      });
+
+      // Find most popular service
+      let popularService = "None";
+      let maxServiceCount = 0;
+      Object.entries(serviceCount).forEach(([service, count]) => {
+        if (count > maxServiceCount) {
+          maxServiceCount = count;
+          popularService = service;
+        }
+      });
+
+      // Find top earning (popular) barber based on number of customers served today
+      let popularBarber = "None";
+      let maxCustomerCount = 0;
+      Object.entries(barberEarnings).forEach(([barber, earnings]) => {
+        if (earnings > maxCustomerCount) {
+          maxCustomerCount = earnings;
+          popularBarber = barber;
+        }
+      });
+
+      // Update state with calculated values
+      setTodayStats({
+        earnings: totalEarnings,
+        customers: customerCount,
+        popularService: popularService,
+        topEmployee: popularBarber,
+      });
+    } catch (error) {
+      console.error("Error fetching today's stats:", error);
+    }
   };
-
-  const revenueData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [
-      {
-        data: [500, 700, 600, 800, 900, 1200, 1100],
-      },
-    ],
-  };
-
-  const barData = {
-    labels: ['John', 'Jane', 'Mike'],
-    datasets: [
-      {
-        data: [15, 12, 10],
-      },
-    ],
-  };
-
-  const screenWidth = Dimensions.get('window').width;
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Summary Cards */}
-      <View style={styles.cardRow}>
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title>Total Customers</Title>
-            <Paragraph>120 👥</Paragraph>
-          </Card.Content>
-        </Card>
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title>Total Revenue</Title>
-            <Paragraph>$2,500 💰</Paragraph>
-          </Card.Content>
-        </Card>
-      </View>
-      <View style={styles.cardRow}>
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title>Popular Service</Title>
-            <Paragraph>Haircut ✂️</Paragraph>
-          </Card.Content>
-        </Card>
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title>Top Employee</Title>
-            <Paragraph>John 🏆</Paragraph>
-          </Card.Content>
-        </Card>
-      </View>
-
-      {/* Charts */}
-      <Card style={styles.chartCard}>
-        <Card.Content>
-          <Title>Customers Served</Title>
-          <BarChart
-            data={barData}
-            width={screenWidth - 32}
-            height={220}
-            yAxisLabel=""
-            chartConfig={{
-              backgroundColor: '#ffffff',
-              backgroundGradientFrom: '#ffffff',
-              backgroundGradientTo: '#ffffff',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(10, 38, 71, ${opacity})`,
-            }}
-          />
-        </Card.Content>
-      </Card>
-
-      <Card style={styles.chartCard}>
-        <Card.Content>
-          <Title>Revenue Trends</Title>
-          <LineChart
-            data={revenueData}
-            width={screenWidth - 32}
-            height={220}
-            yAxisLabel="$"
-            chartConfig={{
-              backgroundColor: '#ffffff',
-              backgroundGradientFrom: '#ffffff',
-              backgroundGradientTo: '#ffffff',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(255, 215, 0, ${opacity})`,
-            }}
-          />
-        </Card.Content>
-      </Card>
-
-      {/* Bar Chart for Service Popularity */}
-      <Card style={styles.chartCard}>
-        <Card.Content>
-          <Title>Service Popularity</Title>
-          <BarChart
-            data={serviceData}
-            width={screenWidth - 32}
-            height={220}
-            yAxisLabel=""
-            chartConfig={{
-              backgroundColor: '#ffffff',
-              backgroundGradientFrom: '#ffffff',
-              backgroundGradientTo: '#ffffff',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(255, 0, 0, ${opacity})`, // Red color for bars
-            }}
-          />
-        </Card.Content>
-      </Card>
-
-      {/* Employee Performance Table */}
-      <Card style={styles.tableCard}>
-        <Card.Content>
-          <Title>Employee Performance</Title>
-          {employeeData.map((emp, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text>{emp.name}</Text>
-              <Text>{emp.customers}</Text>
-              <Text>${emp.revenue}</Text>
-              <Text>{emp.avgTime}</Text>
-              <Text>{emp.rating} ⭐️</Text>
-            </View>
-          ))}
-        </Card.Content>
-      </Card>
-
-      {/* Recent Transactions */}
-      <Card style={styles.transactionCard}>
-        <Card.Content>
-          <Title>Recent Transactions</Title>
-          <Text>Customer Name | Services | Amount | Payment Method</Text>
-          <Text>John Doe | Haircut | $50 | 💳</Text>
-          <Text>Jane Smith | Shave | $30 | 💵</Text>
-        </Card.Content>
-      </Card>
-
-      {/* Animatable Animation */}
-      <Animatable.View
-        animation="bounceIn" // Animation type
-        iterationCount="infinite" // Loop the animation
-        style={styles.animatable}
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.contentContainer}
+    >
+      {/* Image Carousel Section */}
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        style={styles.carouselContainer}
+        contentContainerStyle={styles.carouselContentContainer}
       >
-        <Text style={styles.animatableText}>🎉</Text>
-      </Animatable.View>
+        {carouselData.map((imageUrl, index) => (
+          <Image
+            key={index}
+            source={{ uri: imageUrl }}
+            style={[styles.carouselImage, { width: screenWidth - 40 }]}
+            resizeMode="cover"
+          />
+        ))}
+      </ScrollView>
+
+      {/* Small Cards Section */}
+      <View style={styles.smallCardsContainer}>
+        {[
+          {
+            title: "Today's Earnings",
+            value: `₹${todayStats.earnings}`,
+            iconName: "money",
+            colors: ["#6a11cb", "#2575fc"],
+          },
+          {
+            title: "Today's Customers",
+            value: todayStats.customers.toString(),
+            iconName: "users",
+            colors: ["#ff7e5f", "#feb47b"],
+          },
+          {
+            title: "Popular Service",
+            value: todayStats.popularService,
+            iconName: "scissors",
+            colors: ["#4c669f", "#3b5998"],
+          },
+          {
+            title: "Top Employee",
+            value: todayStats.topEmployee,
+            iconName: "star",
+            colors: ["#30cfd0", "#330867"],
+          },
+        ].map((item, index) => (
+          <LinearGradient key={index} colors={item.colors} style={styles.smallCard}>
+            <Icon name={item.iconName} size={24} color="#fff" />
+            <Text style={styles.smallCardTitle}>{item.title}</Text>
+            <Text style={styles.smallCardValue}>{item.value}</Text>
+          </LinearGradient>
+        ))}
+      </View>
     </ScrollView>
   );
 };
@@ -173,49 +189,58 @@ const MenuScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#fff",
+  },
+  contentContainer: {
+    alignItems: "center",
+    padding: 20,
+  },
+  carouselContainer: {
+    marginBottom: 20,
+  },
+  carouselContentContainer: {
+    paddingHorizontal: 20,
+  },
+  carouselImage: {
+    height: 200,
+    borderRadius: 12,
+    marginRight: 10,
+  },
+  smallCardsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    width: "100%",
+  },
+  smallCard: {
+    width: "48%",
+    aspectRatio: 1,
     padding: 16,
-    backgroundColor: '#F5F5F5',
-  },
-  cardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  card: {
-    flex: 1,
-    margin: 8,
     borderRadius: 12,
-    elevation: 4,
-  },
-  chartCard: {
     marginBottom: 16,
-    borderRadius: 12,
-    elevation: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  tableCard: {
-    marginBottom: 16,
-    borderRadius: 12,
-    elevation: 4,
+  smallCardTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 8,
+    textAlign: "center",
   },
-  transactionCard: {
-    marginBottom: 16,
-    borderRadius: 12,
-    elevation: 4,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  animatable: {
-    alignSelf: 'center',
-    marginTop: 20,
-  },
-  animatableText: {
-    fontSize: 50,
+  smallCardValue: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginTop: 4,
   },
 });
 
-export default MenuScreen;
+export default Menu;

@@ -22,7 +22,7 @@ export default function TabProfileScreen() {
   const fetchProfile = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
-      const response = await fetch("https://barber-queue.vercel.app/profile", {
+      const response = await fetch("http://10.0.2.2:5000/profile", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -74,7 +74,7 @@ export default function TabProfileScreen() {
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem("userToken");
-      router.replace("../login");
+      router.replace("../pre-login");
     } catch (error) {
       console.error("Error logging out:", error);
     }
@@ -143,7 +143,7 @@ export default function TabProfileScreen() {
                 <View key={index} style={styles.historyItem}>
                   <View style={styles.paymentRow}>
                 <Text style={styles.historyService}>{item.service}</Text>
-                <Text style={styles.paymentAmount}>₹100.00</Text>
+                <Text style={styles.paymentAmount}>₹{item.cost}.00</Text>
                
                 </View>
                 <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>

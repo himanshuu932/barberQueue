@@ -23,15 +23,21 @@ export default function MenuScreen() {
   const [queueItems, setQueueItems] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
-  const API_BASE = "https://servercheckbarber.vercel.app";
+  const API_BASE = "http://10.0.2.2:5000";
   const shineAnimation = useRef(new Animated.Value(0)).current;
-
+  const [barberId, setBarberId] = useState(null); // Barber ID state
   // WebSocket connection
   const [socket, setSocket] = useState(null);
 
   // Get the setter from context to register our plus button handler
   const { setPlusButtonHandler } = useContext(PlusButtonContext);
-
+  useEffect(() => {
+    const fetchBarberId = async () => {
+      const id = await AsyncStorage.getItem("uid");
+      setBarberId(id); // Set the barberId state
+    };
+    fetchBarberId();
+  }, []);
   // Register handleIncrement as the plus button handler when this screen mounts.
   useEffect(() => {
     setPlusButtonHandler(() => handleIncrement);
@@ -61,6 +67,7 @@ export default function MenuScreen() {
     try {
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
+      //console.log(data);
       setQueueLength(data.queueLength);
       setQueueItems(data.data);
     } catch (error) {
@@ -73,9 +80,9 @@ export default function MenuScreen() {
   }, []);
 
   // Mark user as served by updating their history and then removing them from the queue.
-  const markUserServed = async (userId, userName) => {
+  const markUserServed = async (userId, userName,services,cost) => {
     console.log("Mark user as served", userId, userName);
-   
+   alert(barberId)
     try {
       // Retrieve the stored token from AsyncStorage
       const token = await AsyncStorage.getItem("userToken");
@@ -90,7 +97,7 @@ export default function MenuScreen() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ userId, service: "Haircut" }),
+        body: JSON.stringify({ barberId,userId, service: services,cost }),
       });
       if (response.ok) {
         // Log error details from the backend response
@@ -127,6 +134,15 @@ export default function MenuScreen() {
       body: JSON.stringify({ name,id }),
     });
     if(res.ok){
+      await fetch(`${API_BASE}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid,
+          title: "Queue Update",
+          body: `You have been moved down in the queue.`,
+        }),
+      });
       socket.emit("moveDownQueue", { name: name, id: id,uid: uid });
     }
     fetchQueueData();
@@ -138,17 +154,24 @@ export default function MenuScreen() {
     const minutes = now.getMinutes().toString().padStart(2, "0");
     const seconds = now.getSeconds().toString().padStart(2, "0");
     const id = `${name}${hour}${minutes}${seconds}=`;
+    
+    // Concatenate the first letter of name and id, both uppercased.
+    const code = name.substring(0, 2)+ id.substring(3, 7).toUpperCase();
+    
+    
     const res = await fetch(`${API_BASE}/queue`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name,id }),
+      body: JSON.stringify({ name, id, code }),
     });
-    if(res.ok){
-      socket.emit("joinQueue", { name: name, id: id });
+    
+    if (res.ok) {
+      socket.emit("joinQueue", { name, id, code });
     }
+    
     fetchQueueData();
   };
-
+  
   // Plus button functionality: open the modal with an empty value.
   const handleIncrement = () => {
     setNewName("");
@@ -191,7 +214,7 @@ export default function MenuScreen() {
       <View style={styles.overlay} />
       <View style={styles.container}>
         <Text style={styles.userCode}>
-          {queueItems[0] ? queueItems[0].name : "Aaj kdki h!"}
+          {queueItems[0] ? queueItems[0].code : "Aaj kdki h!"}
         </Text>
         <Text style={styles.queue}>👤 {queueLength}</Text>
         <Text style={styles.queueListTitle}>Queue List</Text>
@@ -201,36 +224,57 @@ export default function MenuScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 10 }}
         >
-          {queueItems.map((item, index) => (
-            <View key={item.uid} style={styles.queueCard}>
-              <View style={styles.nameText}>
-                <Text style={styles.queueNumber}>{index + 1}.</Text>
-                <View>
-                  <Text style={styles.queueName}>{item.name}</Text>
-                  <Text style={styles.queueId}>ID: {item.uid}</Text>
-                </View>
-              </View>
-              <View style={styles.iconGroup}>
-                {index < 3 ? (
-                  <TouchableOpacity
-                    style={styles.doneButton}
-                    onPress={() => markUserServed(item.uid, item.name)}
-                  >
-                    <Icon name="check" size={24} color="white" />
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity onPress={() => removePerson(item.name,item.uid)}>
-                    <Icon name="delete" size={24} color="red" />
-                  </TouchableOpacity>
-                )}
-                {index < 3 && (
-                  <TouchableOpacity style={styles.downButton} onPress={() => moveDownPerson(item.name,item._id,item.uid)}>
-                    <Icon name="arrow-downward" size={24} color="white" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          ))}
+         {queueItems.map((item, index) => (
+  <View key={item.uid} style={styles.queueCard}>
+    <View style={styles.nameText}>
+      <Text style={styles.queueNumber}>{index + 1}.</Text>
+      <View>
+        <Text style={styles.queueName}>{item.name}</Text>
+        <Text style={styles.queueId}>ID: {item.code}</Text>
+        <TouchableOpacity
+  onPress={() => {
+  //  console.log("Item services:", JSON.stringify(item.services));
+
+    Alert.alert(
+      "Services",
+      item.services && item.services.length > 0
+        ? item.services.join(", ")
+        : "No services"
+    )
+  }}
+>
+  <Text style={styles.servicesText}>View Services</Text>
+</TouchableOpacity>
+
+      </View>
+    </View>
+    <View style={styles.iconGroup}>
+      {index < 3 ? (
+        <TouchableOpacity
+          style={styles.doneButton}
+          onPress={() =>
+            markUserServed(item.uid, item.name, item.services, item.totalCost)
+          }
+        >
+          <Icon name="check" size={24} color="white" />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity onPress={() => removePerson(item.name, item.uid)}>
+          <Icon name="delete" size={24} color="red" />
+        </TouchableOpacity>
+      )}
+      {index < 3 && (
+        <TouchableOpacity
+          style={styles.downButton}
+          onPress={() => moveDownPerson(item.name, item._id, item.uid)}
+        >
+          <Icon name="arrow-downward" size={24} color="white" />
+        </TouchableOpacity>
+      )}
+    </View>
+  </View>
+))}
+
         </ScrollView>
 
         {/* Modal Overlay for adding a new name */}

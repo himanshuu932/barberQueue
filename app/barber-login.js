@@ -57,8 +57,7 @@ async function registerForPushNotifications(uid) {
   }
 }
 
-
-export default function LoginScreen() {
+export default function BarberLoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -69,7 +68,7 @@ export default function LoginScreen() {
       return;
     }
     try {
-      const response = await fetch("http://10.0.2.2:5000/login", {
+      const response = await fetch("http://10.0.2.2:5000/barber/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -81,31 +80,18 @@ export default function LoginScreen() {
       }
       // Store token and user data
       await AsyncStorage.setItem("userToken", data.token);
-      await AsyncStorage.setItem("userName", data.user.name);
-      await AsyncStorage.setItem("uid", data.user.id);
+      await AsyncStorage.setItem("userName", data.barber.name);
+      await AsyncStorage.setItem("uid", data.barber.id);
+      console.log(data.barber.id);
+      await AsyncStorage.setItem("userType", "barber");
 
-      // Determine userType (example logic)
-      let userType = "user";
-      if (email === "admin") {
-        userType = "admin";
-      } else if (email === "superadmin") {
-        userType = "superadmin";
-      }
-      await AsyncStorage.setItem("userType", userType);
-
-      Alert.alert("Success", `Logged in as: ${email}`);
+      Alert.alert("Success", `Logged in as Barber: ${email}`);
 
       // Register push notifications for this user
-      await registerForPushNotifications(data.user.id);
+      await registerForPushNotifications(data.barber.id);
 
-      // Navigate based on userType
-      if (userType === "admin") {
-        router.replace("/(admin)/menu");
-      } else if (userType === "superadmin") {
-        router.replace("/(superadmin)/menu");
-      } else {
-        router.replace("/(tabs)/menu");
-      }
+      // Navigate to the barber dashboard
+      router.replace("/(admin)/menu");
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
@@ -119,7 +105,7 @@ export default function LoginScreen() {
     >
       <View style={styles.overlay}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Login</Text>
+          <Text style={styles.title}>Barber Login</Text>
 
           <TextInput
             style={styles.input}
