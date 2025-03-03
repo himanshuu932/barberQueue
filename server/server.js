@@ -392,7 +392,7 @@ app.delete("/queue", async (req, res) => {
     if (removedPerson) {
       // Broadcast the updated queue to all clients
       io.emit("queueUpdated", { message: "Queue has been updated" });
-      res.json({ message: "Person removed", removed: removedPerson });
+      res.status(200).json({ message: "Person removed", removed: removedPerson });
     } else {
       res.json({ message: "Queue is empty" });
     }
