@@ -141,7 +141,7 @@ app.post("/register-push-token", async (req, res) => {
 
 app.post("/notify", async (req, res) => {
   try {
-    const { uid, title, body } = req.body;
+    const { uid, title, body, data } = req.body;
     if (!uid || !title || !body) {
       return res.status(400).json({ error: "UID, title, and body are required" });
     }
@@ -153,14 +153,20 @@ app.post("/notify", async (req, res) => {
       return res.status(400).json({ error: "Invalid Expo push token" });
     }
 
-    const messages = [
-      {
-        to: user.expoPushToken,
-        sound: "default",
-        title: title,
-        body: body,
-      },
-    ];
+    // Build the notification message.
+    const message = {
+      to: user.expoPushToken,
+      sound: "default",
+      title: title,
+      body: body,
+    };
+
+    // Only add data if it's provided.
+    if (data) {
+      message.data = data;
+    }
+
+    const messages = [ message ];
 
     let chunks = expo.chunkPushNotifications(messages);
     let tickets = [];
@@ -174,6 +180,7 @@ app.post("/notify", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+ 
 
 /* ===============================
    Signup Endpoint
@@ -427,6 +434,34 @@ app.get("/profile", authMiddleware, async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error("Error fetching profile:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+app.patch("/profile", async (req, res) => {
+  try {
+    const { uid, name, email } = req.body;
+    if (!uid) {
+      return res.status(400).json({ error: "User ID (uid) is required." });
+    }
+    // Ensure that at least one field is provided for update.
+    if (!name && !email) {
+      return res
+        .status(400)
+        .json({ error: "At least one field (name or email) must be provided for update." });
+    }
+
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+
+    // Find the user by ID and update, returning the new document.
+    const updatedUser = await User.findByIdAndUpdate(uid, updateData, { new: true });
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    res.json({ message: "Profile updated successfully.", user: updatedUser });
+  } catch (error) {
+    console.error("Error updating profile:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -685,11 +720,39 @@ app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+app.patch("/barber/profile", async (req, res) => {
+  try {
+    const { bid, name, email, phone } = req.body;
+    if (!bid) {
+      return res.status(400).json({ error: "Barber ID (bid) is required." });
+    }
+    if (!name && !email && !phone) {
+      return res
+        .status(400)
+        .json({ error: "At least one field (name, email, or phone) must be provided for update." });
+    }
+
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (phone) updateData.phone = phone;
+
+    const updatedBarber = await Barber.findByIdAndUpdate(bid, updateData, { new: true });
+    if (!updatedBarber) {
+      return res.status(404).json({ error: "Barber not found." });
+    }
+    res.json({ message: "Barber profile updated successfully.", barber: updatedBarber });
+  } catch (error) {
+    console.error("Error updating barber profile:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
   
   /* ===============================
      Rate Barber Endpoint
      =============================== */
-  app.post("/barber/rate", authMiddleware, async (req, res) => {
+  app.post("/barber/rate",  async (req, res) => {
     try {
       const { barberId, rating } = req.body;
       if (!barberId || !rating || rating < 1 || rating > 5) {

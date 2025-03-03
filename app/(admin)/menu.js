@@ -108,6 +108,7 @@ export default function MenuScreen() {
             uid:userId,
             title: "Service Done",
             body: `Thank you please rate us`,
+            data: { id: `${barberId}` },
           }),
         });
         socket.emit("markedServed",{userId, userName});
@@ -115,6 +116,7 @@ export default function MenuScreen() {
       // Remove user from queue by their name.
       await fetch(`${API_BASE}/queue?uid=${encodeURIComponent(userId)}`, {
         method: "DELETE",
+
       });
       fetchQueueData();
       Alert.alert(

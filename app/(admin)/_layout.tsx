@@ -1,5 +1,5 @@
 import React, { createContext, useState, Dispatch, SetStateAction } from "react";
-import { Tabs } from "expo-router";
+import { Tabs, usePathname } from "expo-router"; // Import usePathname
 import { Ionicons } from "@expo/vector-icons";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 
@@ -17,6 +17,7 @@ export const PlusButtonContext = createContext<PlusButtonContextType>({
 
 export default function Layout() {
   const [plusButtonHandler, setPlusButtonHandler] = useState<() => void>(() => () => {});
+  const pathname = usePathname(); // Get the current route
 
   return (
     <PlusButtonContext.Provider value={{ plusButtonHandler, setPlusButtonHandler }}>
@@ -54,10 +55,12 @@ export default function Layout() {
         />
       </Tabs>
 
-      {/* Floating Plus Button integrated with the navbar (with slight bulge) */}
-      <TouchableOpacity style={styles.floatingButton} onPress={plusButtonHandler}>
-        <Ionicons name="add" size={36} color="#fff" />
-      </TouchableOpacity>
+      {/* Floating Plus Button: Only Visible on Home (menu) Screen */}
+      {pathname === "/menu" && (
+        <TouchableOpacity style={styles.floatingButton} onPress={plusButtonHandler}>
+          <Ionicons name="add" size={36} color="#fff" />
+        </TouchableOpacity>
+      )}
     </PlusButtonContext.Provider>
   );
 }

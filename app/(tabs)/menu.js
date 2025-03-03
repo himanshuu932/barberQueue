@@ -18,6 +18,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { io } from "socket.io-client";
+import { Rating } from "react-native-ratings"; // For star ratings
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -50,6 +51,9 @@ export default function MenuScreen() {
     { id: 6, text: "Facial", price: "₹150", checked: false },
     { id: 7, text: "Hair Color", price: "₹200", checked: false },
   ]);
+  const [ratingModalVisible, setRatingModalVisible] = useState(false); // State for rating popup
+  const [rating, setRating] = useState(0); // State for star rating
+
   const [infoModalChecklist, setInfoModalChecklist] = useState([]);
   const totalSelectedPrice = checklist
     .filter((item) => item.checked)
@@ -308,7 +312,69 @@ export default function MenuScreen() {
       ]
     );
   };
-
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        console.log("Notification response received:", response);
+        
+        const content = response.notification.request.content;
+        console.log("Notification content:", content);
+        
+        const { title, body } = content;
+        console.log("Extracted title:", title);
+        console.log("Extracted body:", body);
+        
+        if (title === "Service Done") {
+          console.log("Saving flag for rating modal in AsyncStorage.");
+          (async () => {
+            try {
+              await AsyncStorage.setItem("shouldShowRatingModal", "true");
+              if (data && data.id) {
+                await AsyncStorage.setItem("id", data.id);
+                console.log("Barber id saved to AsyncStorage:", data.id);
+              }
+            } catch (error) {
+              console.error("Error saving rating modal flag:", error);
+            }
+          })();
+        } else {
+          console.log("Notification title does not match expected value. No action taken.");
+        }
+      }
+    );
+  
+    return () => {
+      console.log("Removing notification response listener.");
+      subscription.remove();
+    };
+  }, []);
+  
+  useEffect(() => {
+    const checkRatingModalFlag = async () => {
+      try {
+        const flag = await AsyncStorage.getItem("shouldShowRatingModal");
+        console.log("Rating modal flag from storage:", flag);
+        if (flag === "true") {
+          setRatingModalVisible(true);
+          // Remove the flag once processed
+          await AsyncStorage.removeItem("shouldShowRatingModal");
+          await AsyncStorage.removeItem("id");
+          console.log("Flag removed from AsyncStorage, rating modal visible state set to true.");
+        }
+      } catch (error) {
+        console.error("Error checking rating modal flag:", error);
+      }
+    };
+  
+    // Check for the flag when the component mounts.
+    checkRatingModalFlag();
+  }, []);
+  
+  // Log whenever ratingModalVisible changes.
+  useEffect(() => {
+    console.log("Rating modal visible state changed:", ratingModalVisible);
+  }, [ratingModalVisible]);
+  
   if (loading) {
     return (
       <View style={styles.container}>
@@ -316,7 +382,32 @@ export default function MenuScreen() {
       </View>
     );
   }
-
+  async function rateBarber( rating) {
+    const barberId=await AsyncStorage.getItem("id");
+    try {
+      const response = await fetch(`${API_BASE}/barber/rate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ barberId, rating })
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error rating barber:", errorData);
+        return;
+      }
+  
+      const data = await response.json();
+      console.log("Rating submitted successfully:", data);
+      // Optionally, update your UI with the average rating:
+      // updateAverageRating(data.averageRating);
+    } catch (error) {
+      console.error("Error rating barber:", error);
+    }
+  }
+  
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
       <View style={styles.overlay} />
@@ -500,11 +591,99 @@ export default function MenuScreen() {
         </Modal>
 
       </View>
+      {/* Render the rating modal */}
+      <Modal
+  visible={ratingModalVisible}
+  transparent
+  animationType="slide"
+  onRequestClose={() => {
+    // Prevent the modal from closing automatically.
+    console.log("onRequestClose triggered: Ignoring hardware back button.");
+  }}
+  onShow={() => console.log("Rating modal is now visible.")}
+>
+  <View style={styles.ratingModalContainer}>
+    <View style={styles.ratingModalContent}>
+      <Text style={styles.ratingModalTitle}>Rate Your Barber</Text>
+      <Rating
+        type="star"
+        ratingCount={5}
+        imageSize={40}
+        onFinishRating={(value) => {
+          console.log("User selected rating:", value);
+          setRating(value);
+        }}
+      />
+      <TouchableOpacity
+        style={styles.ratingSubmitButton}
+        onPress={() => {
+          console.log("Rating submitted:", rating);
+          
+          rateBarber(rating);
+          setRatingModalVisible(false);
+        }}
+      >
+        <Text style={styles.ratingSubmitButtonText}>Submit</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.ratingCloseButton}
+        onPress={() => {
+          console.log("Rating modal closed without submitting.");
+          setRatingModalVisible(false);
+        }}
+      >
+        <Text style={styles.ratingCloseButtonText}>Close</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
+
+
+
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  ratingModalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  ratingModalContent: {
+    backgroundColor: "white",
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+    alignItems: "center",
+  },
+  ratingModalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+  ratingSubmitButton: {
+    backgroundColor: "#007bff",
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 20,
+    width: "100%",
+    alignItems: "center",
+  },
+  ratingSubmitButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  ratingCloseButton: {
+    marginTop: 10,
+    padding: 10,
+  },
+  ratingCloseButtonText: {
+    color: "#007bff",
+    fontSize: 16,
+  },
   closeButton: {
     position: "absolute",
     top: 10,
