@@ -1,19 +1,20 @@
 FROM node:16-alpine
 
-# Create and switch to the app directory
+# Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy package.json and package-lock.json (if present)
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install --production
 
-# Copy the rest of the source code
+# Copy the rest of your code
 COPY . .
 
-# Expose the port that your server listens on
-EXPOSE 5000
+# Let Cloud Run handle the PORT env var (or default to 8080)
+ENV PORT 8080
+EXPOSE 8080
 
 # Start your server
 CMD ["node", "server.js"]
