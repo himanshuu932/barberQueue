@@ -23,7 +23,7 @@ export default function MenuScreen() {
   const [queueItems, setQueueItems] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
-  const API_BASE = "https://barber-queue.vercel.app";
+  const API_BASE = "https://barber-24143206157.us-central1.run.app";
   const shineAnimation = useRef(new Animated.Value(0)).current;
   const [barberId, setBarberId] = useState(null); // Barber ID state
   // WebSocket connection
