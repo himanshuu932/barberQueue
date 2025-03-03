@@ -649,7 +649,18 @@ app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
     console.log("Received request to add history:", { userId, barberId, service, cost });
 
     // Validate required fields
-  
+    const barber = await Barber.findById(barberId);
+    if (!barber) {
+      console.error("Barber not found with ID:", barberId);
+      return res.status(404).json({ error: "Barber not found" });
+    }
+    const serviceString = Array.isArray(service) ? service.join(", ") : service;
+    console.log("Service string:", serviceString);
+    console.log("Updating barber history and statistics...");
+    barber.history.push({ services: serviceString, totalCost: cost, date: new Date() });
+    barber.totalCustomersServed += 1;
+    await barber.save();
+    console.log("Barber history and statistics updated successfully");
 
     // Handle dummy users (mobile users without account)
     if (userId.endsWith("=")) {
@@ -663,23 +674,18 @@ app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
     // Find the user and barber
     console.log("Fetching user and barber from the database...");
     const user = await User.findById(userId);
-    const barber = await Barber.findById(barberId);
-
+    
+  
     if (!user) {
       console.error("User not found with ID:", userId);
       return res.status(404).json({ error: "User not found" });
     }
-    if (!barber) {
-      console.error("Barber not found with ID:", barberId);
-      return res.status(404).json({ error: "Barber not found" });
-    }
+   
 
     console.log("User and barber found:", { user: user._id, barber: barber._id });
 
     // If service is an array, join the elements into a single comma-separated string
-    const serviceString = Array.isArray(service) ? service.join(", ") : service;
-    console.log("Service string:", serviceString);
-
+  
     // Update user history
     console.log("Updating user history...");
     user.history.push({ service: serviceString, cost, date: new Date() });
@@ -687,12 +693,7 @@ app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
     console.log("User history updated successfully");
 
     // Update barber history and statistics
-    console.log("Updating barber history and statistics...");
-    barber.history.push({ services: serviceString, totalCost: cost, date: new Date() });
-    barber.totalCustomersServed += 1;
-    await barber.save();
-    console.log("Barber history and statistics updated successfully");
-
+    
     // Remove the user from the queue
     console.log("Removing user from the queue...");
     const removedPerson = await Queue.findOneAndDelete({ uid: userId });
@@ -722,20 +723,26 @@ app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
 });
 app.patch("/barber/profile", async (req, res) => {
   try {
-    const { bid, name, email, phone } = req.body;
+    const { bid, name, email, phone, password } = req.body;
     if (!bid) {
       return res.status(400).json({ error: "Barber ID (bid) is required." });
     }
-    if (!name && !email && !phone) {
-      return res
-        .status(400)
-        .json({ error: "At least one field (name, email, or phone) must be provided for update." });
+    // Ensure that at least one field is provided for update.
+    if (!name && !email && !phone && !password) {
+      return res.status(400).json({
+        error:
+          "At least one field (name, email, phone, or password) must be provided for update."
+      });
     }
 
     const updateData = {};
     if (name) updateData.name = name;
     if (email) updateData.email = email;
     if (phone) updateData.phone = phone;
+    if (password) {
+      // WARNING: In production, hash the password before saving!
+      updateData.password = password;
+    }
 
     const updatedBarber = await Barber.findByIdAndUpdate(bid, updateData, { new: true });
     if (!updatedBarber) {
@@ -747,6 +754,7 @@ app.patch("/barber/profile", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
   
   /* ===============================

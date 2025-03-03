@@ -320,7 +320,7 @@ export default function MenuScreen() {
         const content = response.notification.request.content;
         console.log("Notification content:", content);
         
-        const { title, body } = content;
+        const { title, body ,data} = content;
         console.log("Extracted title:", title);
         console.log("Extracted body:", body);
         
@@ -358,7 +358,7 @@ export default function MenuScreen() {
           setRatingModalVisible(true);
           // Remove the flag once processed
           await AsyncStorage.removeItem("shouldShowRatingModal");
-          await AsyncStorage.removeItem("id");
+         
           console.log("Flag removed from AsyncStorage, rating modal visible state set to true.");
         }
       } catch (error) {
@@ -384,6 +384,8 @@ export default function MenuScreen() {
   }
   async function rateBarber( rating) {
     const barberId=await AsyncStorage.getItem("id");
+    await AsyncStorage.removeItem("id");
+    console.log("Rating barber with id:", barberId, "and rating:", rating);
     try {
       const response = await fetch(`${API_BASE}/barber/rate`, {
         method: "POST",
@@ -618,8 +620,7 @@ export default function MenuScreen() {
         style={styles.ratingSubmitButton}
         onPress={() => {
           console.log("Rating submitted:", rating);
-          
-          rateBarber(rating);
+           rateBarber(rating);
           setRatingModalVisible(false);
         }}
       >
