@@ -23,7 +23,7 @@ export default function MenuScreen() {
   const [queueItems, setQueueItems] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
-  const API_BASE = "https://barber-24143206157.asia-south2.run.app";
+  const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
   const shineAnimation = useRef(new Animated.Value(0)).current;
   const [barberId, setBarberId] = useState(null); // Barber ID state
   // WebSocket connection
@@ -100,11 +100,12 @@ export default function MenuScreen() {
         body: JSON.stringify({ barberId,userId, service: services,cost }),
       });
       if (response.ok) {
+        console.log("ok")
         await fetch(`${API_BASE}/notify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            uid,
+            uid:userId,
             title: "Service Done",
             body: `Thank you please rate us`,
           }),

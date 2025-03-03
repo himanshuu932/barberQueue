@@ -36,7 +36,7 @@ const Menu = () => {
   const fetchTodayStats = async () => {
     try {
       // Fetch barbers data
-      const barbersResponse = await fetch("https://barber-24143206157.asia-south2.run.app/barbers");
+      const barbersResponse = await fetch("https://barberqueue-24143206157.us-central1.run.app/barbers");
       const barbersData = await barbersResponse.json();
 
       // Get current date in IST timezone

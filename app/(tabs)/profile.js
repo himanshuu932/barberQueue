@@ -22,7 +22,7 @@ export default function TabProfileScreen() {
   const fetchProfile = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
-      const response = await fetch("https://barber-24143206157.asia-south2.run.app/profile", {
+      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/profile", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,

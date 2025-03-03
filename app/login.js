@@ -41,7 +41,7 @@ async function registerForPushNotifications(uid) {
   console.log("Expo Push Token generated:", token);
   // Send token to your backend so it can be stored in the user record
   try {
-    const response = await fetch("https://barber-24143206157.asia-south2.run.app/register-push-token", {
+    const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/register-push-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ uid, token }),
@@ -73,7 +73,7 @@ export default function LoginScreen() {
       return;
     }
     try {
-      const response = await fetch("https://barber-24143206157.asia-south2.run.app/login", {
+      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

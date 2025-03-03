@@ -145,7 +145,7 @@ export default function TabProfileScreen({ navigation }) {
       <View style={styles.paymentHistoryContainer}>
         <Text style={styles.sectionTitle}>Payment History</Text>
         <View style={styles.paymentBox}>
-          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 280 }}>
             {barber?.history?.map((item, index) => (
               <View key={index} style={styles.paymentCard}>
                 <View style={styles.paymentRow}>
@@ -169,27 +169,155 @@ export default function TabProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center",justifyContent:"space-between", padding: 20, backgroundColor: "#fff" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  errorContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  errorText: { fontSize: 16, color: "red" },
-  profileBox: { width: "100%", height: 180, borderRadius: 10, overflow: "hidden", marginBottom: 20 },
-  profileBackground: { width: "100%", height: "100%", justifyContent: "center", alignItems: "center" },
-  shine: { position: "absolute", top: 0, left: 0, width: 300, height: "300%" },
-  shineGradient: { width: "100%", height: "100%" },
-  profileContent: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20 },
-  profileImage: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: "#fff", marginRight: 15 },
-  username: { fontSize: 22, fontWeight: "900", color: "#fff" },
-  userInfo: { fontSize: 16, fontWeight: "bold", color: "#fff", marginTop: 2 },
-  sectionTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 10, color: "#000" },
-  paymentHistoryContainer: { width: "100%", alignItems: "center", marginBottom: 10 },
-  paymentBox: { backgroundColor: "#fff", borderRadius: 12, width: "100%", padding: 10, maxHeight: 450, elevation: 5 },
-  paymentCard: { backgroundColor: "#F9F9F9", padding: 11, borderRadius: 10, marginBottom: 10, elevation: 3 },
-  paymentRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  paymentDate: { fontSize: 14, color: "#555" },
-  paymentAmount: { fontSize: 16, fontWeight: "bold", color: "rgb(16, 98, 13)" },
-  paymentDescription: { fontSize: 15, color: "#777", marginTop: 4 },
-  buttonContainer: { width: "90%", marginBottom: 10 },
-  button: { padding: 12, alignItems: "center", borderRadius: 8 },
-  buttonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
+  container: 
+  { 
+    flex: 1,
+    alignItems: "center",
+    justifyContent:"space-between",
+    padding: 20,
+    backgroundColor: "#fff" 
+  },
+  loadingContainer: 
+  { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center" 
+  },
+  errorContainer: 
+  { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center" 
+  },
+  errorText: 
+  { 
+    fontSize: 16, 
+    color: "red" 
+  },
+  profileBox: 
+  { 
+    width: "100%", 
+    height: 180, 
+    borderRadius: 10, 
+    overflow: "hidden", 
+    marginBottom: 20 
+  },
+  profileBackground: 
+  { 
+    width: "100%", 
+    height: "100%", 
+    justifyContent: "center", 
+    alignItems: "center" 
+  },
+  shine: 
+  { 
+    position: "absolute", 
+    top: 0, 
+    left: 0, 
+    width: 300, 
+    height: "300%" 
+  },
+  shineGradient: 
+  { 
+    width: "100%", 
+    height: "100%" 
+  },
+  profileContent: 
+  { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    paddingHorizontal: 20 
+  },
+  profileImage: 
+  { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 40, 
+    borderWidth: 2, 
+    borderColor: "#fff", 
+    marginRight: 15 
+  },
+  username: 
+  { 
+    fontSize: 22, 
+    fontWeight: "900", 
+    color: "#fff" 
+  },
+  userInfo: 
+  { 
+    fontSize: 16, 
+    fontWeight: "bold", 
+    color: "#fff", 
+    marginTop: 2 
+  },
+  sectionTitle: 
+  { 
+    fontSize: 20, 
+    fontWeight: "bold", 
+    marginBottom: 10, 
+    color: "#000",
+  },
+  paymentHistoryContainer: { 
+    width: "100%", 
+    alignItems: "center", 
+    marginBottom: "auto", 
+  },
+  paymentBox: { 
+    backgroundColor: "#fff", 
+    borderRadius: 12, 
+    width: "100%", 
+    padding: 10, 
+    maxHeight: 300, // Adjust the height dynamically
+    elevation: 5,
+    overflow: "hidden", // Prevents content from spilling
+  },
+  paymentCard: 
+  { 
+    backgroundColor: "#F9F9F9", 
+    padding: 11, 
+    borderRadius: 10, 
+    marginBottom: 10, 
+    elevation: 3 
+  },
+  paymentRow: 
+  { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center" 
+  },
+  paymentDate: 
+  { 
+    fontSize: 14, 
+    color: "#555" 
+  },
+  paymentAmount: 
+  { 
+    fontSize: 16, 
+    fontWeight: "bold", 
+    color: "rgb(16, 98, 13)" 
+  },
+  paymentDescription: 
+  { 
+    fontSize: 15, 
+    color: "#777", 
+    marginTop: 4 
+  },
+  buttonContainer: 
+  { 
+    position: "absolute",
+    bottom: "auto",
+    width: "90%", 
+    marginBottom: 10 
+  },
+  button: 
+  { padding: 12, 
+    alignItems: "center", 
+    borderRadius: 8 
+  },
+  buttonText: 
+  { 
+    color: "#FFFFFF", 
+    fontSize: 16, 
+    fontWeight: "bold" 
+  },
 });
