@@ -13,7 +13,7 @@ import {
   Alert,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { LinearGradient } from "expo-linear-gradient";
+import { LinearGradient } from "expo-linear-gradient";            
 import { PlusButtonContext } from "./_layout"; // Adjust this import path as needed
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { io } from "socket.io-client"; // Import socket.io-client
@@ -23,7 +23,7 @@ export default function MenuScreen() {
   const [queueItems, setQueueItems] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
-  const API_BASE = "https://barber-24143206157.us-central1.run.app";
+  const API_BASE = "https://barber-24143206157.asia-south2.run.app";
   const shineAnimation = useRef(new Animated.Value(0)).current;
   const [barberId, setBarberId] = useState(null); // Barber ID state
   // WebSocket connection
@@ -100,7 +100,15 @@ export default function MenuScreen() {
         body: JSON.stringify({ barberId,userId, service: services,cost }),
       });
       if (response.ok) {
-        // Log error details from the backend response
+        await fetch(`${API_BASE}/notify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uid,
+            title: "Service Done",
+            body: `Thank you please rate us`,
+          }),
+        });
         socket.emit("markedServed",{userId, userName});
       }
       // Remove user from queue by their name.
@@ -121,31 +129,69 @@ export default function MenuScreen() {
   const removePerson = async (name,uid) => {
     const res = await fetch(`${API_BASE}/queue?uid=${encodeURIComponent(uid)}`, { method: "DELETE" });
     if(res.ok){
+      await fetch(`${API_BASE}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid,
+          title: "Removed from queue",
+          body: `You have been removed from the queue.`,
+        }),
+      });
       socket.emit("removedFromQueue", {name,uid});
     }
     fetchQueueData();
     
   };
 
-  const moveDownPerson = async (name,id,uid) => {
-    const res = await fetch(`${API_BASE}/queue/move`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name,id }),
-    });
-    if(res.ok){
-      // await fetch(`${API_BASE}/notify`, {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     uid,
-      //     title: "Queue Update",
-      //     body: `You have been moved down in the queue.`,
-      //   }),
-      // });
-      socket.emit("moveDownQueue", { name: name, id: id,uid: uid });
+  const moveDownPerson = async (name, id, uid) => {
+    try {
+      // Move the user down in the queue
+      const res = await fetch(`${API_BASE}/queue/move`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, id }),
+      });
+  
+      if (res.ok) {
+        // Retrieve the stored token from AsyncStorage
+        const token = await AsyncStorage.getItem("userToken");
+        if (!token) {
+          Alert.alert("Authentication Error", "User not authenticated.");
+          return;
+        }
+  
+        // Notify the user that they have been moved down in the queue
+        const notifyResponse = await fetch(`${API_BASE}/notify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            uid: uid,
+            title: "Queue Update",
+            body: `Dear ${name}, you have been moved down in the queue.`,
+          }),
+        });
+  
+        if (!notifyResponse.ok) {
+          console.error("Failed to send notification");
+        }
+  
+        // Emit socket event to notify other clients
+        socket.emit("moveDownQueue", { name: name, id: id, uid: uid });
+  
+        // Refresh the queue data
+        fetchQueueData();
+      } else {
+        console.error("Failed to move user down in the queue");
+        Alert.alert("Error", "Failed to move user down in the queue.");
+      }
+    } catch (error) {
+      console.error("Error moving user down:", error);
+      Alert.alert("Error", "Failed to move user down in the queue.");
     }
-    fetchQueueData();
   };
 
   const addPerson = async (name) => {

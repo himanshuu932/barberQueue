@@ -138,7 +138,7 @@ app.post("/register-push-token", async (req, res) => {
   }
 });
 
-// Endpoint to send a push notification
+
 app.post("/notify", async (req, res) => {
   try {
     const { uid, title, body } = req.body;
@@ -190,7 +190,7 @@ app.post("/signup", async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ error: "User already exists" });
     }
-    // Create new user
+    // Create new user/
     const newUser = new User({ name, email, password });
     await newUser.save();
     // Generate a JWT token
@@ -619,7 +619,7 @@ app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
     // Handle dummy users (mobile users without account)
     if (userId.endsWith("=")) {
       console.log("Dummy user detected, skipping history update");
-      return res.json({ message: "Dummy user skipped history update" });
+      return res.status(200).json({ message: "Dummy user skipped history update" });
     }
     if (!userId || !barberId || !service || !cost) {
       console.error("Missing required fields in request body");
@@ -673,7 +673,8 @@ app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
 
     // Respond with success
     console.log("Request completed successfully");
-    res.json({
+    res.status(200).json({
+      ok:true,
       message: "History updated and user removed from queue",
       userHistory: user.history,
       barberHistory: barber.history,

@@ -10,7 +10,7 @@ export default function SignupScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const API_BASE = "https://barber-queue.vercel.app";
+  const API_BASE = "https://barber-24143206157.asia-south2.run.app";
   const handleSignup = async () => {
     if (!name || !email || !password) {
       Alert.alert("Error", "Please fill in all fields.");

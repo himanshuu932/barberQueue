@@ -68,7 +68,7 @@ export default function BarberLoginScreen() {
       return;
     }
     try {
-      const response = await fetch("https://barber-queue.vercel.app/barber/login", {
+      const response = await fetch("https://barber-24143206157.asia-south2.run.app/barber/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

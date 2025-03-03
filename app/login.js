@@ -17,10 +17,10 @@ import Constants from "expo-constants";
 
 async function registerForPushNotifications(uid) {
   console.log("Registering for push notifications for uid:", uid);
-  if (!Constants.isDevice) {
-    console.log("Must use a physical device for Push Notifications");
-    return;
-  }
+  // if (!Constants.isDevice) {
+  //   console.log("Must use a physical device for Push Notifications");
+  //   return;
+  // }
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   console.log("Existing permission status:", existingStatus);
   let finalStatus = existingStatus;
@@ -33,11 +33,15 @@ async function registerForPushNotifications(uid) {
     console.log("Failed to get push token for push notifications!");
     return;
   }
-  const token = (await Notifications.getExpoPushTokenAsync()).data;
+  const token = (
+    await Notifications.getExpoPushTokenAsync({
+      projectId: 'fdeb8267-b069-40e7-9b4e-1a0c50ee6246', // Replace with your Expo Project ID
+    })
+  ).data;
   console.log("Expo Push Token generated:", token);
   // Send token to your backend so it can be stored in the user record
   try {
-    const response = await fetch("https://servercheckbarber.vercel.app/register-push-token", {
+    const response = await fetch("https://barber-24143206157.asia-south2.run.app/register-push-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ uid, token }),
@@ -69,7 +73,7 @@ export default function LoginScreen() {
       return;
     }
     try {
-      const response = await fetch("https://barber-queue.vercel.app/login", {
+      const response = await fetch("https://barber-24143206157.asia-south2.run.app/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

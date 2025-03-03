@@ -37,7 +37,7 @@ export default function MenuScreen() {
   const [socket, setSocket] = useState(null);
   const [selectedServicesForInfo, setSelectedServicesForInfo] = useState([]);
   const [totalCostForInfo, setTotalCostForInfo] = useState(0);
-  const API_BASE = "https://barber-24143206157.us-central1.run.app";
+  const API_BASE = "https://barber-24143206157.asia-south2.run.app";
   const [remainingTime, setRemainingTime] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [infomodalVisible, setinfomodalVisible] = useState(false);
