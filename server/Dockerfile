@@ -1,7 +1,7 @@
 FROM node:16-alpine
 
 # Set the working directory
-WORKDIR /app
+WORKDIR /app/server
 
 # Copy package.json and package-lock.json (if present)
 COPY package*.json ./
