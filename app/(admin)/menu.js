@@ -147,7 +147,7 @@ export default function MenuScreen() {
     
   };
 
-  const moveDownPerson = async (name, id, uid) => {
+const moveDownPerson = async (name, id, uid) => {
     try {
       // Move the user down in the queue
       const res = await fetch(`${API_BASE}/queue/move`, {
@@ -158,6 +158,10 @@ export default function MenuScreen() {
   
       if (res.ok) {
         // Retrieve the stored token from AsyncStorage
+        if (uid.endsWith("=")) {
+          console.log("Dummy user detected, skipping history update");
+          return ;
+        }
         const token = await AsyncStorage.getItem("userToken");
         if (!token) {
           Alert.alert("Authentication Error", "User not authenticated.");

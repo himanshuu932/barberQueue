@@ -9,28 +9,24 @@ import {
   Modal,
   TextInput,
   Alert,
+  ImageBackground
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 const Barber = () => {
-  // State for barbers list
   const [barbers, setBarbers] = useState([]);
-
-  // State for Add Employee Modal and new employee details
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
     name: "",
     email: "",
     password: "",
     phone: "",
-    profilePic: null,
   });
 
-  // Fetch barbers from the backend
   useEffect(() => {
     const fetchBarbers = async () => {
       try {
-        const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barbers");
+        const response = await fetch("https://barber-24143206157.asia-south2.run.app/barbers");
         const data = await response.json();
         if (response.ok) {
           setBarbers(data);
@@ -45,12 +41,6 @@ const Barber = () => {
     fetchBarbers();
   }, []);
 
-  // Handle opening the Add Employee modal
-  const handleAddEmployee = () => {
-    setIsModalVisible(true);
-  };
-
-  // Handle saving a new barber
   const handleSaveEmployee = async () => {
     if (!newEmployee.name || !newEmployee.email || !newEmployee.password || !newEmployee.phone) {
       Alert.alert("Error", "Please fill all fields.");
@@ -58,30 +48,17 @@ const Barber = () => {
     }
 
     try {
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barber/signup", {
+      const response = await fetch("https://barber-24143206157.asia-south2.run.app/barber/signup", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: newEmployee.name,
-          email: newEmployee.email,
-          phone: newEmployee.phone,
-          password: newEmployee.password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEmployee),
       });
 
       const data = await response.json();
       if (response.ok) {
-        setNewEmployee({ name: "", email: "", password: "", phone: "", profilePic: null });
+        setNewEmployee({ name: "", email: "", password: "", phone: "" });
         setIsModalVisible(false);
         Alert.alert("Success", "Employee added successfully!");
-        // Refresh the barbers list
-        const updatedResponse = await fetch("https://barberqueue-24143206157.us-central1.run.app/barbers");
-        const updatedData = await updatedResponse.json();
-        if (updatedResponse.ok) {
-          setBarbers(updatedData);
-        }
       } else {
         Alert.alert("Error", data.error || "Failed to add employee");
       }
@@ -91,20 +68,17 @@ const Barber = () => {
     }
   };
 
-  // Barber Card Component
   const BarberCard = ({ barber }) => {
-    const avgRating = barber.totalRatings > 0
-      ? (barber.totalStarsEarned / barber.totalRatings).toFixed(1)
-      : "0.0";
+    const avgRating = barber.totalRatings > 0 ? (barber.totalStarsEarned / barber.totalRatings).toFixed(1) : "0.0";
 
     return (
       <View style={styles.card}>
         <Image source={{ uri: barber.profilePic || "https://via.placeholder.com/100" }} style={styles.image} />
         <View style={styles.infoContainer}>
           <Text style={styles.name}>{barber.name}</Text>
-          <Text style={styles.detail}>Email: {barber.email}</Text>
-          <Text style={styles.detail}>Phone: {barber.phone}</Text>
-          <Text style={styles.detail}>Customers Served: {barber.totalCustomersServed}</Text>
+          <Text style={styles.detail}>📧 {barber.email}</Text>
+          <Text style={styles.detail}>📞 {barber.phone}</Text>
+          <Text style={styles.detail}>👥 Customers Served: {barber.totalCustomersServed}</Text>
           <Text style={styles.rating}>⭐ {avgRating}</Text>
         </View>
       </View>
@@ -112,174 +86,192 @@ const Barber = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Meet Our Barbers</Text>
-      <FlatList
-        data={barbers}
-        keyExtractor={(item) => item._id}
-        renderItem={({ item }) => <BarberCard barber={item} />}
-      />
-
-      {/* Add Employee Button */}
-      <TouchableOpacity style={styles.buttonContainer} onPress={handleAddEmployee}>
-        <LinearGradient colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} style={styles.button}>
-          <Text style={styles.buttonText}>Add Employee</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* Add Employee Modal */}
-      <Modal visible={isModalVisible} transparent={true} animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Employee</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Name"
-              value={newEmployee.name}
-              onChangeText={(text) => setNewEmployee({ ...newEmployee, name: text })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={newEmployee.email}
-              onChangeText={(text) => setNewEmployee({ ...newEmployee, email: text })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              secureTextEntry
-              value={newEmployee.password}
-              onChangeText={(text) => setNewEmployee({ ...newEmployee, password: text })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Phone Number"
-              value={newEmployee.phone}
-              onChangeText={(text) => setNewEmployee({ ...newEmployee, phone: text })}
-            />
-            <TouchableOpacity style={styles.modalButton} onPress={handleSaveEmployee}>
-              <Text style={styles.modalButtonText}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setIsModalVisible(false)}
-            >
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
+      <View style={styles.overlay} />
+      <View style={styles.container}>
+        <Text style={styles.pageHeading}>Barbers</Text>
+        <View style={styles.barberContainer}>
+          <FlatList data={barbers} keyExtractor={(item) => item._id} renderItem={({ item }) => <BarberCard barber={item} />} />
         </View>
-      </Modal>
-    </View>
+        
+        <TouchableOpacity style={styles.addButton} onPress={() => setIsModalVisible(true)}>
+          <Text style={styles.buttonText}>➕ Add Employee</Text>
+        </TouchableOpacity>
+
+        <Modal visible={isModalVisible} transparent animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Add Employee</Text>
+              {['name', 'email', 'password', 'phone'].map((field) => (
+                <TextInput
+                  key={field}
+                  style={styles.input}
+                  placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+                  secureTextEntry={field === 'password'}
+                  value={newEmployee[field]}
+                  onChangeText={(text) => setNewEmployee({ ...newEmployee, [field]: text })}
+                />
+              ))}
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalButton} onPress={handleSaveEmployee}>
+                  <Text style={styles.modalButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  // Barber List Styles
-  container: {
+  backgroundImage: {
     flex: 1,
-    backgroundColor: "#f4f4f4",
-    padding: 10,
+    resizeMode: "cover", // Covers the full screen
+    width: "100%",
+    height: "100%",
+    position: "absolute",
   },
-  heading: {
-    fontSize: 22,
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)",// Adds a dark overlay for better readability
+  },
+  container: { 
+    flex: 1, 
+    paddingLeft: 15,
+    paddingRight: 15,
+    // paddingTop: 15,
+  },
+  barberContainer: {
+    flex: 1,
+    backgroundColor: "rgba(228, 228, 228, 0.93)", // Semi-transparent white background
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    width: "100%",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  card: { 
+    backgroundColor: "#fff", 
+    borderRadius: 12, 
+    padding: 15, 
+    marginBottom: 10, 
+    flexDirection: "row", 
+    alignItems: "center", 
+    elevation: 3 
+  },
+  image: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 40, 
+    marginRight: 15 
+  },
+  infoContainer: { 
+    flex: 1 
+  },
+  name: { 
+    fontSize: 18, 
+    fontWeight: "bold", 
+    color: "#333" 
+  },
+  detail: { 
+    fontSize: 14, 
+    color: "#555", 
+    marginVertical: 2 
+  },
+  rating: { 
+    fontSize: 16, 
+    fontWeight: "bold", 
+    color: "#ff9900", 
+    marginTop: 5 
+  },
+  pageHeading: {
+    fontSize: 65,
     fontWeight: "bold",
     textAlign: "center",
-    marginVertical: 10,
-    color: "#333",
-  },
-  card: {
-    backgroundColor: "#fff",
-    padding: 15,
-    marginVertical: 8,
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
+    color: "black",
+    // marginBottom: 15,
+    // textTransform: "uppercase",
+    letterSpacing: 1,
     shadowColor: "#000",
+    shadowOpacity: 0.5,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 3,
   },
-  image: {
-    width: 80,
-    height: 80,
-    borderRadius: 50,
-    marginRight: 15,
-  },
-  infoContainer: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#222",
-  },
-  detail: {
-    fontSize: 14,
-    color: "#555",
-    marginTop: 3,
-  },
-  rating: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginTop: 5,
-    color: "#ff9900",
-  },
-
-  // Add Employee Button Styles
-  buttonContainer: {
-    width: "90%",
-    marginBottom: 10,
-    alignSelf: "center",
-  },
-  button: {
+  addButton: {
+    backgroundColor: "#000",
     padding: 12,
-    alignItems: "center",
     borderRadius: 8,
+    alignItems: "center",
+    marginVertical: 10,
+    shadowColor: "#fff",
+    shadowOpacity: 0.5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 5,
+    elevation: 6,
   },
   buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    width: "80%",
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 10,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 15,
-  },
-  modalButton: {
-    backgroundColor: "#3a3a3a",
-    padding: 10,
-    borderRadius: 5,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  modalButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  modalContainer: { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center", 
+    backgroundColor: "rgba(0, 0, 0, 0.5)" 
+  },
+  modalContent: { 
+    width: "85%", 
+    backgroundColor: "#fff", 
+    padding: 20, 
+    borderRadius: 12, 
+    alignItems: "center" 
+  },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: "bold", 
+    marginBottom: 15 
+  },
+  input: { 
+    width: "100%", 
+    borderWidth: 1, 
+    borderColor: "#ccc", 
+    borderRadius: 8, 
+    padding: 10, 
+    marginBottom: 10 
+  },
+  modalButtonContainer: { 
+    flexDirection: "row", 
+    justifyContent: "space-evenly", 
+    width: "100%" 
+  },
+  modalButton: { 
+    backgroundColor: "#000",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginVertical: 10,
+    shadowColor: "#fff",
+    shadowOpacity: 0.5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 5,
+    elevation: 6,
+    width: "45%"
+  },
+  modalButtonText: { 
+    color: "#fff", 
+    fontSize: 16, 
+    fontWeight: "bold" 
   },
 });
 
