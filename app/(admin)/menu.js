@@ -23,7 +23,7 @@ export default function MenuScreen() {
   const [queueItems, setQueueItems] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
-  const API_BASE = "http://10.0.2.2:5000";
+  const API_BASE = "https://barber-queue.vercel.app";
   const shineAnimation = useRef(new Animated.Value(0)).current;
   const [barberId, setBarberId] = useState(null); // Barber ID state
   // WebSocket connection
@@ -134,15 +134,15 @@ export default function MenuScreen() {
       body: JSON.stringify({ name,id }),
     });
     if(res.ok){
-      await fetch(`${API_BASE}/notify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid,
-          title: "Queue Update",
-          body: `You have been moved down in the queue.`,
-        }),
-      });
+      // await fetch(`${API_BASE}/notify`, {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({
+      //     uid,
+      //     title: "Queue Update",
+      //     body: `You have been moved down in the queue.`,
+      //   }),
+      // });
       socket.emit("moveDownQueue", { name: name, id: id,uid: uid });
     }
     fetchQueueData();

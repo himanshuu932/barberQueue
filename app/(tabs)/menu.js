@@ -37,7 +37,7 @@ export default function MenuScreen() {
   const [socket, setSocket] = useState(null);
   const [selectedServicesForInfo, setSelectedServicesForInfo] = useState([]);
   const [totalCostForInfo, setTotalCostForInfo] = useState(0);
-  const API_BASE = "http://10.0.2.2:5000";
+  const API_BASE = "https://barber-queue.vercel.app";
   const [remainingTime, setRemainingTime] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [infomodalVisible, setinfomodalVisible] = useState(false);

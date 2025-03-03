@@ -73,40 +73,48 @@ const Queue = mongoose.model("Queue", QueueSchema);
 /* ===============================
    Socket.io Connection Handling
    =============================== */
-io.on("connection", (socket) => {
-  console.log("A client connected:", socket.id);
-
-  // Handle disconnection
-  socket.on("disconnect", () => {
-    console.log("A client disconnected:", socket.id);
+   io.on("connection", (socket) => {
+    console.log(`DEBUG: Client connected with socket id: ${socket.id}`);
+    
+    socket.join("queue");
+    console.log(`DEBUG: Socket ${socket.id} joined room "queue".`);
+  
+    // Handle disconnection
+    socket.on("disconnect", () => {
+      console.log(`DEBUG: Socket ${socket.id} disconnected.`);
+    });
+  
+    // Listen for custom events (e.g., queue updates)
+    socket.on("joinQueue", (data) => {
+      console.log(`DEBUG: Received "joinQueue" event from ${socket.id} with data:`, data);
+      io.to("queue").emit("queueUpdated", { message: "Queue has been updated" });
+      console.log(`DEBUG: Emitted "queueUpdated" event to room "queue" after joinQueue from ${socket.id}.`);
+    });
+  
+    socket.on("leaveQueue", (data) => {
+      console.log(`DEBUG: Received "leaveQueue" event from ${socket.id} with data:`, data);
+      io.to("queue").emit("queueUpdated", { message: "Queue updated" });
+      console.log(`DEBUG: Emitted "queueUpdated" event to room "queue" after leaveQueue from ${socket.id}.`);
+    });
+  
+    socket.on("moveDownQueue", (data) => {
+      console.log(`DEBUG: Received "moveDownQueue" event from ${socket.id} with data:`, data);
+      io.to("queue").emit("queueUpdated", { message: "Queue has been updated" });
+      console.log(`DEBUG: Emitted "queueUpdated" event to room "queue" after moveDownQueue from ${socket.id}.`);
+    });
+  
+    socket.on("markedServed", (data) => {
+      console.log(`DEBUG: Received "markedServed" event from ${socket.id} with data:`, data);
+      // Optionally, trigger a notification here as well.
+    });
+  
+    socket.on("removedFromQueue", (data) => {
+      console.log(`DEBUG: Received "removedFromQueue" event from ${socket.id} with data:`, data);
+      io.emit("queueUpdated", { message: "Queue has been updated" });
+      console.log(`DEBUG: Emitted "queueUpdated" event to all clients after removedFromQueue from ${socket.id}.`);
+    });
   });
-
-  // Listen for custom events (e.g., queue updates)
-  socket.on("joinQueue", (data) => {
-    console.log("User joined queue:", data);
-    io.emit("queueUpdated", { message: "Queue has been updated" });
-  });
-
-  socket.on("leaveQueue", (data) => {
-    console.log("User left queue:", data);
-    io.emit("queueUpdated", { message: "Queue has been updated" });
-  });
-
-  socket.on("moveDownQueue", (data) => {
-    console.log("User moved down in queue:", data);
-    io.emit("queueUpdated", { message: "Queue has been updated" });
-  });
-
-  socket.on("markedServed", (data) => {
-    console.log("User marked served:", data);
-    // Optionally, you can trigger a notification here as well.
-  });
-
-  socket.on("removedFromQueue", (data) => {
-    console.log("User removed from queue:", data);
-    io.emit("queueUpdated", { message: "Queue has been updated" });
-  });
-});
+  
 
 /* ===============================
    API Endpoints

@@ -31,7 +31,7 @@ export default function TabProfileScreen({ navigation }) {
         }
 
         // Fetch barber details from the backend
-        const response = await fetch(`http://10.0.2.2:5000/barber/${uid}`);
+        const response = await fetch(`https://barber-queue.vercel.app/barber/${uid}`);
         if (!response.ok) {
           throw new Error("Failed to fetch barber details");
         }

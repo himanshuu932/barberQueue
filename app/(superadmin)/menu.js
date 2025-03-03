@@ -36,7 +36,7 @@ const Menu = () => {
   const fetchTodayStats = async () => {
     try {
       // Fetch barbers data
-      const barbersResponse = await fetch("http://10.0.2.2:5000/barbers");
+      const barbersResponse = await fetch("https://barber-queue.vercel.app/barbers");
       const barbersData = await barbersResponse.json();
 
       // Get current date in IST timezone

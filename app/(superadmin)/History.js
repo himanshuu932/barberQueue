@@ -42,7 +42,7 @@ const AdminPaymentHistory = () => {
 
   const fetchAllData = async () => {
     try {
-      const barbersResponse = await fetch('http://10.0.2.2:5000/barbers');
+      const barbersResponse = await fetch('https://barber-queue.vercel.app/barbers');
       const barbersData = await barbersResponse.json();
       setBarbers(barbersData);
 

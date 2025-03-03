@@ -30,7 +30,7 @@ const Barber = () => {
   useEffect(() => {
     const fetchBarbers = async () => {
       try {
-        const response = await fetch("http://10.0.2.2:5000/barbers");
+        const response = await fetch("https://barber-queue.vercel.app/barbers");
         const data = await response.json();
         if (response.ok) {
           setBarbers(data);
@@ -58,7 +58,7 @@ const Barber = () => {
     }
 
     try {
-      const response = await fetch("http://10.0.2.2:5000/barber/signup", {
+      const response = await fetch("https://barber-queue.vercel.app/barber/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -77,7 +77,7 @@ const Barber = () => {
         setIsModalVisible(false);
         Alert.alert("Success", "Employee added successfully!");
         // Refresh the barbers list
-        const updatedResponse = await fetch("http://10.0.2.2:5000/barbers");
+        const updatedResponse = await fetch("https://barber-queue.vercel.app/barbers");
         const updatedData = await updatedResponse.json();
         if (updatedResponse.ok) {
           setBarbers(updatedData);
