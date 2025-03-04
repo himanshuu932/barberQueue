@@ -9,7 +9,9 @@ import {
   Image, 
   TouchableOpacity, 
   Animated, 
-  ActivityIndicator 
+  Alert,
+  ActivityIndicator,
+  Modal,TextInput
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -18,7 +20,10 @@ export default function TabProfileScreen() {
   const shineAnimation = useRef(new Animated.Value(0)).current;
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({name:"",email:"",phone:""});
+   const [user_id,setuid] = useState(null);
+  const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
   const fetchProfile = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
@@ -30,6 +35,7 @@ export default function TabProfileScreen() {
       });
       const data = await response.json();
       setProfile(data);
+      await AsyncStorage.setItem("id", data._id);
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
@@ -41,6 +47,7 @@ export default function TabProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchProfile();
+     // setuid(AsyncStorage.getItem("id"));
     }, [])
   );
 
@@ -74,57 +81,73 @@ export default function TabProfileScreen() {
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem("userToken");
+      await AsyncStorage.removeItem("id");
       router.replace("../pre-login");
     } catch (error) {
       console.error("Error logging out:", error);
     }
   };
+  async function updateUserProfile(uid1, name, email) {
+    const uid = await AsyncStorage.getItem("id");
+    console.log(uid);
+    console.log(email);
+    console.log(name);
+    //const uid=uid2.j;
+    try {
+      const response = await fetch(`${API_BASE}/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, name, email })
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error updating user profile:", errorData);
+        return;
+      }
+      const data = await response.json();
+      console.log("User profile updated successfully:", data);
+      // Optionally, update your application state or UI here.
+     // await AsyncStorage.removeItem("id");
+      setIsModalVisible(false);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+    }
+  }
 
   return (
     <View style={styles.container}>
       {/* Fixed header */}
       <View style={styles.header}>
-        <View style={styles.profileBox}>
-          <LinearGradient 
-            colors={["#1a1a1a", "#333333", "#1a1a1a"]} 
-            style={styles.profileBackground}
+      <View style={styles.profileBox}>
+        <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
+        <TouchableOpacity style={styles.editButton} onPress={() => { setEditedProfile(profile); setIsModalVisible(true); }}>
+  <Image 
+    source={require("../image/editw.png")}  // Use require() for local images
+    style={{ width: 25, height: 25, tintColor: "white" }} // Use tintColor for color change
+  />
+</TouchableOpacity>
+          <Animated.View
+            style={[styles.shine, { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] }]}
           >
-            <Animated.View
-              style={[
-                styles.shine,
-                { 
-                  transform: [
-                    { translateX: shineTranslateX },
-                    { translateY: shineTranslateY },
-                    { rotate: "45deg" }
-                  ]
-                }
-              ]}
-            >
-              <LinearGradient 
-                colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} 
-                style={styles.shineGradient} 
-              />
-            </Animated.View>
-            <View style={styles.profileContent}>
-              <Image 
-                source={require("../image/user.png")} 
-                style={styles.profileImage} 
-              />
-              <View style={styles.profileDetails}>
-                {loading ? (
-                  <ActivityIndicator size="large" color="#fff" />
-                ) : (
-                  <>
-                    <Text style={styles.username}>{profile?.name || "User Name"}</Text>
-                    <Text style={styles.userInfo}>{profile?.phone || "N/A"}</Text>
-                    <Text style={styles.userInfo}>{profile?.email || "N/A"}</Text>
-                  </>
-                )}
-              </View>
+            <LinearGradient colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} style={styles.shineGradient} />
+          </Animated.View>
+          <View style={styles.profileContent}>
+            <Image source={require("../image/user.png")} style={styles.profileImage} />
+            <View style={styles.profileDetails}>
+              {loading ? (
+                <ActivityIndicator size="large" color="#fff" />
+              ) : (
+                <View>
+                  <Text style={styles.username}>{profile?.name || "User Name"}</Text>
+                  <Text style={styles.userInfo}>{profile?.phone || "N/A"}</Text>
+                  <Text style={styles.userInfo}>{profile?.email || "N/A"}</Text>
+                </View>
+              )}
             </View>
-          </LinearGradient>
-        </View>
+           
+          </View>
+        </LinearGradient>
+      </View>
         <Text style={styles.historyTitle}>Service History</Text>
       </View>
 
@@ -166,11 +189,90 @@ export default function TabProfileScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TextInput style={styles.input} placeholder="Name" value={editedProfile.name} onChangeText={(text) => setEditedProfile({ ...editedProfile, name: text })} />
+            <TextInput style={styles.input} placeholder="Phone" value={editedProfile.phone} onChangeText={(text) => setEditedProfile({ ...editedProfile, phone: text })} />
+            <TextInput style={styles.input} placeholder="Email" value={editedProfile.email} onChangeText={(text) => setEditedProfile({ ...editedProfile, email: text })} />
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={() => updateUserProfile(user_id, editedProfile.name, editedProfile.email)}>
+                <Text style={styles.modalButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    width: "85%",
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  input: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 10,
+    fontSize: 16,
+  },
+  modalButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  modalButton: {
+    flex: 1,
+    backgroundColor: "#1a1a1a",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginHorizontal: 5,
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  editButton: {
+    position: "absolute",
+    top: 0,
+    bottom:10,
+    right: 5,
+    padding: 3,
+    borderRadius: 6,
+    alignItems: "center"
+  },
+  editButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  
   container: {
     flex: 1,
     backgroundColor: "#ffffff",

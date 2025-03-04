@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  FlatList,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";            
@@ -26,8 +27,23 @@ export default function MenuScreen() {
   const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
   const shineAnimation = useRef(new Animated.Value(0)).current;
   const [barberId, setBarberId] = useState(null); // Barber ID state
-  // WebSocket connection
   const [socket, setSocket] = useState(null);
+
+  // NEW: Checklist state (services with prices and checked flag)
+  const [checklist, setChecklist] = useState([
+    { id: 1, text: "Haircut", price: "₹70", checked: false },
+    { id: 2, text: "Beard Trim", price: "₹40", checked: false },
+    { id: 3, text: "Shave", price: "₹30", checked: false },
+    { id: 4, text: "Hair Wash", price: "₹300", checked: false },
+    { id: 5, text: "Head Massage", price: "₹120", checked: false },
+    { id: 6, text: "Facial", price: "₹150", checked: false },
+    { id: 7, text: "Hair Color", price: "₹200", checked: false },
+  ]);
+
+  // Calculate the total price based on selected services
+  const totalSelectedPrice = checklist
+    .filter((item) => item.checked)
+    .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0);
 
   // Get the setter from context to register our plus button handler
   const { setPlusButtonHandler } = useContext(PlusButtonContext);
@@ -38,6 +54,7 @@ export default function MenuScreen() {
     };
     fetchBarberId();
   }, []);
+
   // Register handleIncrement as the plus button handler when this screen mounts.
   useEffect(() => {
     setPlusButtonHandler(() => handleIncrement);
@@ -67,7 +84,6 @@ export default function MenuScreen() {
     try {
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
-      //console.log(data);
       setQueueLength(data.queueLength);
       setQueueItems(data.data);
     } catch (error) {
@@ -79,44 +95,38 @@ export default function MenuScreen() {
     fetchQueueData();
   }, []);
 
-  // Mark user as served by updating their history and then removing them from the queue.
-  const markUserServed = async (userId, userName,services,cost) => {
+  // Mark user as served (existing functionality)
+  const markUserServed = async (userId, userName, services, cost) => {
     console.log("Mark user as served", userId, userName);
-   alert(barberId)
     try {
-      // Retrieve the stored token from AsyncStorage
       const token = await AsyncStorage.getItem("userToken");
       if (!token) {
         Alert.alert("Authentication Error", "User not authenticated.");
         return;
       }
-
       const response = await fetch(`${API_BASE}/barber/add-history`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ barberId,userId, service: services,cost }),
+        body: JSON.stringify({ barberId, userId, service: services, cost }),
       });
       if (response.ok) {
-        console.log("ok")
         await fetch(`${API_BASE}/notify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            uid:userId,
+            uid: userId,
             title: "Service Done",
             body: `Thank you please rate us`,
             data: { id: `${barberId}` },
           }),
         });
-        socket.emit("markedServed",{userId, userName});
+        socket.emit("markedServed", { userId, userName });
       }
-      // Remove user from queue by their name.
       await fetch(`${API_BASE}/queue?uid=${encodeURIComponent(userId)}`, {
         method: "DELETE",
-
       });
       fetchQueueData();
       Alert.alert(
@@ -129,9 +139,11 @@ export default function MenuScreen() {
     }
   };
 
-  const removePerson = async (name,uid) => {
-    const res = await fetch(`${API_BASE}/queue?uid=${encodeURIComponent(uid)}`, { method: "DELETE" });
-    if(res.ok){
+  const removePerson = async (name, uid) => {
+    const res = await fetch(`${API_BASE}/queue?uid=${encodeURIComponent(uid)}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
       await fetch(`${API_BASE}/notify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,15 +153,13 @@ export default function MenuScreen() {
           body: `You have been removed from the queue.`,
         }),
       });
-      socket.emit("removedFromQueue", {name,uid});
+      socket.emit("removedFromQueue", { name, uid });
     }
     fetchQueueData();
-    
   };
 
-const moveDownPerson = async (name, id, uid) => {
+  const moveDownPerson = async (name, id, uid) => {
     try {
-      // Move the user down in the queue
       const res = await fetch(`${API_BASE}/queue/move`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -157,10 +167,9 @@ const moveDownPerson = async (name, id, uid) => {
       });
   
       if (res.ok) {
-        // Retrieve the stored token from AsyncStorage
         if (uid.endsWith("=")) {
           console.log("Dummy user detected, skipping history update");
-          return ;
+          return;
         }
         const token = await AsyncStorage.getItem("userToken");
         if (!token) {
@@ -168,7 +177,6 @@ const moveDownPerson = async (name, id, uid) => {
           return;
         }
   
-        // Notify the user that they have been moved down in the queue
         const notifyResponse = await fetch(`${API_BASE}/notify`, {
           method: "POST",
           headers: {
@@ -186,10 +194,7 @@ const moveDownPerson = async (name, id, uid) => {
           console.error("Failed to send notification");
         }
   
-        // Emit socket event to notify other clients
         socket.emit("moveDownQueue", { name: name, id: id, uid: uid });
-  
-        // Refresh the queue data
         fetchQueueData();
       } else {
         console.error("Failed to move user down in the queue");
@@ -201,37 +206,8 @@ const moveDownPerson = async (name, id, uid) => {
     }
   };
 
-  const addPerson = async (name) => {
-    const now = new Date();
-    const hour = now.getHours().toString().padStart(2, "0");
-    const minutes = now.getMinutes().toString().padStart(2, "0");
-    const seconds = now.getSeconds().toString().padStart(2, "0");
-    const id = `${name}${hour}${minutes}${seconds}=`;
-    
-    // Concatenate the first letter of name and id, both uppercased.
-    const code = name.substring(0, 2)+ id.substring(3, 7).toUpperCase();
-    
-    
-    const res = await fetch(`${API_BASE}/queue`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, id, code }),
-    });
-    
-    if (res.ok) {
-      socket.emit("joinQueue", { name, id, code });
-    }
-    
-    fetchQueueData();
-  };
-  
-  // Plus button functionality: open the modal with an empty value.
-  const handleIncrement = () => {
-    setNewName("");
-    setModalVisible(true);
-  };
-
-  const handleConfirm = async () => {
+  // NEW: Combined joinQueue function that uses both the name and the checklist
+  const joinQueue = async () => {
     let finalName = newName.trim();
     if (finalName === "") {
       const now = new Date();
@@ -240,8 +216,65 @@ const moveDownPerson = async (name, id, uid) => {
       const seconds = now.getSeconds().toString().padStart(2, "0");
       finalName = `User${hour}${minutes}${seconds}`;
     }
-    await addPerson(finalName);
-    setModalVisible(false);
+    // Generate a unique id and code based on the name and current time
+    const now = new Date();
+    const hour = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    const seconds = now.getSeconds().toString().padStart(2, "0");
+    const id = `${finalName}${hour}${minutes}${seconds}=`;
+    const code = finalName.substring(0, 2) + id.substring(3, 7).toUpperCase();
+
+    // Get the selected services from the checklist
+    const selectedServices = checklist.filter((item) => item.checked).map((item) => item.text);
+
+    if (selectedServices.length === 0) {
+      Alert.alert(
+        "No Service Selected",
+        "Please select at least one service before proceeding."
+      );
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/queue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: finalName,
+          id: id,
+          code: code,
+          services: selectedServices,
+          totalCost: totalSelectedPrice,
+        }),
+      });
+      
+      if (response.ok) {
+        socket.emit("joinQueue", {
+          name: finalName,
+          id: id,
+          code: code,
+          services: selectedServices,
+          totalCost: totalSelectedPrice,
+        });
+        fetchQueueData();
+        setModalVisible(false);
+      } else {
+        Alert.alert("Error", "Failed to join the queue.");
+      }
+    } catch (error) {
+      console.error("Error joining queue:", error);
+      Alert.alert("Error", "An error occurred while joining the queue.");
+    }
+  };
+
+  // Plus button functionality: open the modal and reset fields.
+  const handleIncrement = () => {
+    setNewName("");
+    // Reset checklist selections on open
+    setChecklist((prev) =>
+      prev.map((item) => ({ ...item, checked: false }))
+    );
+    setModalVisible(true);
   };
 
   // Cancel button in modal
@@ -278,86 +311,113 @@ const moveDownPerson = async (name, id, uid) => {
           contentContainerStyle={{ paddingBottom: 10 }}
         >
          {queueItems.map((item, index) => (
-  <View key={item.uid} style={styles.queueCard}>
-    <View style={styles.nameText}>
-      <Text style={styles.queueNumber}>{index + 1}.</Text>
-      <View>
-        <Text style={styles.queueName}>{item.name}</Text>
-        <Text style={styles.queueId}>ID: {item.code}</Text>
-        <TouchableOpacity
-  onPress={() => {
-  //  console.log("Item services:", JSON.stringify(item.services));
-
-    Alert.alert(
-      "Services",
-      item.services && item.services.length > 0
-        ? item.services.join(", ")
-        : "No services"
-    )
-  }}
->
-  <Text style={styles.servicesText}>View Services</Text>
-</TouchableOpacity>
-
-      </View>
-    </View>
-    <View style={styles.iconGroup}>
-      {index < 3 ? (
-        <TouchableOpacity
-          style={styles.doneButton}
-          onPress={() =>
-            markUserServed(item.uid, item.name, item.services, item.totalCost)
-          }
-        >
-          <Icon name="check" size={24} color="white" />
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity onPress={() => removePerson(item.name, item.uid)}>
-          <Icon name="delete" size={24} color="red" />
-        </TouchableOpacity>
-      )}
-      {index < 3 && (
-        <TouchableOpacity
-          style={styles.downButton}
-          onPress={() => moveDownPerson(item.name, item._id, item.uid)}
-        >
-          <Icon name="arrow-downward" size={24} color="white" />
-        </TouchableOpacity>
-      )}
-    </View>
-  </View>
-))}
-
+           <View key={item.uid} style={styles.queueCard}>
+             <View style={styles.nameText}>
+               <Text style={styles.queueNumber}>{index + 1}.</Text>
+               <View>
+                 <Text style={styles.queueName}>{item.name}</Text>
+                 <Text style={styles.queueId}>ID: {item.code}</Text>
+                 <TouchableOpacity
+                   onPress={() => {
+                     Alert.alert(
+                       "Services",
+                       item.services && item.services.length > 0
+                         ? item.services.join(", ")
+                         : "No services"
+                     );
+                   }}
+                 >
+                   <Text style={styles.servicesText}>View Services</Text>
+                 </TouchableOpacity>
+               </View>
+             </View>
+             <View style={styles.iconGroup}>
+               {index < 3 ? (
+                 <TouchableOpacity
+                   style={styles.doneButton}
+                   onPress={() =>
+                     markUserServed(item.uid, item.name, item.services, item.totalCost)
+                   }
+                 >
+                   <Icon name="check" size={24} color="white" />
+                 </TouchableOpacity>
+               ) : (
+                 <TouchableOpacity onPress={() => removePerson(item.name, item.uid)}>
+                   <Icon name="delete" size={24} color="red" />
+                 </TouchableOpacity>
+               )}
+               {index < 3 && (
+                 <TouchableOpacity
+                   style={styles.downButton}
+                   onPress={() => moveDownPerson(item.name, item._id, item.uid)}
+                 >
+                   <Icon name="arrow-downward" size={24} color="white" />
+                 </TouchableOpacity>
+               )}
+             </View>
+           </View>
+         ))}
         </ScrollView>
 
-        {/* Modal Overlay for adding a new name */}
+        {/* Modified Modal: Now includes both name input and checklist */}
         <Modal
-          transparent={true}
-          animationType="slide"
-          visible={modalVisible}
-          onRequestClose={handleCancel}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Enter Name</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={newName}
-                onChangeText={setNewName}
-                placeholder="Enter your name"
-                onFocus={() => setNewName("")}
+  transparent={true}
+  animationType="slide"
+  visible={modalVisible}
+  onRequestClose={handleCancel}
+>
+  <View style={styles.modalContainer}>
+    <View style={styles.modalContent}>
+      <Text style={styles.modalTitle}>Enter Name & Select Services</Text>
+      <TextInput
+        style={styles.modalInput}
+        value={newName}
+        onChangeText={setNewName}
+        placeholder="Enter your name"
+        onFocus={() => setNewName("")}
+      />
+      {/* Render checklist items */}
+      <FlatList
+        data={checklist}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.checklistItem}
+            onPress={() =>
+              setChecklist((prev) =>
+                prev.map((i) =>
+                  i.id === item.id ? { ...i, checked: !i.checked } : i
+                )
+              )
+            }
+          >
+            <View style={styles.checklistRow}>
+              <Text style={styles.checklistText}>{item.text}</Text>
+              <Text style={styles.checklistPrice}>{item.price}</Text>
+              <Icon
+                name={item.checked ? "check-box" : "check-box-outline-blank"}
+                size={24}
+                color="green"
               />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.modalButton} onPress={handleCancel}>
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.modalButton} onPress={handleConfirm}>
-                  <Text style={styles.modalButtonText}>OK</Text>
-                </TouchableOpacity>
-              </View>
             </View>
-          </View>
-        </Modal>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item) => item.id.toString()}
+      />
+      <Text style={styles.totalPrice}>
+        Total Price: ₹{totalSelectedPrice}
+      </Text>
+      <View style={styles.modalButtons}>
+        <TouchableOpacity style={styles.modalButton} onPress={handleCancel}>
+          <Text style={styles.modalButtonText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.modalButton} onPress={joinQueue}>
+          <Text style={styles.modalButtonText}>Confirm</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+
       </View>
     </ImageBackground>
   );
@@ -451,6 +511,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#555",
   },
+  servicesText: {
+    fontSize: 14,
+    color: "blue",
+    marginTop: 5,
+  },
   joinButton: {
     width: 50,
     height: 50,
@@ -502,23 +567,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 5,
   },
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   modalContent: {
-    width: "80%",
     backgroundColor: "white",
-    borderRadius: 10,
     padding: 20,
+    borderRadius: 10,
+    width: "80%",
     alignItems: "center",
+    elevation: 10,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
+    textAlign: "center",
   },
   modalInput: {
     width: "100%",
@@ -528,10 +595,51 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 20,
   },
+  checklistItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 10,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
+    marginVertical: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    width: "100%",
+  },
+  checklistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  checklistText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    flex: 1,
+    marginLeft: "auto",
+  },
+  checklistPrice: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#555",
+    marginRight: "5%",
+  },
+  totalPrice: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+    marginTop: 10,
+  },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
+    marginTop: 20,
   },
   modalButton: {
     flex: 1,
@@ -540,6 +648,6 @@ const styles = StyleSheet.create({
   },
   modalButtonText: {
     fontSize: 16,
-    color: "blue",
+    color: "#007bff",
   },
 });

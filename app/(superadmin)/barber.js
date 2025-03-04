@@ -15,12 +15,19 @@ import { LinearGradient } from "expo-linear-gradient";
 
 const Barber = () => {
   const [barbers, setBarbers] = useState([]);
+  const [selectedBarber, setSelectedBarber] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
     name: "",
     email: "",
     password: "",
     phone: "",
+  });
+  const [updatedBarber, setUpdatedBarber] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: ""
   });
 
   useEffect(() => {
@@ -69,55 +76,105 @@ const Barber = () => {
   };
 
   const BarberCard = ({ barber }) => {
-    const avgRating = barber.totalRatings > 0 ? (barber.totalStarsEarned / barber.totalRatings).toFixed(1) : "0.0";
-
+    const avgRating =
+      barber.totalRatings > 0
+        ? (barber.totalStarsEarned / barber.totalRatings).toFixed(1)
+        : "0.0";
+  
     return (
       <View style={styles.card}>
-        <Image source={{ uri: barber.profilePic || "https://via.placeholder.com/100" }} style={styles.image} />
+        <Image
+          source={{
+            uri: barber.profilePic || "https://via.placeholder.com/100",
+          }}
+          style={styles.image}
+        />
         <View style={styles.infoContainer}>
           <Text style={styles.name}>{barber.name}</Text>
           <Text style={styles.detail}>📧 {barber.email}</Text>
           <Text style={styles.detail}>📞 {barber.phone}</Text>
-          <Text style={styles.detail}>👥 Customers Served: {barber.totalCustomersServed}</Text>
+          <Text style={styles.detail}>
+            👥 Customers Served: {barber.totalCustomersServed}
+          </Text>
           <Text style={styles.rating}>⭐ {avgRating}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => {
+            setSelectedBarber(barber);
+            setUpdatedBarber({
+              name: barber.name,
+              email: barber.email,
+              phone: barber.phone,
+              password: "",
+            });
+            setIsModalVisible(true);
+          }}
+        >
+          <Image
+            source={require("../image/editb.png")}
+            style={{ width: 25, height: 25 }}
+          />
+        </TouchableOpacity>
       </View>
     );
   };
+  
+  const handleUpdateBarber = async () => {
+    if (!updatedBarber.name || !updatedBarber.email || !updatedBarber.phone) {
+      Alert.alert("Error", "Please fill all fields.");
+      return;
+    }
+
+    try {
+      const response = await fetch("https://barber-24143206157.asia-south2.run.app/barber/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...updatedBarber, bid: selectedBarber._id })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setIsModalVisible(false);
+        Alert.alert("Success", "Barber profile updated successfully!");
+        setBarbers((prevBarbers) => prevBarbers.map((b) => (b._id === selectedBarber._id ? { ...b, ...updatedBarber } : b)));
+      } else {
+        Alert.alert("Error", data.error || "Failed to update barber");
+      }
+    } catch (error) {
+      console.error("Error updating barber:", error);
+      Alert.alert("Error", "Could not connect to the server");
+    }
+  };
+
+
 
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
       <View style={styles.overlay} />
       <View style={styles.container}>
         <Text style={styles.pageHeading}>Barbers</Text>
-        <View style={styles.barberContainer}>
-          <FlatList data={barbers} keyExtractor={(item) => item._id} renderItem={({ item }) => <BarberCard barber={item} />} />
-        </View>
-        
-        <TouchableOpacity style={styles.addButton} onPress={() => setIsModalVisible(true)}>
-          <Text style={styles.buttonText}>➕ Add Employee</Text>
-        </TouchableOpacity>
-
+        <FlatList data={barbers} keyExtractor={(item) => item._id} renderItem={({ item }) => <BarberCard barber={item} />} />
         <Modal visible={isModalVisible} transparent animationType="slide">
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Add Employee</Text>
-              {['name', 'email', 'password', 'phone'].map((field) => (
+              <Text style={styles.modalTitle}>Edit Barber</Text>
+              {['name', 'email', 'phone', 'password'].map((field) => (
                 <TextInput
                   key={field}
                   style={styles.input}
                   placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
                   secureTextEntry={field === 'password'}
-                  value={newEmployee[field]}
-                  onChangeText={(text) => setNewEmployee({ ...newEmployee, [field]: text })}
+                  value={updatedBarber[field]}
+                  onChangeText={(text) => setUpdatedBarber({ ...updatedBarber, [field]: text })}
                 />
               ))}
               <View style={styles.modalButtonContainer}>
                 <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.modalButton} onPress={handleSaveEmployee}>
-                  <Text style={styles.modalButtonText}>Save</Text>
+                <TouchableOpacity style={styles.modalButton} onPress={handleUpdateBarber}>
+                  <Text style={styles.modalButtonText}>Update</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -207,6 +264,15 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  editButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.26)",
+    padding: 3,
+    borderRadius: 6,
+    alignItems: "center"
+  },
   addButton: {
     backgroundColor: "#000",
     padding: 12,
@@ -218,11 +284,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 5,
     elevation: 6,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
   },
   modalContainer: { 
     flex: 1, 
@@ -273,6 +334,11 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     fontWeight: "bold" 
   },
+  buttonText: {
+    color: "rgb(0,0,0)",
+    fontWeight: "bold",
+    
+  }
 });
 
 export default Barber;

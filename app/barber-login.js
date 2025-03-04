@@ -137,11 +137,7 @@ export default function BarberLoginScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/signup")}>
-            <Text style={styles.registerText}>
-              Don't have an account? <Text style={styles.link}>Sign Up</Text>
-            </Text>
-          </TouchableOpacity>
+        
         </View>
       </View>
     </ImageBackground>

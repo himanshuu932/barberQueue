@@ -17,23 +17,23 @@ export default function PreLoginScreen() {
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.replace("/barber-login")}
+            onPress={() => router.push("/barber-login")}
           >
             <Text style={styles.buttonText}>Login as Barber</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.replace("/login")}
+            onPress={() => router.push("/login")}
           >
             <Text style={styles.buttonText}>Login as User</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.replace("/login")}
+            onPress={() => router.push("/login")}
           >
-            <Text style={styles.buttonText}>Login as Super Admin</Text>
+            <Text style={styles.buttonText}>Login as Owner</Text>
           </TouchableOpacity>
         </View>
       </View>
