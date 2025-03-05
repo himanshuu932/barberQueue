@@ -311,51 +311,52 @@ export default function MenuScreen() {
           contentContainerStyle={{ paddingBottom: 10 }}
         >
          {queueItems.map((item, index) => (
-           <View key={item.uid} style={styles.queueCard}>
-             <View style={styles.nameText}>
-               <Text style={styles.queueNumber}>{index + 1}.</Text>
-               <View>
-                 <Text style={styles.queueName}>{item.name}</Text>
-                 <Text style={styles.queueId}>ID: {item.code}</Text>
-                 <TouchableOpacity
-                   onPress={() => {
-                     Alert.alert(
-                       "Services",
-                       item.services && item.services.length > 0
-                         ? item.services.join(", ")
-                         : "No services"
-                     );
-                   }}
-                 >
-                   <Text style={styles.servicesText}>View Services</Text>
-                 </TouchableOpacity>
-               </View>
-             </View>
-             <View style={styles.iconGroup}>
-               {index < 3 ? (
-                 <TouchableOpacity
-                   style={styles.doneButton}
-                   onPress={() =>
-                     markUserServed(item.uid, item.name, item.services, item.totalCost)
-                   }
-                 >
-                   <Icon name="check" size={24} color="white" />
-                 </TouchableOpacity>
-               ) : (
-                 <TouchableOpacity onPress={() => removePerson(item.name, item.uid)}>
-                   <Icon name="delete" size={24} color="red" />
-                 </TouchableOpacity>
-               )}
-               {index < 3 && (
-                 <TouchableOpacity
-                   style={styles.downButton}
-                   onPress={() => moveDownPerson(item.name, item._id, item.uid)}
-                 >
-                   <Icon name="arrow-downward" size={24} color="white" />
-                 </TouchableOpacity>
-               )}
-             </View>
-           </View>
+          <View key={item.uid} style={styles.queueCard}>
+  <View style={styles.nameText}>
+    <Text style={styles.queueNumber}>{index + 1}.</Text>
+    <View style={styles.nameContainer}>
+      <Text style={styles.queueName} numberOfLines={2}>{item.name}</Text>
+      <Text style={styles.queueId}>ID: {item.code}</Text>
+      <TouchableOpacity
+        onPress={() => {
+          Alert.alert(
+            "Services",
+            item.services && item.services.length > 0
+              ? item.services.join(", ")
+              : "No services"
+          );
+        }}
+      >
+        <Text style={styles.servicesText}>View Services</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+  <View style={styles.iconGroup}>
+    {index < 3 ? (
+      <TouchableOpacity
+        style={styles.doneButton}
+        onPress={() =>
+          markUserServed(item.uid, item.name, item.services, item.totalCost)
+        }
+      >
+        <Icon name="check" size={24} color="white" />
+      </TouchableOpacity>
+    ) : (
+      <TouchableOpacity onPress={() => removePerson(item.name, item.uid)}>
+        <Icon name="delete" size={24} color="red" />
+      </TouchableOpacity>
+    )}
+    {index < 3 && (
+      <TouchableOpacity
+        style={styles.downButton}
+        onPress={() => moveDownPerson(item.name, item._id, item.uid)}
+      >
+        <Icon name="arrow-downward" size={24} color="white" />
+      </TouchableOpacity>
+    )}
+  </View>
+</View>
+
          ))}
         </ScrollView>
 
@@ -485,9 +486,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
     backgroundColor: "#F9F9F9",
-    padding: 20,
+    padding: 11,
     borderRadius: 10,
     marginBottom: 10,
     width: "100%",
@@ -497,15 +497,25 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
   },
+  nameText: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,  // Ensures text takes the available space
+  },
   queueNumber: {
     fontSize: 22,
     fontWeight: "bold",
     color: "#333",
+    marginRight:0,  // Adds spacing between number and text
+  },
+  nameContainer: {
+    flexShrink: 1,  // Ensures text does not overflow
+    maxWidth: "70%", // Prevents excessive width
   },
   queueName: {
-    top: "5%",
     fontSize: 20,
     color: "#777",
+    flexWrap: "wrap",  // Allows long text to wrap
   },
   queueId: {
     fontSize: 10,
@@ -516,18 +526,15 @@ const styles = StyleSheet.create({
     color: "blue",
     marginTop: 5,
   },
-  joinButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: "rgb(0, 0, 0)",
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 4,
+  iconGroup: {
+    flexDirection: "column",
+    alignItems: "flex-end", // Keeps buttons aligned properly
+    flexShrink: 0,  // Ensures it does not get squeezed
+    gap: 0, // Adds space between buttons
   },
   doneButton: {
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: "rgb(48, 139, 36)",
     justifyContent: "center",
@@ -535,8 +542,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   downButton: {
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: "rgb(7, 55, 229)",
     justifyContent: "center",

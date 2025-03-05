@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   TouchableOpacity,
   Modal,
@@ -59,15 +60,27 @@ export default function MenuScreen() {
     .filter((item) => item.checked)
     .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0);
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      const storedUserName = await AsyncStorage.getItem("userName");
-      const storedUid = await AsyncStorage.getItem("uid");
-      setUserName(storedUserName);
-      setUid(storedUid);
-    };
-    loadUserData();
-  }, []);
+    useFocusEffect(
+      useCallback(() => {
+        const loadUserData = async () => {
+          try {
+            const storedUserName = await AsyncStorage.getItem("userName");
+            const storedUid = await AsyncStorage.getItem("uid");
+            setUserName(storedUserName);
+            setUid(storedUid);
+          } catch (error) {
+            console.error("Error loading user data:", error);
+          }
+        };
+    
+        loadUserData();
+    
+        // Optionally, you can return a cleanup function here if needed
+        return () => {
+          // cleanup code if necessary
+        };
+      }, [])
+    );
 
   const combinedName =
     userName && uid ? `${userName.substring(0, 2)}${uid.substring(0, 4)}` : null;
@@ -788,6 +801,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "bold",
     color: "#777",
+    flex:"wrap",
+    maxWidth: "70%",
   },
   queueId: {
     fontSize: 10,

@@ -139,7 +139,6 @@ export default function TabProfileScreen() {
               ) : (
                 <View>
                   <Text style={styles.username}>{profile?.name || "User Name"}</Text>
-                  <Text style={styles.userInfo}>{profile?.phone || "N/A"}</Text>
                   <Text style={styles.userInfo}>{profile?.email || "N/A"}</Text>
                 </View>
               )}
@@ -194,8 +193,7 @@ export default function TabProfileScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
             <TextInput style={styles.input} placeholder="Name" value={editedProfile.name} onChangeText={(text) => setEditedProfile({ ...editedProfile, name: text })} />
-            <TextInput style={styles.input} placeholder="Phone" value={editedProfile.phone} onChangeText={(text) => setEditedProfile({ ...editedProfile, phone: text })} />
-            <TextInput style={styles.input} placeholder="Email" value={editedProfile.email} onChangeText={(text) => setEditedProfile({ ...editedProfile, email: text })} />
+             <TextInput style={styles.input} placeholder="Email" value={editedProfile.email} onChangeText={(text) => setEditedProfile({ ...editedProfile, email: text })} />
             <View style={styles.modalButtonContainer}>
               <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>

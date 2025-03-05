@@ -2,6 +2,7 @@
   "expo": {
     "name": "barber",
     "slug": "barber",
+    "icon": "./assets/images/logo.jpg",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "myapp",

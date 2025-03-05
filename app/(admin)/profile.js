@@ -1,6 +1,6 @@
-import { useRouter } from "expo-router";
+import { useRouter,useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState,useCallback } from "react";
 import {
   View,
   Text,
@@ -21,34 +21,37 @@ export default function TabProfileScreen({ navigation }) {
   const [error, setError] = useState(null);
 
   // Fetch barber details
-  useEffect(() => {
-    const fetchBarberDetails = async () => {
-      try {
-        // Fetch the barber's UID from AsyncStorage
-        const uid = await AsyncStorage.getItem("uid");
-        if (!uid) {
-          throw new Error("Barber ID not found");
+  useFocusEffect(
+    useCallback(() => {
+      const fetchBarberDetails = async () => {
+        try {
+          // Fetch the barber's UID from AsyncStorage
+          const uid = await AsyncStorage.getItem("uid");
+          if (!uid) {
+            throw new Error("Barber ID not found");
+          }
+  
+          // Fetch barber details from the backend
+          const response = await fetch(`https://barber-24143206157.asia-south2.run.app/barber/${uid}`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch barber details");
+          }
+  
+          const data = await response.json();
+          setBarber(data);
+        } catch (error) {
+          console.error("Error fetching barber details:", error);
+          setError(error.message);
+        } finally {
+          setLoading(false);
         }
-
-        // Fetch barber details from the backend
-        const response = await fetch(`https://barber-24143206157.asia-south2.run.app/barber/${uid}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch barber details");
-        }
-
-        const data = await response.json();
-        setBarber(data);
-      } catch (error) {
-        console.error("Error fetching barber details:", error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBarberDetails();
-  }, []);
-
+      };
+  
+      fetchBarberDetails();
+    }, [])
+  );
+  
+ 
   // Shine animation
   useEffect(() => {
     Animated.loop(

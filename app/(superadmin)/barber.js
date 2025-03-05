@@ -12,7 +12,7 @@ import {
   ImageBackground
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-
+const uspng= require("../image/user.png");
 const Barber = () => {
   const [barbers, setBarbers] = useState([]);
   const [selectedBarber, setSelectedBarber] = useState(null);
@@ -83,20 +83,15 @@ const Barber = () => {
   
     return (
       <View style={styles.card}>
-        <Image
-          source={{
-            uri: barber.profilePic || "https://via.placeholder.com/100",
-          }}
-          style={styles.image}
-        />
+        <Image source={require("../image/user.png")} style={styles.image} />
         <View style={styles.infoContainer}>
           <Text style={styles.name}>{barber.name}</Text>
-          <Text style={styles.detail}>📧 {barber.email}</Text>
-          <Text style={styles.detail}>📞 {barber.phone}</Text>
+          <Text style={styles.detail}>Username: {barber.email}</Text>
+          <Text style={styles.detail}>Phone: {barber.phone}</Text>
           <Text style={styles.detail}>
-            👥 Customers Served: {barber.totalCustomersServed}
+             Customers Served: {barber.totalCustomersServed}
           </Text>
-          <Text style={styles.rating}>⭐ {avgRating}</Text>
+          <Text style={styles.rating}>{avgRating} ⭐ </Text>
         </View>
         <TouchableOpacity
           style={styles.editButton}

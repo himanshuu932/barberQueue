@@ -13,44 +13,49 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
-import Constants from "expo-constants";
 
+// Function to register push notifications
 async function registerForPushNotifications(uid) {
   console.log("Registering for push notifications for uid:", uid);
-  // if (!Constants.isDevice) {
-  //   console.log("Must use a physical device for Push Notifications");
-  //   return;
-  // }
+
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   console.log("Existing permission status:", existingStatus);
+
   let finalStatus = existingStatus;
   if (existingStatus !== "granted") {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
     console.log("Requested permission status:", finalStatus);
   }
+
   if (finalStatus !== "granted") {
     console.log("Failed to get push token for push notifications!");
     return;
   }
+
   const token = (
     await Notifications.getExpoPushTokenAsync({
-      projectId: 'fdeb8267-b069-40e7-9b4e-1a0c50ee6246', // Replace with your Expo Project ID
+      projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
     })
   ).data;
   console.log("Expo Push Token generated:", token);
-  // Send token to your backend so it can be stored in the user record
+
+  // Send token to backend
   try {
-    const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/register-push-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid, token }),
-    });
+    const response = await fetch(
+      "https://barberqueue-24143206157.us-central1.run.app/register-push-token",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, token }),
+      }
+    );
     const resData = await response.json();
     console.log("Backend response for push token registration:", resData);
   } catch (error) {
     console.error("Error sending push token to backend:", error);
   }
+
   if (Platform.OS === "android") {
     Notifications.setNotificationChannelAsync("default", {
       name: "default",
@@ -60,7 +65,6 @@ async function registerForPushNotifications(uid) {
     });
   }
 }
-
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -72,44 +76,45 @@ export default function LoginScreen() {
       Alert.alert("Error", "Please enter both email and password.");
       return;
     }
+
     try {
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+        "https://barberqueue-24143206157.us-central1.run.app/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
+
       const data = await response.json();
       if (!response.ok) {
         Alert.alert("Error", data.error || "Login failed");
         return;
       }
+
       // Store token and user data
       await AsyncStorage.setItem("userToken", data.token);
       await AsyncStorage.setItem("userName", data.user.name);
       await AsyncStorage.setItem("uid", data.user.id);
 
-      // Determine userType (example logic)
-      let userType = "user";
-      if (email === "admin") {
-        userType = "admin";
-      } else if (email === "superadmin") {
-        userType = "superadmin";
-      }
+      let userType = email === "superadmin" ? "superadmin" : "user";
       await AsyncStorage.setItem("userType", userType);
 
       Alert.alert("Success", `Logged in as: ${email}`);
 
-      // Register push notifications for this user
-      await registerForPushNotifications(data.user.id);
-
-      // Navigate based on userType
-      if (userType === "admin") {
-        router.replace("/(admin)/menu");
-      } else if (userType === "superadmin") {
+      // Navigate immediately
+      if (userType === "superadmin") {
         router.replace("/(superadmin)/menu");
       } else {
         router.replace("/(tabs)/menu");
       }
+
+      // Register push notifications without awaiting (to avoid delay)
+      registerForPushNotifications(data.user.id).catch((error) => {
+        console.error("Push notification registration failed", error);
+      });
+
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
@@ -117,10 +122,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <ImageBackground
-      source={require("./image/bglogin.png")}
-      style={styles.background}
-    >
+    <ImageBackground source={require("./image/bglogin.png")} style={styles.background}>
       <View style={styles.overlay}>
         <View style={styles.formContainer}>
           <Text style={styles.title}>Login</Text>
