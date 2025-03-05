@@ -26,7 +26,7 @@ const AdminPaymentHistory = () => {
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [showVisualizations, setShowVisualizations] = useState(true);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
-
+  const [graphFlag, setGraphFlag] = useState(1); // 1: LineChart, 2: PieChart, 3: Calendar
   
   useFocusEffect(
     useCallback(() => {
@@ -343,6 +343,14 @@ const AdminPaymentHistory = () => {
     };
   };
 
+  const handleLeft = () => {
+    setGraphFlag(prev => (prev === 1 ? 3 : prev - 1));
+  };
+
+  const handleRight = () => {
+    setGraphFlag(prev => (prev === 3 ? 1 : prev + 1));
+  };
+
   // Prepare data for visualizations
   const barberContributionData = getBarberContributionData();
   const revenueTimelineData = getRevenueTimelineData();
@@ -369,89 +377,69 @@ const AdminPaymentHistory = () => {
     for (let i = 0; i < allCells.length; i += 7) {
       weeks.push(allCells.slice(i, i + 7));
     }
-    
     return (
-      <View style={styles.calendarContainer}>
-        {/* Calendar header with navigation */}
-        <View style={styles.calendarHeader}>
-          <TouchableOpacity onPress={previousMonth} style={styles.calendarNavButton}>
-            <Text style={styles.calendarNavButtonText}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.calendarTitle}>
-            {format(calendarMonth, 'MMMM yyyy')}
-          </Text>
-          <TouchableOpacity onPress={nextMonth} style={styles.calendarNavButton}>
-            <Text style={styles.calendarNavButtonText}>→</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Days of week headers */}
-        <View style={styles.calendarDaysHeader}>
-          {daysOfWeek.map((day) => (
-            <Text key={day} style={styles.calendarDayHeaderText}>{day}</Text>
-          ))}
-        </View>
-        
-        {/* Calendar grid */}
-        <View style={styles.calendarGrid}>
-  {weeks.map((week, weekIndex) => (
-    <View key={`week-${weekIndex}`} style={styles.calendarRow}>
-      {Array.from({ length: 7 }).map((_, dayIndex) => {
-        const day = week[dayIndex]; // Get the day for this cell
-        if (!day) {
-          // Render an empty cell if no day exists
-          return <View key={`empty-${dayIndex}`} style={styles.calendarEmptyCell} />;
-        }
-
-        const dateString = format(day, 'yyyy-MM-dd');
-        const dayData = dailyData[dateString];
-        const backgroundColor = getColorIntensity(
-          dayData ? dayData.count : 0, 
-          maxCount
-        );
-
-        return (
-          <TouchableOpacity 
-            key={`day-${dateString}`} 
-            style={[styles.calendarCell, { backgroundColor }]}
-            onPress={() => {
-              setSelectedDate(day.toISOString());
-              setFilter("Custom Date");
-            }}
-          >
-            <Text style={styles.calendarDayText}>{getDate(day)}</Text>
-            {dayData && (
-              <Text style={styles.calendarDayCount}>
-                {dayData.count}
-              </Text>
-            )}
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  ))}
-</View>
-        
-        {/* Legend */}
-        <View style={styles.calendarLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#f5f5f5' }]} />
-            <Text style={styles.legendText}>No activity</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#c5e1a5' }]} />
-            <Text style={styles.legendText}>Low</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#8bc34a' }]} />
-            <Text style={styles.legendText}>Medium</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#003B23' }]} />
-            <Text style={styles.legendText}>High</Text>
-          </View>
-        </View>
-      </View>
+            <View style={styles.calendarInnerContainer}>
+              <View style={styles.calendarHeader}>
+                <TouchableOpacity onPress={previousMonth} style={styles.calendarNavButton}>
+                  <Text style={styles.calendarNavButtonText}>←</Text>
+                </TouchableOpacity>
+                <Text style={styles.calendarTitle}>{format(calendarMonth, 'MMMM yyyy')}</Text>
+                <TouchableOpacity onPress={nextMonth} style={styles.calendarNavButton}>
+                  <Text style={styles.calendarNavButtonText}>→</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.calendarDaysHeader}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <Text key={day} style={styles.calendarDayHeaderText}>{day}</Text>
+                ))}
+              </View>
+              <View style={styles.calendarGrid}>
+                {weeks.map((week, weekIndex) => (
+                  <View key={`week-${weekIndex}`} style={styles.calendarRow}>
+                    {Array.from({ length: 7 }).map((_, dayIndex) => {
+                      const day = week[dayIndex];
+                      if (!day) {
+                        return <View key={`empty-${dayIndex}`} style={styles.calendarEmptyCell} />;
+                      }
+                      const dateString = format(day, 'yyyy-MM-dd');
+                      const dayData = dailyData[dateString];
+                      const backgroundColor = getColorIntensity(dayData ? dayData.count : 0, maxCount);
+                      return (
+                        <TouchableOpacity 
+                          key={`day-${dateString}`} 
+                          style={[styles.calendarCell, { backgroundColor }]}
+                          onPress={() => {
+                            setSelectedDate(day.toISOString());
+                            setFilter("Custom Date");
+                          }}
+                        >
+                          <Text style={styles.calendarDayText}>{getDate(day)}</Text>
+                          {dayData && <Text style={styles.calendarDayCount}>{dayData.count}</Text>}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+              <View style={styles.calendarLegend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendColor, { backgroundColor: '#f5f5f5' }]} />
+                  <Text style={styles.legendText}>No activity</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendColor, { backgroundColor: '#c5e1a5' }]} />
+                  <Text style={styles.legendText}>Low</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendColor, { backgroundColor: '#8bc34a' }]} />
+                  <Text style={styles.legendText}>Medium</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendColor, { backgroundColor: '#003B23' }]} />
+                  <Text style={styles.legendText}>High</Text>
+                </View>
+              </View>
+            </View>
     );
   };
 
@@ -535,11 +523,10 @@ const AdminPaymentHistory = () => {
 
         {/* Visualizations (conditionally rendered) */}
         {showVisualizations && (
-          <>
-            {/* Revenue Trend Line Chart */}
-            {filteredPayments.length > 0 && (
-              <View style={styles.chartContainer}>
-                <Text style={styles.sectionTitle}>Revenue Trend {filter !== "All" ? `(${filter})` : ""}</Text>
+          <View>
+            <View style={styles.chartContainer}>
+              {graphFlag === 1 && filteredPayments.length > 0 && (<>
+                <Text style={styles.revenueText}>Revenue</Text>
                 <LineChart
                   data={revenueTimelineData}
                   width={screenWidth}
@@ -551,17 +538,13 @@ const AdminPaymentHistory = () => {
                     decimalPlaces: 0,
                     color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
                     labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                    style: {
-                      borderRadius: 16,
-                    },
+                    style: { borderRadius: 16 },
                     propsForDots: {
                       r: "5",
                       strokeWidth: "2",
                       stroke: "#ffa726"
                     },
-                    propsForLabels: {
-                      fontSize: 10,
-                    },
+                    propsForLabels: { fontSize: 10 },
                   }}
                   bezier
                   style={styles.chart}
@@ -571,23 +554,10 @@ const AdminPaymentHistory = () => {
                   verticalLabelRotation={30}
                   segments={5}
                 />
-                <View style={styles.legendContainer}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendColor, { backgroundColor: '#00b894' }]} />
-                    <Text style={styles.legendText}>Current Period</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendColor, { backgroundColor: '#0984e3' }]} />
-                    <Text style={styles.legendText}>Previous Period</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Barber Contribution Pie Chart */}
-            {barberContributionData.length > 0 && (
-              <View style={styles.chartContainer}>
-                <Text style={styles.sectionTitle}>Barber Revenue Contribution</Text>
+              </>
+              )}
+              {graphFlag === 2 && barberContributionData.length > 0 && (<>
+                <Text style={styles.revenueText}>Barber Contribution</Text>
                 <PieChart
                   data={barberContributionData}
                   width={screenWidth}
@@ -601,42 +571,55 @@ const AdminPaymentHistory = () => {
                   absolute
                   style={styles.chart}
                 />
+              </>
+              )}
+              {graphFlag === 3 && (
+                <View style={styles.calendarWrapper}>
+                  {renderCalendar()}
+                </View>
+              )}
+            </View>
+
+            {/* Navigation Buttons with Dots Indicator */}
+            <View style={styles.navigationContainer}>
+              <TouchableOpacity onPress={handleLeft} style={styles.navButton}>
+                <Text style={styles.navButtonText}>{"<"}</Text>
+              </TouchableOpacity>
+              <View style={styles.paginationContainer}>
+                {[1, 2, 3].map((value, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.paginationDot,
+                      graphFlag === value && styles.paginationDotActive
+                    ]}
+                  />
+                ))}
               </View>
-            )}
-
-            {/* Calendar View for Peak Business Days */}
-            <View style={styles.chartContainer}>
-              <Text style={styles.sectionTitle}>Business Activity Calendar</Text>
-              {renderCalendar()}
+              <TouchableOpacity onPress={handleRight} style={styles.navButton}>
+                <Text style={styles.navButtonText}>{">"}</Text>
+              </TouchableOpacity>
             </View>
-          </>
+          </View>
         )}
-
-        {/* Service Breakdown */}
-        <View style={styles.serviceContainer}>
-          <Text style={styles.sectionTitle}>Service Distribution</Text>
-          {Object.entries(serviceCounts).sort((a, b) => b[1] - a[1]).map(([service, count]) => (
-            <View key={service} style={styles.serviceItem}>
-              <Text style={styles.serviceName}>{service}</Text>
-              <Text style={styles.serviceCount}>{count}</Text>
-            </View>
-          ))}
-        </View>
-
         {/* Detailed Transactions */}
         <Text style={styles.sectionTitle}>Recent Transactions</Text>
-        {filteredPayments.map((payment, index) => (
-          <View key={index} style={styles.transactionCard}>
-            <View style={styles.transactionHeader}>
-              <Text style={styles.barberName}>{payment.barberName}</Text>
-              <Text style={styles.transactionAmount}>₹{payment.totalCost}</Text>
-            </View>
-            <Text style={styles.servicesList}>{payment.services.join(", ")}</Text>
-            <Text style={styles.transactionDate}>
-              {payment.date} • {payment.time} IST
-            </Text>
-          </View>
-        ))}
+        <View style={styles.recentTransactionsContainer}>
+          <ScrollView style={styles.recentTransactionsScroll} nestedScrollEnabled={true}>
+            {filteredPayments.map((payment, index) => (
+              <View key={index} style={styles.transactionCard}>
+                <View style={styles.transactionHeader}>
+                  <Text style={styles.barberName}>{payment.barberName}</Text>
+                  <Text style={styles.transactionAmount}>₹{payment.totalCost}</Text>
+                </View>
+                <Text style={styles.servicesList}>{payment.services.join(", ")}</Text>
+                <Text style={styles.transactionDate}>
+                  {payment.date} • {payment.time} IST
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
       </ScrollView>
     </Provider>
   );
@@ -644,6 +627,26 @@ const AdminPaymentHistory = () => {
 
 // Enhanced styles with additional calendar-related styles
 const styles = StyleSheet.create({
+
+  revenueText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2d3436',
+    textAlign: 'center',
+  },
+
+  recentTransactionsContainer: {
+    maxHeight: 450,
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    padding: 10,
+    elevation: 2,
+    marginBottom: 20,
+  },
+  recentTransactionsScroll: {
+    maxHeight: 450,
+  },
+
   container: {
     padding: 16,
     backgroundColor: '#f5f5f5'
@@ -721,11 +724,54 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     marginBottom: 20,
-    elevation: 2
+    elevation: 2,
+    height: 440, // Fixed height for consistency across all cards
+    justifyContent: 'center'
   },
   chart: {
     marginVertical: 8,
-    borderRadius: 8
+    borderRadius: 8,
+  },
+  calendarWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  navigationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 10,
+  },
+  navButton: {
+    padding: 10,
+    backgroundColor: '#f7f7f7',
+    borderRadius: 4,
+    flex: 0.2,
+    alignItems: 'center',
+  },
+  navButtonText: {
+    color: '#0984e3',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    flex: 0.6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ccc',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: '#0984e3',
+  },
+  calendarInnerContainer: {
+    flex: 1,
   },
   legendContainer: {
     flexDirection: 'row',
