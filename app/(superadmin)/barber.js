@@ -168,6 +168,7 @@ const Barber = () => {
       Alert.alert("Error", "Could not connect to the server");
     }
   };
+  const [isConfirmVisible, setIsConfirmVisible] = useState(false);
 
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
@@ -190,34 +191,57 @@ const Barber = () => {
 
         {/* Modal for Editing Barber */}
         <Modal visible={isModalVisible} transparent animationType="slide">
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Edit Barber</Text>
-              {['name', 'email', 'phone', 'password'].map((field) => (
-                <TextInput
-                  key={field}
-                  style={styles.input}
-                  placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-                  secureTextEntry={field === 'password'}
-                  value={updatedBarber[field]}
-                  onChangeText={(text) => setUpdatedBarber({ ...updatedBarber, [field]: text })}
-                />
-              ))}
-              <View style={styles.modalButtonContainer}>
-                <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.modalButton} onPress={handleUpdateBarber}>
-                  <Text style={styles.modalButtonText}>Update</Text>
-                </TouchableOpacity>
-                {/* New Delete Button */}
-                <TouchableOpacity style={styles.modalButton} onPress={handleDeleteBarber}>
-                  <Text style={styles.modalButtonText}>Delete</Text>
-                </TouchableOpacity>
-              </View>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Barber</Text>
+            {['name', 'email', 'phone', 'password'].map((field) => (
+              <TextInput
+                key={field}
+                style={styles.input}
+                placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+                secureTextEntry={field === 'password'}
+                value={updatedBarber[field]}
+                onChangeText={(text) => setUpdatedBarber({ ...updatedBarber, [field]: text })}
+              />
+            ))}
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={handleUpdateBarber}>
+                <Text style={styles.modalButtonText}>Update</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.deleteButton]} onPress={() => setIsConfirmVisible(true)}>
+                <Text style={styles.modalButtonText}>Delete</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={isConfirmVisible} transparent animationType="fade">
+        <View style={styles.confirmContainer}>
+          <View style={styles.confirmBox}>
+            <Text style={styles.confirmText}>Are you sure you want to delete this barber?</Text>
+            <View style={styles.confirmButtonContainer}>
+              <TouchableOpacity style={styles.confirmButton} onPress={() => setIsConfirmVisible(false)}>
+                <Text style={styles.confirmButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmDeleteButton]}
+                onPress={() => {
+                  handleDeleteBarber();
+                  setIsConfirmVisible(false);
+                  setIsModalVisible(false);
+                }}
+              >
+                <Text style={styles.confirmButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
         {/* Modal for Adding New Barber */}
         <Modal visible={isAddModalVisible} transparent animationType="slide">
@@ -251,6 +275,45 @@ const Barber = () => {
 };
 
 const styles = StyleSheet.create({
+  confirmContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.71)',
+  },
+  confirmBox: {
+    width: '80%',
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  confirmText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  confirmButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: 'rgb(0,0,0)',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    margin: 5,
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  confirmDeleteButton: {
+    backgroundColor: 'rgb(0,0,0)',
+  },
   backgroundImage: {
     flex: 1,
     resizeMode: "cover",
@@ -325,11 +388,11 @@ const styles = StyleSheet.create({
   addButton: {
     position: "absolute",
     bottom: 30,
-    right: 30,
-    backgroundColor: "#000",
+    right: 10,
+    backgroundColor: "rgb(51, 154, 28)",
     width: 60,
     height: 60,
-    borderRadius: 30,
+    borderRadius: 15,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#fff",
@@ -337,6 +400,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 5,
     elevation: 6,
+    padding: 4,
   },
   buttonText: {
     color: "rgb(255,255,255)",
