@@ -14,53 +14,91 @@ import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import * as Device from "expo-device";
 
-async function registerForPushNotifications(uid) {
-  console.log("Registering for push notifications for uid:", uid);
-  // if (!Constants.isDevice) {
-  //   console.log("Must use a physical device for Push Notifications");
-  //   return;
-  // }
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  console.log("Existing permission status:", existingStatus);
-  let finalStatus = existingStatus;
-  if (existingStatus !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-    console.log("Requested permission status:", finalStatus);
-  }
-  if (finalStatus !== "granted") {
-    console.log("Failed to get push token for push notifications!");
-    return;
-  }
-  const token = (
-    await Notifications.getExpoPushTokenAsync({
-      projectId: 'fdeb8267-b069-40e7-9b4e-1a0c50ee6246', // Replace with your Expo Project ID
-    })
-  ).data;
-  console.log("Expo Push Token generated:", token);
-  // Send token to your backend so it can be stored in the user record
-  try {
-    const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/register-push-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid, token }),
-    });
-    const resData = await response.json();
-    console.log("Backend response for push token registration:", resData);
-  } catch (error) {
-    console.error("Error sending push token to backend:", error);
-  }
+// Set the notification handler as per your new logic
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
+// Helper function to handle errors during registration
+function handleRegistrationError(errorMessage) {
+  alert(errorMessage);
+  throw new Error(errorMessage);
+}
+
+// New push notification registration logic
+async function registerForPushNotificationsAsync(uid) {
+  // Configure Android notification channel
   if (Platform.OS === "android") {
-    Notifications.setNotificationChannelAsync("default", {
+    await Notifications.setNotificationChannelAsync("default", {
       name: "default",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#FF231F7C",
     });
   }
-}
 
+  // Check if the app is running on a physical device
+  if (!Device.isDevice) {
+    handleRegistrationError("Must use physical device for push notifications");
+    return;
+  }
+
+  // Get existing notification permissions
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== "granted") {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  if (finalStatus !== "granted") {
+    handleRegistrationError(
+      "Permission not granted to get push token for push notification!"
+    );
+    return;
+  }
+
+  // Retrieve the project ID from Expo configuration
+  const projectId =
+    Constants?.expoConfig?.extra?.eas?.projectId ??
+    Constants?.easConfig?.projectId;
+  if (!projectId) {
+    handleRegistrationError("Project ID not found");
+    return;
+  }
+
+  try {
+    // Get the Expo push token using the project ID
+    const pushToken = (
+      await Notifications.getExpoPushTokenAsync({ projectId })
+    ).data;
+    console.log("Expo Push Token generated:", pushToken);
+
+    // Send the push token along with the uid to your backend
+    try {
+      const response = await fetch(
+        "https://barberqueue-24143206157.us-central1.run.app/register-push-token",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid, token: pushToken }),
+        }
+      );
+      const resData = await response.json();
+      console.log("Backend response for push token registration:", resData);
+    } catch (error) {
+      console.error("Error sending push token to backend:", error);
+    }
+    return pushToken;
+  } catch (e) {
+    handleRegistrationError(`${e}`);
+  }
+}
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -73,11 +111,14 @@ export default function LoginScreen() {
       return;
     }
     try {
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+        "https://barberqueue-24143206157.us-central1.run.app/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
       const data = await response.json();
       if (!response.ok) {
         Alert.alert("Error", data.error || "Login failed");
@@ -99,8 +140,8 @@ export default function LoginScreen() {
 
       Alert.alert("Success", `Logged in as: ${email}`);
 
-      // Register push notifications for this user
-      await registerForPushNotifications(data.user.id);
+      // Register push notifications for this user with the new logic
+      await registerForPushNotificationsAsync(data.user.id);
 
       // Navigate based on userType
       if (userType === "admin") {
@@ -144,7 +185,10 @@ export default function LoginScreen() {
             onChangeText={setPassword}
           />
 
-          <TouchableOpacity style={styles.buttonContainer} onPress={handleLogin}>
+          <TouchableOpacity
+            style={styles.buttonContainer}
+            onPress={handleLogin}
+          >
             <LinearGradient
               colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}
               start={{ x: 0, y: 0 }}
@@ -157,7 +201,8 @@ export default function LoginScreen() {
 
           <TouchableOpacity onPress={() => router.push("/signup")}>
             <Text style={styles.registerText}>
-              Don't have an account? <Text style={styles.link}>Sign Up</Text>
+              Don't have an account?{" "}
+              <Text style={styles.link}>Sign Up</Text>
             </Text>
           </TouchableOpacity>
         </View>

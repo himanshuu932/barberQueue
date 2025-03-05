@@ -20,7 +20,8 @@
         "googleMaps": {
           "apiKey": "AIzaSyB_qepC3UG7dcdWG645NtYZHa3aserIJoY"
         }
-      }
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
