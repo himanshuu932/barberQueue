@@ -11,12 +11,12 @@ import {
   Alert,
   ImageBackground
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 
 const Barber = () => {
   const [barbers, setBarbers] = useState([]);
   const [selectedBarber, setSelectedBarber] = useState(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false); // For editing a barber
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false); // For adding a new barber
   const [newEmployee, setNewEmployee] = useState({
     name: "",
     email: "",
@@ -30,21 +30,23 @@ const Barber = () => {
     password: ""
   });
 
-  useEffect(() => {
-    const fetchBarbers = async () => {
-      try {
-        const response = await fetch("https://barber-24143206157.asia-south2.run.app/barbers");
-        const data = await response.json();
-        if (response.ok) {
-          setBarbers(data);
-        } else {
-          Alert.alert("Error", "Failed to fetch barbers");
-        }
-      } catch (error) {
-        console.error("Error fetching barbers:", error);
-        Alert.alert("Error", "Could not connect to the server");
+  // Reusable fetch function to refresh the barbers list.
+  const fetchBarbers = async () => {
+    try {
+      const response = await fetch("https://barber-24143206157.asia-south2.run.app/barbers");
+      const data = await response.json();
+      if (response.ok) {
+        setBarbers(data);
+      } else {
+        Alert.alert("Error", "Failed to fetch barbers");
       }
-    };
+    } catch (error) {
+      console.error("Error fetching barbers:", error);
+      Alert.alert("Error", "Could not connect to the server");
+    }
+  };
+
+  useEffect(() => {
     fetchBarbers();
   }, []);
 
@@ -64,13 +66,36 @@ const Barber = () => {
       const data = await response.json();
       if (response.ok) {
         setNewEmployee({ name: "", email: "", password: "", phone: "" });
-        setIsModalVisible(false);
+        setIsAddModalVisible(false);
         Alert.alert("Success", "Employee added successfully!");
+        fetchBarbers(); // Refresh list after adding
       } else {
         Alert.alert("Error", data.error || "Failed to add employee");
       }
     } catch (error) {
       console.error("Error adding employee:", error);
+      Alert.alert("Error", "Could not connect to the server");
+    }
+  };
+
+  // New function to delete a barber.
+  const handleDeleteBarber = async () => {
+    try {
+      const response = await fetch("https://barber-24143206157.asia-south2.run.app/barber/profile", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bid: selectedBarber._id }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        Alert.alert("Success", "Barber deleted successfully!");
+        setIsModalVisible(false);
+        fetchBarbers(); // Refresh list after deletion
+      } else {
+        Alert.alert("Error", data.error || "Failed to delete barber");
+      }
+    } catch (error) {
+      console.error("Error deleting barber:", error);
       Alert.alert("Error", "Could not connect to the server");
     }
   };
@@ -83,20 +108,13 @@ const Barber = () => {
   
     return (
       <View style={styles.card}>
-        <Image
-          source={{
-            uri: barber.profilePic || "https://via.placeholder.com/100",
-          }}
-          style={styles.image}
-        />
+        <Image source={require("../image/user.png")} style={styles.image} />
         <View style={styles.infoContainer}>
           <Text style={styles.name}>{barber.name}</Text>
-          <Text style={styles.detail}>📧 {barber.email}</Text>
-          <Text style={styles.detail}>📞 {barber.phone}</Text>
-          <Text style={styles.detail}>
-            👥 Customers Served: {barber.totalCustomersServed}
-          </Text>
-          <Text style={styles.rating}>⭐ {avgRating}</Text>
+          <Text style={styles.detail}>Username: {barber.email}</Text>
+          <Text style={styles.detail}>Phone: {barber.phone}</Text>
+          <Text style={styles.detail}>Customers Served: {barber.totalCustomersServed}</Text>
+          <Text style={styles.rating}>{avgRating} ⭐ </Text>
         </View>
         <TouchableOpacity
           style={styles.editButton}
@@ -137,7 +155,11 @@ const Barber = () => {
       if (response.ok) {
         setIsModalVisible(false);
         Alert.alert("Success", "Barber profile updated successfully!");
-        setBarbers((prevBarbers) => prevBarbers.map((b) => (b._id === selectedBarber._id ? { ...b, ...updatedBarber } : b)));
+        setBarbers((prevBarbers) =>
+          prevBarbers.map((b) =>
+            b._id === selectedBarber._id ? { ...b, ...updatedBarber } : b
+          )
+        );
       } else {
         Alert.alert("Error", data.error || "Failed to update barber");
       }
@@ -147,14 +169,26 @@ const Barber = () => {
     }
   };
 
-
-
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
       <View style={styles.overlay} />
       <View style={styles.container}>
         <Text style={styles.pageHeading}>Barbers</Text>
-        <FlatList data={barbers} keyExtractor={(item) => item._id} renderItem={({ item }) => <BarberCard barber={item} />} />
+        <FlatList 
+          data={barbers} 
+          keyExtractor={(item) => item._id} 
+          renderItem={({ item }) => <BarberCard barber={item} />} 
+        />
+
+        {/* Plus Button for Adding New Barber */}
+        <TouchableOpacity 
+          style={styles.addButton} 
+          onPress={() => setIsAddModalVisible(true)}
+        >
+          <Text style={styles.buttonText}>+</Text>
+        </TouchableOpacity>
+
+        {/* Modal for Editing Barber */}
         <Modal visible={isModalVisible} transparent animationType="slide">
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
@@ -176,6 +210,37 @@ const Barber = () => {
                 <TouchableOpacity style={styles.modalButton} onPress={handleUpdateBarber}>
                   <Text style={styles.modalButtonText}>Update</Text>
                 </TouchableOpacity>
+                {/* New Delete Button */}
+                <TouchableOpacity style={styles.modalButton} onPress={handleDeleteBarber}>
+                  <Text style={styles.modalButtonText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal for Adding New Barber */}
+        <Modal visible={isAddModalVisible} transparent animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Add Barber</Text>
+              {['name', 'email', 'phone', 'password'].map((field) => (
+                <TextInput
+                  key={field}
+                  style={styles.input}
+                  placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+                  secureTextEntry={field === 'password'}
+                  value={newEmployee[field]}
+                  onChangeText={(text) => setNewEmployee({ ...newEmployee, [field]: text })}
+                />
+              ))}
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity style={styles.modalButton} onPress={() => setIsAddModalVisible(false)}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalButton} onPress={handleSaveEmployee}>
+                  <Text style={styles.modalButtonText}>Save</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -188,33 +253,19 @@ const Barber = () => {
 const styles = StyleSheet.create({
   backgroundImage: {
     flex: 1,
-    resizeMode: "cover", // Covers the full screen
+    resizeMode: "cover",
     width: "100%",
     height: "100%",
     position: "absolute",
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(237, 236, 236, 0.77)",// Adds a dark overlay for better readability
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
   },
   container: { 
     flex: 1, 
     paddingLeft: 15,
     paddingRight: 15,
-    // paddingTop: 15,
-  },
-  barberContainer: {
-    flex: 1,
-    backgroundColor: "rgba(228, 228, 228, 0.93)", // Semi-transparent white background
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    width: "100%",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 5,
-    elevation: 4,
   },
   card: { 
     backgroundColor: "#fff", 
@@ -255,8 +306,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
     color: "black",
-    // marginBottom: 15,
-    // textTransform: "uppercase",
     letterSpacing: 1,
     shadowColor: "#000",
     shadowOpacity: 0.5,
@@ -274,16 +323,25 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   addButton: {
+    position: "absolute",
+    bottom: 30,
+    right: 30,
     backgroundColor: "#000",
-    padding: 12,
-    borderRadius: 8,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
     alignItems: "center",
-    marginVertical: 10,
     shadowColor: "#fff",
     shadowOpacity: 0.5,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 5,
     elevation: 6,
+  },
+  buttonText: {
+    color: "rgb(255,255,255)",
+    fontWeight: "bold",
+    fontSize: 30,
   },
   modalContainer: { 
     flex: 1, 
@@ -327,18 +385,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 5,
     elevation: 6,
-    width: "45%"
+    width: "30%"
   },
   modalButtonText: { 
     color: "#fff", 
     fontSize: 16, 
     fontWeight: "bold" 
   },
-  buttonText: {
-    color: "rgb(0,0,0)",
-    fontWeight: "bold",
-    
-  }
 });
 
 export default Barber;

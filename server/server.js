@@ -755,12 +755,24 @@ app.patch("/barber/profile", async (req, res) => {
   }
 });
 
-
+app.delete("/barber/profile", async (req, res) => {
+  try {
+    const { bid } = req.body;
+    if (!bid) {
+      return res.status(400).json({ error: "Barber id (bid) is required" });
+    }
+    const barber = await Barber.findByIdAndDelete(bid);
+    if (!barber) {
+      return res.status(404).json({ error: "Barber not found" });
+    }
+    res.status(200).json({ message: "Barber deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting barber:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
   
-  /* ===============================
-     Rate Barber Endpoint
-     =============================== */
-  app.post("/barber/rate",  async (req, res) => {
+app.post("/barber/rate",  async (req, res) => {
     try {
       const { barberId, rating } = req.body;
       if (!barberId || !rating || rating < 1 || rating > 5) {
