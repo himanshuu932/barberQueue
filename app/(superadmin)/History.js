@@ -376,8 +376,20 @@ const AdminPaymentHistory = () => {
   return (
     <Provider>
       <ScrollView style={styles.container}>
-        <Text style={styles.header}>Admin Payment Dashboard</Text>
+        <Text style={styles.header}>Statistics</Text>
+      <View style={styles.outerContainer}>
+  <View style={styles.toggleContainer}>
+    <Text style={styles.toggleLabel}>Visualize</Text>
+    <Switch
+      value={showVisualizations}
+      onValueChange={setShowVisualizations}
+      trackColor={{ false: "#d3d3d3", true: "#0984e3" }}
+      thumbColor={showVisualizations ? "#ffffff" : "#f4f3f4"}
+    />
+  </View>
+</View>
 
+<<<<<<< HEAD
         {/* Filters and Visualization Toggle */}
         <View style={styles.controlsContainer}>
           <View style={styles.filterRow}>
@@ -423,6 +435,16 @@ const AdminPaymentHistory = () => {
               trackColor={{ false: "#d3d3d3", true: "#0984e3" }}
               thumbColor={showVisualizations ? "#ffffff" : "#f4f3f4"}
             />
+=======
+      <View style={styles.summaryContainer}>
+          <View style={[styles.summaryCard, styles.revenueCard]}>
+            <Text style={styles.summaryTitle}>Total Revenue</Text>
+            <Text style={styles.summaryValue}>₹{totalRevenue}</Text>
+          </View>
+          <View style={[styles.summaryCard, styles.customersCard]}>
+            <Text style={styles.summaryTitle}>Total Customers</Text>
+            <Text style={styles.summaryValue}>{totalCustomers}</Text>
+>>>>>>> 01b07d2906de85bdcc416ce6f3d759650f7c2180
           </View>
         </View>
 
@@ -436,6 +458,7 @@ const AdminPaymentHistory = () => {
         />
 
         {/* Summary Cards */}
+<<<<<<< HEAD
         <View style={styles.summaryContainer}>
           <View style={[styles.summaryCard, styles.revenueCard]}>
             <Text style={styles.summaryTitle}>Total Revenue</Text>
@@ -446,6 +469,9 @@ const AdminPaymentHistory = () => {
             <Text style={styles.summaryValue}>{totalCustomers}</Text>
           </View>
         </View>
+=======
+      
+>>>>>>> 01b07d2906de85bdcc416ce6f3d759650f7c2180
 
         {/* Visualizations */}
         {showVisualizations && (
@@ -454,6 +480,7 @@ const AdminPaymentHistory = () => {
               {graphFlag === 1 && filteredPayments.length > 0 && (<>
                 <Text style={styles.revenueText}>Revenue</Text>
                 <LineChart
+<<<<<<< HEAD
                   data={revenueTimelineData}
                   width={screenWidth}
                   height={220}
@@ -516,12 +543,74 @@ const AdminPaymentHistory = () => {
     </View>
   </>
 )}
+=======
+                data={revenueTimelineData}
+                width={screenWidth * 0.9}
+                height={300}
+                chartConfig={{
+                  backgroundColor: '#ffffff',
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  style: { borderRadius: 16 },
+                  propsForDots: {
+                    r: "5",
+                    strokeWidth: "2",
+                    stroke: "#ffa726"
+                  },
+                  propsForLabels: { fontSize: 10 },
+                }}
+                bezier
+                style={[styles.chart, { marginLeft: -10 }]}  // Shift the chart 10 pixels to the left
+                fromZero
+                yAxisLabel="₹"
+                yAxisInterval={1}
+                verticalLabelRotation={30}
+                segments={5}
+              />
+                </>
+              )}
+              {graphFlag === 2 && barberContributionData.length > 0 && (
+              <>
+                <Text style={styles.revenueText}>Barber Contribution</Text>
+                <View style={styles.centeredChartContainer}>
+                  <BarChart
+                    data={{
+                      labels: barberContributionData.map(item => item.name),
+                      datasets: [
+                        {
+                          data: barberContributionData.map(item => item.revenue)
+                        }
+                      ]
+                    }}
+                    width={screenWidth * 0.9}
+                    height={350}
+                    fromZero
+                    verticalLabelRotation={50}
+                    chartConfig={{
+                      backgroundColor: '#ffffff',
+                      backgroundGradientFrom: '#ffffff',
+                      backgroundGradientTo: '#ffffff',
+                      decimalPlaces: 0,
+                      color: (opacity = 1) => `rgba(34, 128, 176, ${opacity})`,
+                      labelColor: (opacity = 1) => `rgba(34, 34, 34, ${opacity})`,
+                      style: { borderRadius: 16 },
+                    }}
+                    style={styles.chart}
+                  />
+                </View>
+              </>
+            )}
+>>>>>>> 01b07d2906de85bdcc416ce6f3d759650f7c2180
               {graphFlag === 3 && (
                 <View style={styles.calendarWrapper}>
                   {renderCalendar()}
                 </View>
               )}
             </View>
+<<<<<<< HEAD
 
             {/* Navigation Buttons with Dots Indicator */}
             <View style={styles.navigationContainer}>
@@ -548,6 +637,72 @@ const AdminPaymentHistory = () => {
 
         {/* Recent Transactions */}
         <Text style={styles.sectionTitle}>Recent Transactions</Text>
+=======
+
+            {/* Navigation Buttons with Dots Indicator */}
+            <View style={styles.navigationContainer}>
+              <TouchableOpacity onPress={handleLeft} style={styles.navButton}>
+                <Text style={styles.navButtonText}>{"<"}</Text>
+              </TouchableOpacity>
+              <View style={styles.paginationContainer}>
+                {[1, 2, 3].map((value, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.paginationDot,
+                      graphFlag === value && styles.paginationDotActive
+                    ]}
+                  />
+                ))}
+              </View>
+              <TouchableOpacity onPress={handleRight} style={styles.navButton}>
+                <Text style={styles.navButtonText}>{">"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+        {/* Recent Transactions */}
+        <View style={styles.controlsContainer}>
+  <Text style={styles.sectionTitle}>Recent Transactions</Text>
+  <View style={styles.filterRow}>
+    <Menu
+      visible={filterMenuVisible}
+      onDismiss={() => setFilterMenuVisible(false)}
+      anchor={
+        <TouchableOpacity onPress={() => setFilterMenuVisible(true)} style={styles.filterButton}>
+          <Text style={styles.filterButtonText}>📅 {filter}</Text>
+        </TouchableOpacity>
+      }
+    >
+      {["All", "Today", "This Week", "This Month", "Custom Date"].map(f => (
+        <Menu.Item key={f} onPress={() => {
+          setFilter(f);
+          setFilterMenuVisible(false);
+          if (f === "Custom Date") setDatePickerVisible(true);
+        }} title={f} />
+      ))}
+    </Menu>
+    <Menu
+      visible={barberMenuVisible}
+      onDismiss={() => setBarberMenuVisible(false)}
+      anchor={
+        <TouchableOpacity onPress={() => setBarberMenuVisible(true)} style={styles.filterButton}>
+          <Text style={styles.filterButtonText}>💈 {barberFilter}</Text>
+        </TouchableOpacity>
+      }
+    >
+      {["All", ...barbers.map(b => b.name)].map(barber => (
+        <Menu.Item key={barber} onPress={() => {
+          setBarberFilter(barber);
+          setBarberMenuVisible(false);
+        }} title={barber} />
+      ))}
+    </Menu>
+  </View>
+</View>
+
+        
+>>>>>>> 01b07d2906de85bdcc416ce6f3d759650f7c2180
         <View style={styles.recentTransactionsContainer}>
           <ScrollView style={styles.recentTransactionsScroll} nestedScrollEnabled={true}>
             {filteredPayments.map((payment, index) => (
@@ -593,34 +748,45 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   controlsContainer: {
+    flexDirection: 'row', // Aligns items in the same row
+    justifyContent: 'space-between', // Pushes elements to opposite ends
+    alignItems: 'center', // Aligns items vertically
     marginBottom: 20,
+    width: '100%', // Ensures it takes full width
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2d3436',
   },
   filterRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    gap: 10
+    gap: 10,
   },
   filterButton: {
-    flex: 1,
     padding: 12,
     backgroundColor: '#ffffff',
     borderRadius: 8,
     alignItems: 'center',
-    elevation: 2
+    elevation: 2,
   },
   filterButtonText: {
     color: '#2d3436',
-    fontWeight: '500'
+    fontWeight: '500',
+  },
+  outerContainer: {
+    width: "100%",  // Ensures full width of the screen
+    alignItems: "flex-end",  // Moves the entire box to the right
+    padding: 10, // Adds some padding for better spacing
   },
   toggleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    padding: 12,
+    flexDirection: "row",  // Align items in a row
+    alignItems: "center",  // Align vertically
+
+    padding: 5,
     borderRadius: 8,
-    elevation: 2
+    elevation: 0,
+    minWidth: 10, // Optional: Adjust width based on content
   },
   toggleLabel: {
     color: '#2d3436',

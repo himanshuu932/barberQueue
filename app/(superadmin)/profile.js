@@ -11,9 +11,12 @@ import {
   Animated, 
   Alert,
   ActivityIndicator,
-  Modal,TextInput
+  Modal,
+  TextInput,
+  Linking
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Icon from "react-native-vector-icons/FontAwesome";
 
 export default function TabProfileScreen() {
   const router = useRouter();
@@ -21,13 +24,14 @@ export default function TabProfileScreen() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editedProfile, setEditedProfile] = useState({name:"",email:"",phone:""});
-   const [user_id,setuid] = useState(null);
+  const [editedProfile, setEditedProfile] = useState({name:"", email:"", phone:""});
+  const [user_id, setuid] = useState(null);
   const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
+
   const fetchProfile = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/profile", {
+      const response = await fetch(`${API_BASE}/profile`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,7 +51,6 @@ export default function TabProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchProfile();
-     // setuid(AsyncStorage.getItem("id"));
     }, [])
   );
 
@@ -87,12 +90,10 @@ export default function TabProfileScreen() {
       console.error("Error logging out:", error);
     }
   };
+
   async function updateUserProfile(uid1, name, email) {
     const uid = await AsyncStorage.getItem("id");
-    console.log(uid);
-    console.log(email);
-    console.log(name);
-    //const uid=uid2.j;
+    console.log(uid, name, email);
     try {
       const response = await fetch(`${API_BASE}/profile`, {
         method: "PATCH",
@@ -106,9 +107,8 @@ export default function TabProfileScreen() {
       }
       const data = await response.json();
       console.log("User profile updated successfully:", data);
-      // Optionally, update your application state or UI here.
-     // await AsyncStorage.removeItem("id");
       setIsModalVisible(false);
+      fetchProfile();
     } catch (error) {
       console.error("Error updating user profile:", error);
     }
@@ -118,65 +118,66 @@ export default function TabProfileScreen() {
     <View style={styles.container}>
       {/* Fixed header */}
       <View style={styles.header}>
-      <View style={styles.profileBox}>
-        <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
-        <TouchableOpacity style={styles.editButton} onPress={() => { setEditedProfile(profile); setIsModalVisible(true); }}>
-  <Image 
-    source={require("../image/editw.png")}  // Use require() for local images
-    style={{ width: 25, height: 25, tintColor: "white" }} // Use tintColor for color change
-  />
-</TouchableOpacity>
-          <Animated.View
-            style={[styles.shine, { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] }]}
-          >
-            <LinearGradient colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} style={styles.shineGradient} />
-          </Animated.View>
-          <View style={styles.profileContent}>
-            <Image source={require("../image/user.png")} style={styles.profileImage} />
-            <View style={styles.profileDetails}>
-              {loading ? (
-                <ActivityIndicator size="large" color="#fff" />
-              ) : (
-                <View>
-                  <Text style={styles.username}>{profile?.name || "User Name"}</Text>
-                  <Text style={styles.userInfo}>{profile?.phone || "N/A"}</Text>
-                  <Text style={styles.userInfo}>{profile?.email || "N/A"}</Text>
-                </View>
-              )}
+        <View style={styles.profileBox}>
+          <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
+            <TouchableOpacity style={styles.editButton} onPress={() => { setEditedProfile(profile); setIsModalVisible(true); }}>
+              <Image 
+                source={require("../image/editw.png")}
+                style={{ width: 25, height: 25, tintColor: "white" }}
+              />
+            </TouchableOpacity>
+            <Animated.View
+              style={[styles.shine, { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] }]}
+            >
+              <LinearGradient colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} style={styles.shineGradient} />
+            </Animated.View>
+            <View style={styles.profileContent}>
+              <Image source={require("../image/user.png")} style={styles.profileImage} />
+              <View style={styles.profileDetails}>
+                {loading ? (
+                  <ActivityIndicator size="large" color="#fff" />
+                ) : (
+                  <View>
+                    <Text style={styles.username}>{profile?.name || "User Name"}</Text>
+                   
+                    <Text style={styles.userInfo}>Username:{profile?.email || "N/A"}</Text>
+                    {/* Address added without shifting the starting point */}
+                    <Text style={styles.userInfo}>
+                      Address: Madan Mohan Malviya Univercity of Technology.
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
-           
-          </View>
-        </LinearGradient>
-      </View>
-        <Text style={styles.historyTitle}>Service History</Text>
+          </LinearGradient>
+        </View>
+      
       </View>
 
       {/* Scrollable history list */}
-      <ScrollView 
-         style={styles.historyScroll}
-         contentContainerStyle={styles.historyScrollContent}
-         showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.historyContainer}>
-          {loading ? (
-            <ActivityIndicator size="large" color="#333" />
-          ) : profile?.history?.length > 0 ? (
-            profile.history.map((item, index) => (
-                
-                <View key={index} style={styles.historyItem}>
-                  <View style={styles.paymentRow}>
-                <Text style={styles.historyService}>{item.service}</Text>
-                <Text style={styles.paymentAmount}>₹{item.cost}.00</Text>
-               
-                </View>
-                <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
+   
+        <View style={styles.companyContainer}>
+       
+            <LinearGradient colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} style={styles.companyBackground}>
+              <Text style={styles.companyTitle}>Bludgers Technologies</Text>
+              <Text style={styles.companyTagline}>Innovating Daily Living</Text>
+              <Text style={styles.companyDescription}>
+                Bludgers Technologies is dedicated to crafting seamless and intuitive mobile applications,
+                ensuring the best user experience with cutting-edge solutions.
+              </Text>
+              <View style={styles.divider} />
+              {/* Replaced company website with clickable mail link */}
+              <TouchableOpacity onPress={() => Linking.openURL("mailto:himanshu@gmail.com")}>
+                <Text style={styles.companyWebsite}>📧 Mail: himanshu@gmail.com</Text>
+              </TouchableOpacity>
+              <View style={styles.phoneContainer}>
+                <Icon name="phone" size={18} color="#00aaff" />
+                <Text style={styles.numberText}>Phone :- 8601346652</Text>
               </View>
-            ))
-          ) : (
-            <Text style={styles.noHistory}>No haircut history available.</Text>
-          )}
+            </LinearGradient>
+       
         </View>
-      </ScrollView>
+     
   
       {/* Fixed logout button */}
       <View style={styles.footer}>
@@ -189,13 +190,13 @@ export default function TabProfileScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      
       <Modal visible={isModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
             <TextInput style={styles.input} placeholder="Name" value={editedProfile.name} onChangeText={(text) => setEditedProfile({ ...editedProfile, name: text })} />
-            <TextInput style={styles.input} placeholder="Phone" value={editedProfile.phone} onChangeText={(text) => setEditedProfile({ ...editedProfile, phone: text })} />
-            <TextInput style={styles.input} placeholder="Email" value={editedProfile.email} onChangeText={(text) => setEditedProfile({ ...editedProfile, email: text })} />
+             <TextInput style={styles.input} placeholder="Email" value={editedProfile.email} onChangeText={(text) => setEditedProfile({ ...editedProfile, email: text })} />
             <View style={styles.modalButtonContainer}>
               <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
@@ -209,7 +210,7 @@ export default function TabProfileScreen() {
       </Modal>
     </View>
   );
-}
+} 
 
 const styles = StyleSheet.create({
   modalContainer: {
@@ -261,18 +262,11 @@ const styles = StyleSheet.create({
   editButton: {
     position: "absolute",
     top: 0,
-    bottom:10,
     right: 5,
     padding: 3,
     borderRadius: 6,
-    alignItems: "center"
+    alignItems: "center",
   },
-  editButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  
   container: {
     flex: 1,
     backgroundColor: "#ffffff",
@@ -284,7 +278,7 @@ const styles = StyleSheet.create({
   },
   profileBox: {
     width: "100%",
-    height: 150,
+    height: 180,
     borderRadius: 10,
     overflow: "hidden",
     marginBottom: 20,
@@ -313,7 +307,6 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingHorizontal: 20,
   },
-  paymentRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   profileImage: {
     width: 80,
     height: 80,
@@ -349,31 +342,81 @@ const styles = StyleSheet.create({
   historyScrollContent: {
     paddingBottom: 20,
   },
-  historyContainer: {
-    width: "100%",
-    backgroundColor: "#f8f8f8",
+  companyContainer: {
+    width: "90%",
     borderRadius: 10,
-    padding: 15,
+    overflow: "hidden",
+   // justifyContent: "center",
+   // alignItems: "center",
+   
+    left: "5%",
   },
-  historyItem: { backgroundColor: "#F9F9F9", padding: 11, borderRadius: 10, marginBottom: 10, elevation: 3 },
-  historyService: {
-    fontSize: 15, color: "#777", marginTop: 4
+  companyScroll: {
+    width: "100%",
+    paddingHorizontal: 20,
   },
-  paymentAmount: { fontSize: 16, fontWeight: "bold", color: "rgb(16, 98, 13)" },
-  historyDate: {
-    fontSize: 14, color: "#555" 
+  companyBackground: {
+    padding: 20,
+    borderRadius: 12,
+   // alignItems: "center",
+    //justifyContent: "center",
   },
-  noHistory: {
-    fontSize: 16,
-    color: "#999",
+  companyTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 10,
     textAlign: "center",
+  },
+  companyTagline: {
+    fontSize: 16,
+    color: "#ddd",
+    marginBottom: 10,
+    fontStyle: "italic",
+    textAlign: "center",
+  },
+  companyDescription: {
+    fontSize: 14,
+    color: "#ccc",
+    textAlign: "justify",
+    marginBottom: 15,
+    paddingHorizontal: 15,
+  },
+  companyWebsite: {
+    fontSize: 16,
+    color: "#00aaff",
+    fontWeight: "bold",   
+  //  marginBottom: 10,
+  //  textAlign: "center", // Remains centered
+  },
+  divider: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "left",
+    height: 1,
+    backgroundColor: "#444",
+    width: "100%",
+    marginVertical: 15,
+  },
+  phoneContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    width: "100%", // This makes the container span full width
+    justifyContent: "flex-start", // Aligns content to the left
+  },
+  numberText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#00aaff",
+    marginLeft: 5,
   },
   footer: {
     padding: 20,
     alignItems: "center",
   },
   buttonContainer: {
-    width: "90%",
+    width: "100%",
   },
   button: {
     padding: 12,
@@ -386,3 +429,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+
