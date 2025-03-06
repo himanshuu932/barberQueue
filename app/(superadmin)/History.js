@@ -389,53 +389,6 @@ const AdminPaymentHistory = () => {
   </View>
 </View>
 
-<<<<<<< HEAD
-        {/* Filters and Visualization Toggle */}
-        <View style={styles.controlsContainer}>
-          <View style={styles.filterRow}>
-            <Menu
-              visible={filterMenuVisible}
-              onDismiss={() => setFilterMenuVisible(false)}
-              anchor={
-                <TouchableOpacity onPress={() => setFilterMenuVisible(true)} style={styles.filterButton}>
-                  <Text style={styles.filterButtonText}>📅 {filter}</Text>
-                </TouchableOpacity>
-              }
-            >
-              {["All", "Today", "This Week", "This Month", "Custom Date"].map(f => (
-                <Menu.Item key={f} onPress={() => {
-                  setFilter(f);
-                  setFilterMenuVisible(false);
-                  if (f === "Custom Date") setDatePickerVisible(true);
-                }} title={f} />
-              ))}
-            </Menu>
-            <Menu
-              visible={barberMenuVisible}
-              onDismiss={() => setBarberMenuVisible(false)}
-              anchor={
-                <TouchableOpacity onPress={() => setBarberMenuVisible(true)} style={styles.filterButton}>
-                  <Text style={styles.filterButtonText}>💈 {barberFilter}</Text>
-                </TouchableOpacity>
-              }
-            >
-              {["All", ...barbers.map(b => b.name)].map(barber => (
-                <Menu.Item key={barber} onPress={() => {
-                  setBarberFilter(barber);
-                  setBarberMenuVisible(false);
-                }} title={barber} />
-              ))}
-            </Menu>
-          </View>
-          <View style={styles.toggleContainer}>
-            <Text style={styles.toggleLabel}>Show Visualizations</Text>
-            <Switch
-              value={showVisualizations}
-              onValueChange={setShowVisualizations}
-              trackColor={{ false: "#d3d3d3", true: "#0984e3" }}
-              thumbColor={showVisualizations ? "#ffffff" : "#f4f3f4"}
-            />
-=======
       <View style={styles.summaryContainer}>
           <View style={[styles.summaryCard, styles.revenueCard]}>
             <Text style={styles.summaryTitle}>Total Revenue</Text>
@@ -444,7 +397,6 @@ const AdminPaymentHistory = () => {
           <View style={[styles.summaryCard, styles.customersCard]}>
             <Text style={styles.summaryTitle}>Total Customers</Text>
             <Text style={styles.summaryValue}>{totalCustomers}</Text>
->>>>>>> 01b07d2906de85bdcc416ce6f3d759650f7c2180
           </View>
         </View>
 
@@ -458,20 +410,7 @@ const AdminPaymentHistory = () => {
         />
 
         {/* Summary Cards */}
-<<<<<<< HEAD
-        <View style={styles.summaryContainer}>
-          <View style={[styles.summaryCard, styles.revenueCard]}>
-            <Text style={styles.summaryTitle}>Total Revenue</Text>
-            <Text style={styles.summaryValue}>₹{totalRevenue}</Text>
-          </View>
-          <View style={[styles.summaryCard, styles.customersCard]}>
-            <Text style={styles.summaryTitle}>Total Customers</Text>
-            <Text style={styles.summaryValue}>{totalCustomers}</Text>
-          </View>
-        </View>
-=======
       
->>>>>>> 01b07d2906de85bdcc416ce6f3d759650f7c2180
 
         {/* Visualizations */}
         {showVisualizations && (
@@ -480,70 +419,6 @@ const AdminPaymentHistory = () => {
               {graphFlag === 1 && filteredPayments.length > 0 && (<>
                 <Text style={styles.revenueText}>Revenue</Text>
                 <LineChart
-<<<<<<< HEAD
-                  data={revenueTimelineData}
-                  width={screenWidth}
-                  height={220}
-                  chartConfig={{
-                    backgroundColor: '#ffffff',
-                    backgroundGradientFrom: '#ffffff',
-                    backgroundGradientTo: '#ffffff',
-                    decimalPlaces: 0,
-                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                    style: { borderRadius: 16 },
-                    propsForDots: {
-                      r: "5",
-                      strokeWidth: "2",
-                      stroke: "#ffa726"
-                    },
-                    propsForLabels: { fontSize: 10 },
-                  }}
-                  bezier
-                  style={styles.chart}
-                  fromZero
-                  yAxisLabel="₹"
-                  yAxisInterval={1}
-                  verticalLabelRotation={30}
-                  segments={5}
-                />
-                </>
-              )}
-              {graphFlag === 2 && barberContributionData.length > 0 && (
-  <>
-    <View style={styles.dataContainer}>
-      <Text style={styles.revenueText}>Barber Contribution</Text>
-      {/* Centered Bar Chart */}
-      <View style={styles.centeredChartContainer}>
-        <BarChart
-          data={{
-            labels: barberContributionData.map(item => item.name),
-            datasets: [
-              {
-                data: barberContributionData.map(item => item.revenue)
-              }
-            ]
-          }}
-          width={screenWidth * 0.9} // Adjusted for better centering
-          height={220}
-          fromZero
-          verticalLabelRotation={45} // Rotate x-axis labels by 45 degrees
-          chartConfig={{
-            backgroundColor: '#ffffff',
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#ffffff',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(34, 128, 176, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(34, 34, 34, ${opacity})`,
-            style: { borderRadius: 16 },
-          }}
-          style={styles.chart}
-        />
-      </View>
-    </View>
-  </>
-)}
-=======
                 data={revenueTimelineData}
                 width={screenWidth * 0.9}
                 height={300}
@@ -603,41 +478,12 @@ const AdminPaymentHistory = () => {
                 </View>
               </>
             )}
->>>>>>> 01b07d2906de85bdcc416ce6f3d759650f7c2180
               {graphFlag === 3 && (
                 <View style={styles.calendarWrapper}>
                   {renderCalendar()}
                 </View>
               )}
             </View>
-<<<<<<< HEAD
-
-            {/* Navigation Buttons with Dots Indicator */}
-            <View style={styles.navigationContainer}>
-              <TouchableOpacity onPress={handleLeft} style={styles.navButton}>
-                <Text style={styles.navButtonText}>{"<"}</Text>
-              </TouchableOpacity>
-              <View style={styles.paginationContainer}>
-                {[1, 2, 3].map((value, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.paginationDot,
-                      graphFlag === value && styles.paginationDotActive
-                    ]}
-                  />
-                ))}
-              </View>
-              <TouchableOpacity onPress={handleRight} style={styles.navButton}>
-                <Text style={styles.navButtonText}>{">"}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Recent Transactions */}
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
-=======
 
             {/* Navigation Buttons with Dots Indicator */}
             <View style={styles.navigationContainer}>
@@ -702,7 +548,6 @@ const AdminPaymentHistory = () => {
 </View>
 
         
->>>>>>> 01b07d2906de85bdcc416ce6f3d759650f7c2180
         <View style={styles.recentTransactionsContainer}>
           <ScrollView style={styles.recentTransactionsScroll} nestedScrollEnabled={true}>
             {filteredPayments.map((payment, index) => (

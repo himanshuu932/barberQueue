@@ -175,6 +175,7 @@ app.post("/notify", async (req, res) => {
       tickets.push(...ticketChunk);
     }
     res.json({ message: "Notification sent", tickets });
+    io.emit('pushNotification', { message: message,uid:uid });
   } catch (error) {
     console.error("Error sending push notification:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -795,6 +796,73 @@ app.post("/barber/rate",  async (req, res) => {
       });
     } catch (error) {
       console.error("Error submitting rating:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+
+  app.post("/send-notification", async (req, res) => {
+    try {
+      const { token, title, body, data } = req.body;
+  
+      // Validate required fields
+      if (!token || !title || !body) {
+        return res.status(400).json({ error: "Missing required fields: token, title, body" });
+      }
+  
+      // Check if the token is a valid Expo push token
+      if (!Expo.isExpoPushToken(token)) {
+        return res.status(400).json({ error: "Invalid Expo push token" });
+      }
+  
+      // Build the notification message
+      const message = {
+        to: token,
+        sound: "default",
+        title: title,
+        body: body,
+      };
+  
+      // Add optional data if provided
+      if (data) {
+        message.data = data;
+      }
+  
+      // Send the notification using Expo's SDK
+      const chunks = expo.chunkPushNotifications([message]);
+      const tickets = [];
+  
+      for (const chunk of chunks) {
+        try {
+          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          tickets.push(...ticketChunk);
+        } catch (error) {
+          console.error("Error sending push notification chunk:", error);
+          return res.status(500).json({ error: "Failed to send push notification" });
+        }
+      }
+  
+      // Check for errors in the tickets
+      const invalidTokens = [];
+      for (const ticket of tickets) {
+        if (ticket.status === "error" && ticket.details?.error === "DeviceNotRegistered") {
+          invalidTokens.push(ticket.details.expoPushToken);
+        }
+      }
+  
+      // Remove invalid tokens from the database
+      if (invalidTokens.length > 0) {
+        console.log("Removing invalid tokens:", invalidTokens);
+        await User.updateMany(
+          { expoPushToken: { $in: invalidTokens } },
+          { $unset: { expoPushToken: "" } }
+        );
+      }
+  
+      // Respond with success
+      res.json({ message: "Notification sent", tickets });
+    } catch (error) {
+      console.error("Error in /send-notification route:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });

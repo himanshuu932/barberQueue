@@ -120,9 +120,32 @@ export default function MenuScreen() {
       socket.on("queueUpdated", () => {
         fetchQueueData();
       });
+
+      socket.on("pushNotification", (data) => {
+        console.log("Notifaction======:", data);
+        if(data.uid==uid)
+        showLocalNotification(data.message.title, data.message.body,data.message.data);
+        //fetchQueueData();
+      });
     }
   }, [socket]);
 
+  const showLocalNotification = async (title, body, data = {}) => {
+    
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          data,
+        },
+        trigger: null, 
+      });
+      console.log("Local notification scheduled:", title, body);
+    } catch (error) {
+      console.error("Error showing notification:", error);
+    }
+  };
   const fetchQueueData = async () => {
     try {
       const response = await fetch(`${API_BASE}/queue`);
@@ -235,7 +258,7 @@ export default function MenuScreen() {
 
     // Close the modal (from your modal component)
     setModalVisible(false);
-   Alert.alert("Join Queue",`${totalSelectedPrice}`);
+   //Alert.alert("Join Queue",`${totalSelectedPrice}`);
     try {
       // Send an API request to join the queue with the selected services
       const response = await fetch(`${API_BASE}/queue`, {
