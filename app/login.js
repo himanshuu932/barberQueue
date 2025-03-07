@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,103 +13,157 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
-import Constants from "expo-constants";
 
+// Configure how notifications are handled when the app is in the foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true, // Show an alert when the app is in the foreground
+    shouldPlaySound: true, // Play a sound when the notification is received
+    shouldSetBadge: true, // Set the app badge count
+  }),
+});
+
+// Function to register push notifications
 async function registerForPushNotifications(uid) {
   console.log("Registering for push notifications for uid:", uid);
-  // if (!Constants.isDevice) {
-  //   console.log("Must use a physical device for Push Notifications");
-  //   return;
-  // }
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  console.log("Existing permission status:", existingStatus);
-  let finalStatus = existingStatus;
-  if (existingStatus !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-    console.log("Requested permission status:", finalStatus);
-  }
-  if (finalStatus !== "granted") {
-    console.log("Failed to get push token for push notifications!");
-    return;
-  }
-  const token = (
-    await Notifications.getExpoPushTokenAsync({
-      projectId: 'fdeb8267-b069-40e7-9b4e-1a0c50ee6246', // Replace with your Expo Project ID
-    })
-  ).data;
-  console.log("Expo Push Token generated:", token);
-  // Send token to your backend so it can be stored in the user record
+
   try {
-    const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/register-push-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid, token }),
-    });
-    const resData = await response.json();
-    console.log("Backend response for push token registration:", resData);
+    // Step 1: Check and request permissions
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    console.log("Existing permission status:", existingStatus);
+
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+      console.log("Requested permission status:", finalStatus);
+    }
+
+    if (finalStatus !== "granted") {
+      console.log("Failed to get push token for push notifications!");
+      Alert.alert(
+        "Permission Denied",
+        "Push notifications permission is required to receive notifications. Please enable it in your device settings."
+      );
+      return;
+    }
+
+    // Step 2: Generate Expo Push Token
+    let token;
+    try {
+      token = (
+        await Notifications.getExpoPushTokenAsync({
+          projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
+        })
+      ).data;
+      console.log("Expo Push Token generated:", token);
+      Alert.alert("Expo Push Token generated:", token);
+    } catch (error) {
+      console.error("Error generating Expo Push Token:", error);
+      Alert.alert(
+        "Error Generating Push Token",
+        `An error occurred while generating the push token: ${error.message}`
+      );
+      return; // Exit the function if token generation fails
+    }
+
+    // Step 3: Send token to your custom backend
+    try {
+      const response = await fetch(
+        "https://barberqueue-24143206157.us-central1.run.app/register-push-token",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid, token }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Backend error:", errorData);
+        Alert.alert(
+          "Backend Error",
+          `Failed to register push token: ${errorData.error || "Unknown error"}`
+        );
+        return;
+      }
+
+      const resData = await response.json();
+      console.log("Backend response for push token registration:", resData);
+    } catch (error) {
+      console.error("Error sending push token to backend:", error);
+      Alert.alert(
+        "Network Error",
+        "Failed to send push token to the backend. Please check your internet connection."
+      );
+    }
+
+    // Step 4: Configure Android notification channel
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#FF231F7C",
+      });
+    }
   } catch (error) {
-    console.error("Error sending push token to backend:", error);
-  }
-  if (Platform.OS === "android") {
-    Notifications.setNotificationChannelAsync("default", {
-      name: "default",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#FF231F7C",
-    });
+    console.error("Error in registerForPushNotifications:", error);
+    Alert.alert(
+      "Error",
+      "An unexpected error occurred while setting up push notifications. Please try again later."
+    );
   }
 }
-
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // Listen for notifications when the app is in the foreground
+ 
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
       return;
     }
+
     try {
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+        "https://barberqueue-24143206157.us-central1.run.app/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
+
       const data = await response.json();
       if (!response.ok) {
         Alert.alert("Error", data.error || "Login failed");
         return;
       }
+
       // Store token and user data
       await AsyncStorage.setItem("userToken", data.token);
       await AsyncStorage.setItem("userName", data.user.name);
       await AsyncStorage.setItem("uid", data.user.id);
 
-      // Determine userType (example logic)
-      let userType = "user";
-      if (email === "admin") {
-        userType = "admin";
-      } else if (email === "superadmin") {
-        userType = "superadmin";
-      }
+      let userType = email === "superadmin" ? "superadmin" : "user";
       await AsyncStorage.setItem("userType", userType);
 
       Alert.alert("Success", `Logged in as: ${email}`);
 
-      // Register push notifications for this user
-      await registerForPushNotifications(data.user.id);
-
-      // Navigate based on userType
-      if (userType === "admin") {
-        router.replace("/(admin)/menu");
-      } else if (userType === "superadmin") {
+      // Navigate immediately
+      if (userType === "superadmin") {
         router.replace("/(superadmin)/menu");
       } else {
         router.replace("/(tabs)/menu");
       }
+
+      // Register push notifications without awaiting (to avoid delay)
+      await registerForPushNotifications(data.user.id);
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
@@ -117,10 +171,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <ImageBackground
-      source={require("./image/bglogin.png")}
-      style={styles.background}
-    >
+    <ImageBackground source={require("./image/bglogin.png")} style={styles.background}>
       <View style={styles.overlay}>
         <View style={styles.formContainer}>
           <Text style={styles.title}>Login</Text>

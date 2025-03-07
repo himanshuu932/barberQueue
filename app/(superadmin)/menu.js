@@ -15,11 +15,9 @@ import { format, utcToZonedTime } from "date-fns-tz";
 const IST_TIMEZONE = "Asia/Kolkata";
 const { width: screenWidth } = Dimensions.get("window");
 
-// Carousel data with Picsum image URLs
+// Image URL from Picsum
 const carouselData = [
-  "https://picsum.photos/seed/1/600/300",
-  "https://picsum.photos/seed/2/600/300",
-  "https://picsum.photos/seed/3/600/300",
+  "https://picsum.photos/seed/1/600/400",
 ];
 
 const Menu = () => {
@@ -36,48 +34,31 @@ const Menu = () => {
 
   const fetchTodayStats = async () => {
     try {
-      // Fetch barbers data
       const barbersResponse = await fetch("https://barberqueue-24143206157.us-central1.run.app/barbers");
       const barbersData = await barbersResponse.json();
 
-      // Get current date in IST timezone
       const now = new Date();
       const todayIST = utcToZonedTime(now, IST_TIMEZONE);
       const todayDateString = format(todayIST, "yyyy-MM-dd", {
         timeZone: IST_TIMEZONE,
       });
 
-      // Process all transactions
       let totalEarnings = 0;
       let customerCount = 0;
       const serviceCount = {};
       const barberEarnings = {};
 
       barbersData.forEach((barber) => {
-        // Initialize barber earnings
         barberEarnings[barber.name] = 0;
-
         barber.history.forEach((transaction) => {
-          const transactionDate = utcToZonedTime(
-            new Date(transaction.date),
-            IST_TIMEZONE
-          );
-          const transactionDateString = format(
-            transactionDate,
-            "yyyy-MM-dd",
-            { timeZone: IST_TIMEZONE }
-          );
+          const transactionDate = utcToZonedTime(new Date(transaction.date), IST_TIMEZONE);
+          const transactionDateString = format(transactionDate, "yyyy-MM-dd", { timeZone: IST_TIMEZONE });
 
-          // Only count today's transactions
           if (transactionDateString === todayDateString) {
             totalEarnings += transaction.totalCost;
             customerCount += 1;
 
-            // Track service popularity (if services exist and is a string)
-            if (
-              transaction.services &&
-              typeof transaction.services === "string"
-            ) {
+            if (transaction.services && typeof transaction.services === "string") {
               transaction.services
                 .split(",")
                 .map((service) => service.trim())
@@ -86,13 +67,11 @@ const Menu = () => {
                 });
             }
 
-            // Track barber earnings
             barberEarnings[barber.name] += transaction.totalCost;
           }
         });
       });
 
-      // Find most popular service
       let popularService = "None";
       let maxServiceCount = 0;
       Object.entries(serviceCount).forEach(([service, count]) => {
@@ -102,7 +81,6 @@ const Menu = () => {
         }
       });
 
-      // Find top earning (popular) barber based on number of customers served today
       let popularBarber = "None";
       let maxCustomerCount = 0;
       Object.entries(barberEarnings).forEach(([barber, earnings]) => {
@@ -112,7 +90,6 @@ const Menu = () => {
         }
       });
 
-      // Update state with calculated values
       setTodayStats({
         earnings: totalEarnings,
         customers: customerCount,
