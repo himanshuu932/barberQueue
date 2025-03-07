@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Animated,
   ActivityIndicator,
+  ImageBackground
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -104,7 +105,9 @@ export default function TabProfileScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
+      <View style={styles.overlay} />
+      <View style={styles.container}>
       <View style={styles.profileBox}>
         <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
           <Animated.View
@@ -141,7 +144,6 @@ export default function TabProfileScreen({ navigation }) {
           </View>
         </LinearGradient>
       </View>
-
       <View style={styles.paymentHistoryContainer}>
         <Text style={styles.sectionTitle}>Payment History</Text>
         <View style={styles.paymentBox}>
@@ -165,17 +167,31 @@ export default function TabProfileScreen({ navigation }) {
         </LinearGradient>
       </TouchableOpacity>
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
+  },
+
   container: 
   { 
     flex: 1,
     alignItems: "center",
     justifyContent:"space-between",
     padding: 20,
-    backgroundColor: "#fff" 
+    // backgroundColor: "#fff" 
   },
   loadingContainer: 
   { 

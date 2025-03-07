@@ -42,22 +42,24 @@ export default function MenuScreen() {
   const [remainingTime, setRemainingTime] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [infomodalVisible, setinfomodalVisible] = useState(false);
-  const [checklist, setChecklist] = useState([
-    { id: 1, text: "Haircut", price: "₹70", checked: false },
-    { id: 2, text: "Beard Trim", price: "₹40", checked: false },
-    { id: 3, text: "Shave", price: "₹30", checked: false },
-    { id: 4, text: "Hair Wash", price: "₹300", checked: false },
-    { id: 5, text: "Head Massage", price: "₹120", checked: false },
-    { id: 6, text: "Facial", price: "₹150", checked: false },
-    { id: 7, text: "Hair Color", price: "₹200", checked: false },
-  ]);
+  const initialChecklist = [
+    { id: 1, text: "Haircut", price: 70, checked: false },
+    { id: 2, text: "Beard Trim", price: 40, checked: false },
+    { id: 3, text: "Shave", price: 30, checked: false },
+    { id: 4, text: "Hair Wash", price: 300, checked: false },
+    { id: 5, text: "Head Massage", price: 120, checked: false },
+    { id: 6, text: "Facial", price: 150, checked: false },
+    { id: 7, text: "Hair Color", price: 200, checked: false },
+  ];
+  
+  const [checklist, setChecklist] = useState(initialChecklist);
   const [ratingModalVisible, setRatingModalVisible] = useState(false); // State for rating popup
   const [rating, setRating] = useState(0); // State for star rating
-
+  
   const [infoModalChecklist, setInfoModalChecklist] = useState([]);
   const totalSelectedPrice = checklist
     .filter((item) => item.checked)
-    .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0);
+    .reduce((sum, item) => sum + item.price, 0);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -152,14 +154,26 @@ export default function MenuScreen() {
   const initialWaitTime = userPosition ? userPosition * avgServiceTime * 60 : null;
 
   useEffect(() => {
-    setRemainingTime(initialWaitTime);
-    if (initialWaitTime) {
-      const timer = setInterval(() => {
-        setRemainingTime((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
-      }, 1000);
-      return () => clearInterval(timer);
+    let timer;
+    const updateRemainingTime = async () => {
+      // Get the join timestamp from AsyncStorage
+      const joinTimeStr = await AsyncStorage.getItem("joinTimestamp");
+      if (joinTimeStr && userPosition) {
+        const joinTime = Number(joinTimeStr);
+        const elapsed = Math.floor((Date.now() - joinTime) / 1000); // in seconds
+        const expectedWaitTime = userPosition * avgServiceTime * 60; // in seconds
+        // Calculate the new remaining time (if negative, display 0)
+        setRemainingTime(expectedWaitTime - elapsed > 0 ? expectedWaitTime - elapsed : 0);
+      }
+    };
+    if (userPosition) {
+      // Update immediately on mount
+      updateRemainingTime();
+      // Then update every second
+      timer = setInterval(updateRemainingTime, 1000);
     }
-  }, [userPosition]);
+    return () => clearInterval(timer);
+  }, [userPosition]);  
   const updateUserServices = async (selectedServices, totalCost) => {
     if (!selectedServices || selectedServices.length === 0) {
       Alert.alert(
@@ -218,10 +232,9 @@ export default function MenuScreen() {
     // Get the list of selected services from your checklist
     const selectedServices = checklist
     .filter((item) => item.checked)
-    .map((item) => {
-     
+    .map((item) =>{ 
       return item.text;
-    });
+  });
   
 
     // Ensure at least one service is selected
@@ -253,6 +266,7 @@ export default function MenuScreen() {
       if (response.ok) {
         // Optionally, parse the response data
         const data = await response.json();
+        await AsyncStorage.setItem("joinTimestamp", String(Date.now()));
 
         // Update the queue data (this function should update your state accordingly)
         fetchQueueData();
@@ -268,6 +282,7 @@ export default function MenuScreen() {
             totalCost: totalSelectedPrice,
           });
         }
+        setChecklist(initialChecklist.map(item => ({ ...item, checked: false }))); 
       } else {
         Alert.alert("Error", "Failed to join the queue.");
       }
@@ -409,7 +424,7 @@ export default function MenuScreen() {
       console.error("Error rating barber:", error);
     }
   }
-  
+   
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
       <View style={styles.overlay} />
@@ -463,7 +478,7 @@ export default function MenuScreen() {
               <Icon name="sign-out" size={24} color="white" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.joinButton} onPress={() => setModalVisible(true)}>
+            <TouchableOpacity style={styles.joinButton} onPress={() => { setChecklist(initialChecklist.map(item => ({ ...item, checked: false }))); setModalVisible(true)}}>
               <Svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="25"
@@ -519,9 +534,9 @@ export default function MenuScreen() {
         keyExtractor={(item) => item.id.toString()}
       />
       <Text style={styles.totalPrice}>
-        Total Price: {infoModalChecklist
+        Total Price: ₹{infoModalChecklist
           .filter((item) => item.checked)
-          .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0)}
+          .reduce((sum, item) => sum + (item.price), 0)}
       </Text>
       <TouchableOpacity
         style={styles.confirmButton}
@@ -531,7 +546,7 @@ export default function MenuScreen() {
             .map((item) => item.text);
           const totalCost = infoModalChecklist
             .filter((item) => item.checked)
-            .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0);
+            .reduce((sum, item) => sum + (item.price), 0);
 
           // Alert the new selected services
         
@@ -546,7 +561,10 @@ export default function MenuScreen() {
     </View>
   </View>
 </Modal>
-        <Modal visible={modalVisible} animationType="slide" transparent>
+        <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => {
+    setChecklist(initialChecklist.map(item => ({ ...item, checked: false }))); // Reset checklist
+    setModalVisible(false);
+  }}>
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
               {/* Cross Button in Upper Right Corner */}
@@ -571,7 +589,7 @@ export default function MenuScreen() {
                   >
                     <View style={styles.checklistRow}>
                       <Text style={styles.checklistText}>{item.text}</Text>
-                      <Text style={styles.checklistPrice}><Text style={{color: 'green'}}></Text>{item.price}</Text>
+                      <Text style={styles.checklistPrice}><Text style={{color: 'green'}}>₹</Text>{item.price}</Text>
                       <Icon
                         name={item.checked ? "check-square" : "square-o"}
                         size={24}
@@ -582,7 +600,6 @@ export default function MenuScreen() {
                 )}
                 keyExtractor={(item) => item.id.toString()}
               />
-              
               <Text style={styles.totalPrice}>Total Price: ₹{totalSelectedPrice}</Text>
               
               <TouchableOpacity style={styles.confirmButton} onPress={joinQueue}>

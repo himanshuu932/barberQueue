@@ -11,7 +11,8 @@ import {
   Animated, 
   Alert,
   ActivityIndicator,
-  Modal,TextInput
+  Modal,TextInput,
+  ImageBackground
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -115,7 +116,9 @@ export default function TabProfileScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
+      <View style={styles.overlay} />
+      <View style={styles.container}>
       {/* Fixed header */}
       <View style={styles.header}>
       <View style={styles.profileBox}>
@@ -129,7 +132,9 @@ export default function TabProfileScreen() {
           <Animated.View
             style={[styles.shine, { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] }]}
           >
-            <LinearGradient colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} style={styles.shineGradient} />
+            <LinearGradient colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.shineGradient} />
           </Animated.View>
           <View style={styles.profileContent}>
             <Image source={require("../image/user.png")} style={styles.profileImage} />
@@ -148,35 +153,26 @@ export default function TabProfileScreen() {
           </View>
         </LinearGradient>
       </View>
-        <Text style={styles.historyTitle}>Service History</Text>
       </View>
 
       {/* Scrollable history list */}
-      <ScrollView 
-         style={styles.historyScroll}
-         contentContainerStyle={styles.historyScrollContent}
-         showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.historyContainer}>
-          {loading ? (
-            <ActivityIndicator size="large" color="#333" />
-          ) : profile?.history?.length > 0 ? (
-            profile.history.map((item, index) => (
-                
-                <View key={index} style={styles.historyItem}>
-                  <View style={styles.paymentRow}>
-                <Text style={styles.historyService}>{item.service}</Text>
-                <Text style={styles.paymentAmount}>₹{item.cost}.00</Text>
-               
+      <View style={styles.serviceHistoryContainer}>
+        <Text style={styles.sectionTitle}>Service History</Text>
+        <View style={styles.historyBox}>
+          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 280 }}>
+            {profile?.history?.map((item, index) => (
+              <View key={index} style={styles.historyCard}>
+                <View style={styles.paymentRow}>
+                  <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
+                  <Text style={styles.paymentAmount}>₹{item.cost}.00</Text>
                 </View>
-                <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
+                <Text style={styles.historyService}>{item.service}</Text>
               </View>
-            ))
-          ) : (
-            <Text style={styles.noHistory}>No haircut history available.</Text>
-          )}
+            ))}
+          </ScrollView>
         </View>
-      </ScrollView>
+      </View>
+
   
       {/* Fixed logout button */}
       <View style={styles.footer}>
@@ -208,10 +204,55 @@ export default function TabProfileScreen() {
         </View>
       </Modal>
     </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+
+  sectionTitle: {
+    fontSize: 20, 
+    fontWeight: "bold", 
+    marginBottom: 10, 
+    color: "#000",
+  },
+
+  serviceHistoryContainer: {
+    width: "100%", 
+    alignItems: "center", 
+    marginBottom: "auto", 
+  },
+
+  historyBox: {
+    backgroundColor: "#fff", 
+    borderRadius: 12, 
+    width: "90%", 
+    padding: 10, 
+    maxHeight: 300, // Adjust the height dynamically
+    elevation: 5,
+    overflow: "hidden", // Prevents content from spilling
+  },
+
+  historyCard: {
+    backgroundColor: "#F9F9F9", 
+    padding: 11, 
+    borderRadius: 10, 
+    marginBottom: 10, 
+    elevation: 3 
+  },
+
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
+  },
+
   modalContainer: {
     flex: 1,
     justifyContent: "center",
@@ -275,7 +316,7 @@ const styles = StyleSheet.create({
   
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    // backgroundColor: "#ffffff",
     width: "100%",
   },
   header: {
@@ -313,7 +354,12 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingHorizontal: 20,
   },
-  paymentRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  paymentRow: 
+  { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center" 
+  },
   profileImage: {
     width: 80,
     height: 80,
@@ -336,32 +382,42 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginTop: 2,
   },
-  historyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-    alignSelf: "flex-start",
-  },
-  historyScroll: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  historyScrollContent: {
-    paddingBottom: 20,
-  },
-  historyContainer: {
-    width: "100%",
-    backgroundColor: "#f8f8f8",
-    borderRadius: 10,
-    padding: 15,
-  },
-  historyItem: { backgroundColor: "#F9F9F9", padding: 11, borderRadius: 10, marginBottom: 10, elevation: 3 },
+  // historyTitle: {
+  //   fontSize: 20,
+  //   fontWeight: "bold",
+  //   // marginBottom: 10,
+  //   alignSelf: "flex-start",
+  // },
+  // historyScroll: {
+  //   flex: 1,
+  //   paddingHorizontal: 20,
+  // },
+  // historyScrollContent: {
+  //   paddingBlock: 10,
+  // },
+  // historyContainer: {
+  //   width: "90%",
+  //   backgroundColor: "#f8f8f8",
+  //   borderRadius: 10,
+  //   padding: 10,
+  //   height: "50%",
+  //   marginHorizontal: 16,
+  //   position: "static"
+  // },
+  // historyItem: { backgroundColor: "#F9F9F9", padding: 11, borderRadius: 10, marginBottom: 10, elevation: 3, },
   historyService: {
-    fontSize: 15, color: "#777", marginTop: 4
+    fontSize: 15,
+    color: "#777",
+    marginTop: 4,
   },
-  paymentAmount: { fontSize: 16, fontWeight: "bold", color: "rgb(16, 98, 13)" },
+  paymentAmount: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "rgb(16, 98, 13)",
+  },
   historyDate: {
-    fontSize: 14, color: "#555" 
+    fontSize: 14,
+    color: "#555",
   },
   noHistory: {
     fontSize: 16,

@@ -13,7 +13,8 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Linking
+  Linking,
+  ImageBackground
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
@@ -115,7 +116,10 @@ export default function TabProfileScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ImageBackground source={require("../image/bglogin.png")}
+    style={styles.backgroundImage}>
+      <View style={styles.container}>
+        <View style={styles.overlay}/>
       {/* Fixed header */}
       <View style={styles.header}>
         <View style={styles.profileBox}>
@@ -129,7 +133,9 @@ export default function TabProfileScreen() {
             <Animated.View
               style={[styles.shine, { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] }]}
             >
-              <LinearGradient colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} style={styles.shineGradient} />
+              <LinearGradient colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.shineGradient} />
             </Animated.View>
             <View style={styles.profileContent}>
               <Image source={require("../image/user.png")} style={styles.profileImage} />
@@ -209,10 +215,25 @@ export default function TabProfileScreen() {
         </View>
       </Modal>
     </View>
+    </ImageBackground>
   );
 } 
 
 const styles = StyleSheet.create({
+
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
+  },
+
   modalContainer: {
     flex: 1,
     justifyContent: "center",
@@ -269,7 +290,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
     width: "100%",
   },
   header: {

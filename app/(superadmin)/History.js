@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Switch } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Switch, ImageBackground } from "react-native";
 import { Menu, Provider } from "react-native-paper";
 import { DatePickerModal } from "react-native-paper-dates";
 import { format, utcToZonedTime } from 'date-fns-tz';
@@ -8,6 +8,16 @@ import { en } from 'react-native-paper-dates';
 import {BarChart, PieChart, LineChart } from "react-native-chart-kit";
 import { startOfMonth, endOfMonth, eachDayOfInterval, getDate, getDay } from 'date-fns';
 import { useFocusEffect } from '@react-navigation/native';
+import RNHTMLtoPDF from 'react-native-html-to-pdf';
+import * as Print from 'expo-print';
+import * as FileSystem from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
+import * as Sharing from "expo-sharing";
+// import * as IntentLauncher from "expo-intent-launcher";
+import { StorageAccessFramework } from "expo-file-system";
+import { Alert, Platform, PermissionsAndroid } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons"; // Better icon set
+import { LinearGradient } from "expo-linear-gradient"; // Optional for modern look
 
 // Register translations
 registerTranslation('en', en);
@@ -27,6 +37,30 @@ const AdminPaymentHistory = () => {
   const [showVisualizations, setShowVisualizations] = useState(true);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [graphFlag, setGraphFlag] = useState(1); // 1: LineChart, 2: PieChart, 3: Calendar
+
+  const savePdfToDownloads = async () => {
+    try {
+      // Define the file path in app storage
+      const pdfUri = `${FileSystem.documentDirectory}RecentTransactions.pdf`;
+  
+      if (Platform.OS === "android") {
+        // Use Expo Sharing API to allow the user to save the file manually
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(pdfUri, { mimeType: "application/pdf" });
+          Alert.alert("Success", "Choose 'Save to Downloads' in the sharing options.");
+        } else {
+          Alert.alert("Error", "Sharing is not supported on this device.");
+        }
+      } else {
+        // iOS: Save the file to the app's document directory
+        Alert.alert("iOS Info", "File is saved in the app's document directory.");
+      }
+    } catch (error) {
+      console.error("Error saving file:", error);
+      Alert.alert("Error", "Failed to save the PDF.");
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -373,16 +407,54 @@ const AdminPaymentHistory = () => {
   };
 
   return (
-    <Provider>
+    <ImageBackground source={require("../image/bglogin.png")}
+    style={styles.backgroundImage}>
+      <View style={styles.overlay}/>
+      <Provider>
       <ScrollView style={styles.container}>
-        <Text style={styles.header}>Statistics</Text>
-      <View style={styles.outerContainer}>
-  <View style={styles.toggleContainer}>
+        <Text style={styles.header}>STATISTICS</Text>
+        <View style={styles.outerContainer}>
+  <View style={styles.filterGroup}>
+    <Menu
+      visible={filterMenuVisible}
+      onDismiss={() => setFilterMenuVisible(false)}
+      anchor={
+        <TouchableOpacity onPress={() => setFilterMenuVisible(true)} style={styles.filterButton}>
+          <Text style={styles.filterButtonText}>📅 {filter}</Text>
+        </TouchableOpacity>
+      }
+    >
+      {["All", "Today", "This Week", "This Month", "Custom Date"].map(f => (
+        <Menu.Item key={f} onPress={() => {
+          setFilter(f);
+          setFilterMenuVisible(false);
+          if (f === "Custom Date") setDatePickerVisible(true);
+        }} title={f} />
+      ))}
+    </Menu>
+    <Menu
+      visible={barberMenuVisible}
+      onDismiss={() => setBarberMenuVisible(false)}
+      anchor={
+        <TouchableOpacity onPress={() => setBarberMenuVisible(true)} style={styles.filterButton}>
+          <Text style={styles.filterButtonText}>💈 {barberFilter}</Text>
+        </TouchableOpacity>
+      }
+    >
+      {["All", ...barbers.map(b => b.name)].map(barber => (
+        <Menu.Item key={barber} onPress={() => {
+          setBarberFilter(barber);
+          setBarberMenuVisible(false);
+        }} title={barber} />
+      ))}
+    </Menu>
+  </View>
+  <View style={styles.visualizeGroup}>
     <Text style={styles.toggleLabel}>Visualize</Text>
     <Switch
       value={showVisualizations}
       onValueChange={setShowVisualizations}
-      trackColor={{ false: "#d3d3d3", true: "#0984e3" }}
+      trackColor={{ false: "rgb(0,0,0)", true: "#0984e3" }}
       thumbColor={showVisualizations ? "#ffffff" : "#f4f3f4"}
     />
   </View>
@@ -508,45 +580,13 @@ const AdminPaymentHistory = () => {
         )}
         {/* Recent Transactions */}
         <View style={styles.controlsContainer}>
-  <Text style={styles.sectionTitle}>Recent Transactions</Text>
-  <View style={styles.filterRow}>
-    <Menu
-      visible={filterMenuVisible}
-      onDismiss={() => setFilterMenuVisible(false)}
-      anchor={
-        <TouchableOpacity onPress={() => setFilterMenuVisible(true)} style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>📅 {filter}</Text>
-        </TouchableOpacity>
-      }
-    >
-      {["All", "Today", "This Week", "This Month", "Custom Date"].map(f => (
-        <Menu.Item key={f} onPress={() => {
-          setFilter(f);
-          setFilterMenuVisible(false);
-          if (f === "Custom Date") setDatePickerVisible(true);
-        }} title={f} />
-      ))}
-    </Menu>
-    <Menu
-      visible={barberMenuVisible}
-      onDismiss={() => setBarberMenuVisible(false)}
-      anchor={
-        <TouchableOpacity onPress={() => setBarberMenuVisible(true)} style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>💈 {barberFilter}</Text>
-        </TouchableOpacity>
-      }
-    >
-      {["All", ...barbers.map(b => b.name)].map(barber => (
-        <Menu.Item key={barber} onPress={() => {
-          setBarberFilter(barber);
-          setBarberMenuVisible(false);
-        }} title={barber} />
-      ))}
-    </Menu>
-  </View>
-</View>
-
-        
+          <Text style={styles.sectionTitle}>Recent Transactions</Text>
+          <TouchableOpacity style={styles.buttonContainer} onPress={savePdfToDownloads} activeOpacity={0.7}>
+            <LinearGradient colors={["#e63946", "#d62828"]} style={styles.pdfButton}>
+              <MaterialCommunityIcons name="file-export" size={25} color="white" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
         <View style={styles.recentTransactionsContainer}>
           <ScrollView style={styles.recentTransactionsScroll} nestedScrollEnabled={true}>
             {filteredPayments.map((payment, index) => (
@@ -565,10 +605,39 @@ const AdminPaymentHistory = () => {
         </View>
       </ScrollView>
     </Provider>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+
+  buttonContainer: {
+    borderRadius: 15,
+    overflow: "hidden",
+  },
+  pdfButton: {
+    padding: 7,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    width: 40,
+    height: 40,
+  },
+
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
+  },
+
   recentTransactionsContainer: {
     maxHeight: 550,
     backgroundColor: "#ffffff",
@@ -582,26 +651,25 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 16,
-    backgroundColor: '#f5f5f5'
   },
   header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#2d3436',
+    fontSize: 30,
+    fontWeight: '900',
+    // marginBottom: 20,
+    // color: '#2d3436',
     textAlign: 'center'
   },
   controlsContainer: {
-    flexDirection: 'row', // Aligns items in the same row
-    justifyContent: 'space-between', // Pushes elements to opposite ends
-    alignItems: 'center', // Aligns items vertically
-    marginBottom: 20,
-    width: '100%', // Ensures it takes full width
+    flexDirection: "row",  // Arrange items in a row
+    justifyContent: "space-between", // Space between title & button
+    alignItems: "center",  // Center vertically
+    paddingHorizontal: 15, // Add padding for spacing
+    marginBottom: 10, // Adjust spacing below the section
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2d3436',
+    fontSize: 20, 
+    fontWeight: "bold",
+    color: "#333", // Darker text for better visibility
   },
   filterRow: {
     flexDirection: 'row',
@@ -609,19 +677,31 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     padding: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     elevation: 2,
+    marginRight: 8, // Optional, to add a little space between the filter buttons
   },
   filterButtonText: {
-    color: '#2d3436',
-    fontWeight: '500',
+    color: "#2d3436",
+    fontWeight: "500",
   },
   outerContainer: {
-    width: "100%",  // Ensures full width of the screen
-    alignItems: "flex-end",  // Moves the entire box to the right
-    padding: 10, // Adds some padding for better spacing
+    flexDirection: "row",
+    justifyContent: "space-between", // This creates the gap between the two groups
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  filterGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  visualizeGroup: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   toggleContainer: {
     flexDirection: "row",  // Align items in a row
@@ -633,8 +713,9 @@ const styles = StyleSheet.create({
     minWidth: 10, // Optional: Adjust width based on content
   },
   toggleLabel: {
-    color: '#2d3436',
-    fontWeight: '500'
+    // color: "#2d3436",
+    fontWeight: "900",
+    marginRight: 8,
   },
   summaryContainer: {
     flexDirection: 'row',
@@ -798,12 +879,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#444',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2d3436',
-    marginBottom: 12,
-  },
+  // sectionTitle: {
+  //   fontSize: 18,
+  //   fontWeight: '600',
+  //   color: '#2d3436',
+  //   // marginBottom: 12,
+  // },
   transactionCard: {
     backgroundColor: '#ffffff',
     borderRadius: 8,

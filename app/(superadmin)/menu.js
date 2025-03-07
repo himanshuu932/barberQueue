@@ -6,6 +6,7 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  ImageBackground
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
@@ -124,72 +125,94 @@ const Menu = () => {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.contentContainer}
+    <ImageBackground
+      source={require("../image/bglogin.png")}
+      style={styles.backgroundImage}
     >
-      {/* Image Carousel Section */}
+      <View style={styles.overlay}/>
       <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        style={styles.carouselContainer}
-        contentContainerStyle={styles.carouselContentContainer}
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
       >
-        {carouselData.map((imageUrl, index) => (
-          <Image
-            key={index}
-            source={{ uri: imageUrl }}
-            style={[styles.carouselImage, { width: screenWidth - 40 }]}
-            resizeMode="cover"
-          />
-        ))}
-      </ScrollView>
+        {/* Image Carousel Section */}
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.carouselContainer}
+          contentContainerStyle={styles.carouselContentContainer}
+        >
+          {carouselData.map((imageUrl, index) => (
+            <Image
+              key={index}
+              source={{ uri: imageUrl }}
+              style={[styles.carouselImage, { width: screenWidth - 40 }]}
+              resizeMode="cover"
+            />
+          ))}
+        </ScrollView>
 
-      {/* Small Cards Section */}
-      <View style={styles.smallCardsContainer}>
-        {[
-          {
-            title: "Today's Earnings",
-            value: `₹${todayStats.earnings}`,
-            iconName: "money",
-            colors: ["#6a11cb", "#2575fc"],
-          },
-          {
-            title: "Today's Customers",
-            value: todayStats.customers.toString(),
-            iconName: "users",
-            colors: ["#ff7e5f", "#feb47b"],
-          },
-          {
-            title: "Popular Service",
-            value: todayStats.popularService,
-            iconName: "scissors",
-            colors: ["#4c669f", "#3b5998"],
-          },
-          {
-            title: "Top Employee",
-            value: todayStats.topEmployee,
-            iconName: "star",
-            colors: ["#30cfd0", "#330867"],
-          },
-        ].map((item, index) => (
-          <LinearGradient key={index} colors={item.colors} style={styles.smallCard}>
-            <Icon name={item.iconName} size={24} color="#fff" />
-            <Text style={styles.smallCardTitle}>{item.title}</Text>
-            <Text style={styles.smallCardValue}>{item.value}</Text>
-          </LinearGradient>
-        ))}
-      </View>
-    </ScrollView>
+        {/* Small Cards Section */}
+        <View style={styles.smallCardsContainer}>
+          {[
+            {
+              title: "Today's Earnings",
+              value: `₹${todayStats.earnings}`,
+              iconName: "money",
+              colors: ["#6a11cb", "#2575fc"],
+            },
+            {
+              title: "Today's Customers",
+              value: todayStats.customers.toString(),
+              iconName: "users",
+              colors: ["#ff7e5f", "#feb47b"],
+            },
+            {
+              title: "Popular Service",
+              value: todayStats.popularService,
+              iconName: "scissors",
+              colors: ["#4c669f", "#3b5998"],
+            },
+            {
+              title: "Top Employee",
+              value: todayStats.topEmployee,
+              iconName: "star",
+              colors: ["#30cfd0", "#330867"],
+            },
+          ].map((item, index) => (
+            <LinearGradient
+              key={index}
+              colors={item.colors}
+              style={styles.smallCard}
+            >
+              <Icon name={item.iconName} size={24} color="#fff" />
+              <Text style={styles.smallCardTitle}>{item.title}</Text>
+              <Text style={styles.smallCardValue}>{item.value}</Text>
+            </LinearGradient>
+          ))}
+        </View>
+      </ScrollView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   contentContainer: {
     alignItems: "center",
@@ -199,12 +222,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   carouselContentContainer: {
-    paddingHorizontal: 20,
+    // paddingHorizontal: 20,
   },
   carouselImage: {
     height: 200,
     borderRadius: 12,
-    marginRight: 10,
+    // marginRight: 10,
   },
   smallCardsContainer: {
     flexDirection: "row",
