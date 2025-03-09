@@ -174,6 +174,9 @@ app.post("/notify", async (req, res) => {
       sound: "default",
       title: title,
       body: body,
+      channelId: "default",
+      priority: "high",
+      _displayInForeground: true
     };
 
     // Only add data if it's provided.
@@ -198,9 +201,6 @@ app.post("/notify", async (req, res) => {
 });
  
 
-/* ===============================
-   Signup Endpoint
-   =============================== */
 app.post("/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -791,10 +791,11 @@ app.delete("/barber/profile", async (req, res) => {
   
 app.post("/barber/rate",  async (req, res) => {
     try {
-      const { barberId, rating,uid } = req.body;
+      const { barberId, rating } = req.body;
 
-      const userId = uid // Extract user ID from the token
-      console.log("hii"+userId);
+    
+      
+    
       if (!barberId || !rating || rating < 1 || rating > 5) {
         return res.status(400).json({ error: "Invalid rating data" });
       }
@@ -808,9 +809,8 @@ app.post("/barber/rate",  async (req, res) => {
       barber.totalStarsEarned += rating;
       barber.totalRatings += 1;
       await barber.save();
-      const user = await User.findById(userId);
-      user.pendingRating = false;
-      await user.save();
+    
+      
       res.json({
         message: "Rating submitted",
         averageRating: barber.totalStarsEarned / barber.totalRatings
@@ -881,7 +881,33 @@ app.post("/reset-notification", authMiddleware, async (req, res) => {
   }
 });
 
-  app.post("/send-notification", async (req, res) => {
+app.post("/reset-pendingRating", authMiddleware, async (req, res) => {
+  try {
+    const { uid } = req.body;
+    console.log(uid);
+    // Validate UID
+    if (!uid) {
+      return res.status(400).json({ error: "User ID (uid) is required" });
+    }
+
+    // Find the user and update pendingRating to false
+    const user = await User.findByIdAndUpdate(
+      uid,
+      { pendingRating: false },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ message: "Pending rating reset successfully", user });
+  } catch (error) {
+    console.error("Error resetting pending rating:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+app.post("/send-notification", async (req, res) => {
     try {
       const { token, title, body, data } = req.body;
   
