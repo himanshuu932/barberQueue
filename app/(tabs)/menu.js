@@ -19,7 +19,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { io } from "socket.io-client";
 import { Rating } from "react-native-ratings"; // For star ratings
-
+import { useFocusEffect } from "@react-navigation/native"; // Add this import
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -77,7 +77,61 @@ export default function MenuScreen() {
   useEffect(() => {
     Notifications.requestPermissionsAsync();
   }, []);
-
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkPendingRatingAndNotifications = async () => {
+        try {
+          // Fetch user data to check for pending rating
+          const token = await AsyncStorage.getItem("userToken");
+      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/profile", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+          const userData = await response.json();
+           console.log("User data:", userData);
+          // Check for pending rating
+          if (userData.pendingRating) {
+            setRatingModalVisible(true); // Show the rating modal
+          }
+  
+          // Check for pending notifications
+          if (userData.notification.enabled) {
+            // Schedule a local notification
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: userData.notification.title,
+                body: userData.notification.body,
+                data: userData.notification.data,
+                sound: "default",
+                priority: Notifications.AndroidNotificationPriority.MAX,
+              },
+              trigger: null, // Immediate trigger
+            });
+            if(userData.notification.title === "Service Done") {
+              // Save flag for rating modal
+              await AsyncStorage.setItem("id", userData.notification.data.id);
+               }
+            // Reset the notification flag in the backend
+            const token = await AsyncStorage.getItem("userToken");
+            await fetch(`${API_BASE}/reset-notification`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ uid: userData._id }),
+            });
+          }
+        } catch (error) {
+          console.error("Error checking pending rating or notifications:", error);
+        }
+      };
+  
+      checkPendingRatingAndNotifications();
+    }, [])
+  );
   // Register for push notifications when uid is available
   useEffect(() => {
     async function registerForPushNotifications() {
@@ -120,15 +174,11 @@ export default function MenuScreen() {
   useEffect(() => {
     if (socket) {
       socket.on("queueUpdated", () => {
+        alert("Queue updated!");
         fetchQueueData();
       });
 
-      socket.on("pushNotification", (data) => {
-        console.log("Notifaction======:", data);
-        if(data.uid==uid)
-        showLocalNotification(data.message.title, data.message.body,data.message.data);
-        //fetchQueueData();
-      });
+    
     }
   }, [socket]);
 
@@ -137,17 +187,21 @@ export default function MenuScreen() {
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title,
-          body,
-          data,
+          title:title,
+          body: body,
+          data:data,
+          sound: 'default',
+          priority: Notifications.AndroidNotificationPriority.MAX,
         },
-        trigger: null, 
+        trigger: null, // Immediate trigger
       });
-      console.log("Local notification scheduled:", title, body);
+      Alert.alert("Local Notification", "Sent a local notification");
     } catch (error) {
       console.error("Error showing notification:", error);
     }
   };
+
+  
   const fetchQueueData = async () => {
     try {
       const response = await fetch(`${API_BASE}/queue`);
@@ -158,6 +212,39 @@ export default function MenuScreen() {
       ) {
         setQueueLength(data.queueLength);
         setQueueItems(data.data);
+  
+        // Check for pending notifications after queue update
+        const token = await AsyncStorage.getItem("userToken");
+        const userResponse = await fetch(`${API_BASE}/profile`, {
+          headers: {
+            Authorization: `Bearer ${await AsyncStorage.getItem("userToken")}`,
+          },
+        });
+        const userData = await userResponse.json();
+  
+        if (userData.notification.enabled) {
+          // Schedule a local notification
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: userData.notification.title,
+              body: userData.notification.body,
+              data: userData.notification.data,
+              sound: "default",
+              priority: Notifications.AndroidNotificationPriority.MAX,
+            },
+            trigger: null, // Immediate trigger
+          });
+  
+          // Reset the notification flag in the backend
+          await fetch(`${API_BASE}/reset-notification`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${await AsyncStorage.getItem("userToken")}`,
+            },
+            body: JSON.stringify({ uid: userData._id }),
+          });
+        }
       }
     } catch (error) {
       console.error("Error fetching queue data:", error);
@@ -169,7 +256,29 @@ export default function MenuScreen() {
   useEffect(() => {
     fetchQueueData();
   }, []);
-
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      async (response) => {
+        const content = response.notification.request.content;
+  
+        if (content.title === "Service Done") {
+          // Save flag for rating modal
+          await AsyncStorage.setItem("shouldShowRatingModal", "true");
+          if (content.data && content.data.id) {
+            await AsyncStorage.setItem("id", content.data.id);
+          }
+          setRatingModalVisible(true); // Show the rating modal
+        } else {
+          // Handle other notifications
+          console.log("Notification received:", content);
+        }
+      }
+    );
+  
+    return () => {
+      subscription.remove();
+    };
+  }, []);
   const index = queueItems.findIndex((item) => item.uid === uid);
   //Alert.alert("Index",`${index}`);
   const userPosition = index >= 0 ? index + 1 : null;
@@ -306,6 +415,7 @@ export default function MenuScreen() {
           });
         }
         setChecklist(initialChecklist.map(item => ({ ...item, checked: false }))); 
+        showLocalNotification("Joined Queue", "You have successfully joined the queue.");
       } else {
         Alert.alert("Error", "Failed to join the queue.");
       }
@@ -424,13 +534,15 @@ export default function MenuScreen() {
     const barberId=await AsyncStorage.getItem("id");
     await AsyncStorage.removeItem("id");
     console.log("Rating barber with id:", barberId, "and rating:", rating);
+    
     try {
       const response = await fetch(`${API_BASE}/barber/rate`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+        
         },
-        body: JSON.stringify({ barberId, rating })
+        body: JSON.stringify({ barberId, rating,uid })
       });
   
       if (!response.ok) {

@@ -8,7 +8,7 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "projectId": "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
+    "projectId": "9f482a7d-4202-4875-86ce-a4507d9c4c45",
     "ios": {
       "supportsTablet": true
     },
@@ -54,7 +54,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "fdeb8267-b069-40e7-9b4e-1a0c50ee6246"
+        "projectId": "9f482a7d-4202-4875-86ce-a4507d9c4c45"
       }
     }
   }

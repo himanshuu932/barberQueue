@@ -33,7 +33,7 @@ const Barber = () => {
   // Reusable fetch function to refresh the barbers list.
   const fetchBarbers = async () => {
     try {
-      const response = await fetch("https://barber-24143206157.asia-south2.run.app/barbers");
+      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barbers");
       const data = await response.json();
       if (response.ok) {
         setBarbers(data);
@@ -57,7 +57,7 @@ const Barber = () => {
     }
 
     try {
-      const response = await fetch("https://barber-24143206157.asia-south2.run.app/barber/signup", {
+      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barber/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newEmployee),
@@ -81,7 +81,7 @@ const Barber = () => {
   // New function to delete a barber.
   const handleDeleteBarber = async () => {
     try {
-      const response = await fetch("https://barber-24143206157.asia-south2.run.app/barber/profile", {
+      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barber/profile", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bid: selectedBarber._id }),
@@ -145,7 +145,7 @@ const Barber = () => {
     }
 
     try {
-      const response = await fetch("https://barber-24143206157.asia-south2.run.app/barber/profile", {
+      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barber/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...updatedBarber, bid: selectedBarber._id })

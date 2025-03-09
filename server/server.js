@@ -41,17 +41,24 @@ mongoose
 /* ===============================
    User Schema and Model
    =============================== */
-const UserSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }, // In production, hash your passwords!
-  expoPushToken: { type: String }, // New field for push notifications
-  history: [{ 
-    service: String, 
-    date: Date,
-    cost: Number  // Added cost field
-  }],
-});
+   const UserSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    expoPushToken: { type: String },
+    history: [{ 
+      service: String, 
+      date: Date,
+      cost: Number
+    }],
+    pendingRating: { type: Boolean, default: false }, // New field
+    notification: { // New field
+      enabled: { type: Boolean, default: false },
+      title: String,
+      body: String,
+      data: mongoose.Schema.Types.Mixed
+    }
+  });
 const User = mongoose.model("User", UserSchema);
 
 /* ===============================
@@ -152,7 +159,15 @@ app.post("/notify", async (req, res) => {
     if (!Expo.isExpoPushToken(user.expoPushToken)) {
       return res.status(400).json({ error: "Invalid Expo push token" });
     }
-
+   
+    // Update notification data
+    user.notification = {
+      enabled: true,
+      title,
+      body,
+      data: data || {}
+    };
+    await user.save();
     // Build the notification message.
     const message = {
       to: user.expoPushToken,
@@ -690,6 +705,7 @@ app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
     // Update user history
     console.log("Updating user history...");
     user.history.push({ service: serviceString, cost, date: new Date() });
+    user.pendingRating = true; 
     await user.save();
     console.log("User history updated successfully");
 
@@ -775,7 +791,10 @@ app.delete("/barber/profile", async (req, res) => {
   
 app.post("/barber/rate",  async (req, res) => {
     try {
-      const { barberId, rating } = req.body;
+      const { barberId, rating,uid } = req.body;
+
+      const userId = uid // Extract user ID from the token
+      console.log("hii"+userId);
       if (!barberId || !rating || rating < 1 || rating > 5) {
         return res.status(400).json({ error: "Invalid rating data" });
       }
@@ -789,7 +808,9 @@ app.post("/barber/rate",  async (req, res) => {
       barber.totalStarsEarned += rating;
       barber.totalRatings += 1;
       await barber.save();
-  
+      const user = await User.findById(userId);
+      user.pendingRating = false;
+      await user.save();
       res.json({
         message: "Rating submitted",
         averageRating: barber.totalStarsEarned / barber.totalRatings
@@ -799,7 +820,66 @@ app.post("/barber/rate",  async (req, res) => {
       res.status(500).json({ error: "Internal server error" });
     }
   });
+/**
+ * @route GET /check-notifications
+ * @description Check if the user has any pending notifications.
+ * @access Protected (requires authentication)
+ */
+app.get("/check-notifications",authMiddleware, async (req, res) => {
+  try {
+    // Get the user ID from the authenticated request
+    const { uid } = req.body;
+    const user = await User.findById(uid);
 
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Check if there are any pending notifications
+    if (user.notification.enabled) {
+      // Return the notification data
+      return res.json({
+        message: "Pending notification found",
+        notification: {
+          title: user.notification.title,
+          body: user.notification.body,
+          data: user.notification.data,
+        },
+      });
+    } else {
+      // No pending notifications
+      return res.json({ message: "No pending notifications" });
+    }
+  } catch (error) {
+    console.error("Error checking notifications:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/reset-notification", authMiddleware, async (req, res) => {
+  try {
+    const { uid } = req.body;
+    const user = await User.findById(uid);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Reset the notification flag
+    user.notification = {
+      enabled: false,
+      title: null,
+      body: null,
+      data: null,
+    };
+    await user.save();
+
+    res.json({ message: "Notification reset successfully" });
+  } catch (error) {
+    console.error("Error resetting notification:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
   app.post("/send-notification", async (req, res) => {
     try {

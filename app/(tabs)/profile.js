@@ -90,10 +90,7 @@ export default function TabProfileScreen() {
   };
   async function updateUserProfile(uid1, name, email) {
     const uid = await AsyncStorage.getItem("id");
-    console.log(uid);
-    console.log(email);
-    console.log(name);
-    //const uid=uid2.j;
+  
     try {
       const response = await fetch(`${API_BASE}/profile`, {
         method: "PATCH",
@@ -106,7 +103,7 @@ export default function TabProfileScreen() {
         return;
       }
       const data = await response.json();
-      console.log("User profile updated successfully:", data);
+    
       // Optionally, update your application state or UI here.
      // await AsyncStorage.removeItem("id");
       setIsModalVisible(false);

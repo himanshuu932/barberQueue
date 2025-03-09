@@ -32,7 +32,7 @@ export default function TabProfileScreen({ navigation }) {
         }
 
         // Fetch barber details from the backend
-        const response = await fetch(`https://barber-24143206157.asia-south2.run.app/barber/${uid}`);
+        const response = await fetch(`https://barberqueue-24143206157.us-central1.run.app/barber/${uid}`);
         if (!response.ok) {
           throw new Error("Failed to fetch barber details");
         }
