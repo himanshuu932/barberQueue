@@ -1,5 +1,7 @@
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { 
   View, 
@@ -37,6 +39,7 @@ export default function TabProfileScreen() {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        
       });
       const data = await response.json();
       setProfile(data);

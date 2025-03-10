@@ -18,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { PlusButtonContext } from "./_layout"; // Adjust this import path as needed
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { io } from "socket.io-client"; // Import socket.io-client
-
+import { useFocusEffect } from '@react-navigation/native';
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
   const [queueItems, setQueueItems] = useState([]);
@@ -91,10 +91,12 @@ export default function MenuScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchQueueData();
-  }, []);
-
+  
+useFocusEffect(
+    React.useCallback(() => {
+      fetchQueueData();
+    }, [])
+  );
   // Mark user as served (existing functionality)
   const markUserServed = async (userId, userName, services, cost) => {
     console.log("Mark user as served", userId, userName);

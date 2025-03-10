@@ -77,58 +77,32 @@ export default function MenuScreen() {
   useEffect(() => {
     Notifications.requestPermissionsAsync();
   }, []);
+
+  const checkPendingRatingAndNotifications = async () => {
+    try {
+      // Fetch user data to check for pending rating
+      const token = await AsyncStorage.getItem("userToken");
+  const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/profile", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+      const userData = await response.json();
+       console.log("User data:", userData);
+      // Check for pending rating
+      if (userData.pendingRating.status) {
+        setRatingModalVisible(true); // Show the rating modal
+      }
+
+   
+    } catch (error) {
+      console.error("Error checking pending rating or notifications:", error);
+    }
+  };
   useFocusEffect(
     React.useCallback(() => {
-      const checkPendingRatingAndNotifications = async () => {
-        try {
-          // Fetch user data to check for pending rating
-          const token = await AsyncStorage.getItem("userToken");
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/profile", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-          const userData = await response.json();
-           console.log("User data:", userData);
-          // Check for pending rating
-          if (userData.pendingRating) {
-            setRatingModalVisible(true); // Show the rating modal
-          }
-  
-          // Check for pending notifications
-          if (userData.notification.enabled) {
-            // Schedule a local notification
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: userData.notification.title,
-                body: userData.notification.body,
-                data: userData.notification.data,
-                sound: "default",
-                priority: Notifications.AndroidNotificationPriority.MAX,
-              },
-              trigger: null, // Immediate trigger
-            });
-            if(userData.notification.title === "Service Done") {
-              // Save flag for rating modal
-              await AsyncStorage.setItem("id", userData.notification.data.id);
-               }
-            // Reset the notification flag in the backend
-            const token = await AsyncStorage.getItem("userToken");
-            await fetch(`${API_BASE}/reset-notification`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ uid: userData._id }),
-            });
-          }
-        } catch (error) {
-          console.error("Error checking pending rating or notifications:", error);
-        }
-      };
-  
+      fetchQueueData();
       checkPendingRatingAndNotifications();
     }, [])
   );
@@ -174,7 +148,8 @@ export default function MenuScreen() {
   useEffect(() => {
     if (socket) {
       socket.on("queueUpdated", () => {
-        alert("Queue updated!");
+        //alert("Queue updated!");
+        checkPendingRatingAndNotifications();
         fetchQueueData();
       });
 
@@ -182,27 +157,7 @@ export default function MenuScreen() {
     }
   }, [socket]);
 
-  const showLocalNotification = async (title, body, data = {}) => {
-    
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title:title,
-          body: body,
-          data:data,
-          sound: 'default',
-          priority: Notifications.AndroidNotificationPriority.MAX,
-        },
-        trigger: null, // Immediate trigger
-      });
-      Alert.alert("Local Notification", "Sent a local notification");
-    } catch (error) {
-      console.error("Error showing notification:", error);
-    }
-  };
-
-  
-  const fetchQueueData = async () => {
+const fetchQueueData = async () => {
     try {
       const response = await fetch(`${API_BASE}/queue`);
       const data = await response.json();
@@ -256,29 +211,7 @@ export default function MenuScreen() {
   useEffect(() => {
     fetchQueueData();
   }, []);
-  useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      async (response) => {
-        const content = response.notification.request.content;
-  
-        if (content.title === "Service Done") {
-          // Save flag for rating modal
-          await AsyncStorage.setItem("shouldShowRatingModal", "true");
-          if (content.data && content.data.id) {
-            await AsyncStorage.setItem("id", content.data.id);
-          }
-          setRatingModalVisible(true); // Show the rating modal
-        } else {
-          // Handle other notifications
-          console.log("Notification received:", content);
-        }
-      }
-    );
-  
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+
   const index = queueItems.findIndex((item) => item.uid === uid);
   //Alert.alert("Index",`${index}`);
   const userPosition = index >= 0 ? index + 1 : null;
@@ -415,7 +348,7 @@ export default function MenuScreen() {
           });
         }
         setChecklist(initialChecklist.map(item => ({ ...item, checked: false }))); 
-        showLocalNotification("Joined Queue", "You have successfully joined the queue.");
+      //  showLocalNotification("Joined Queue", "You have successfully joined the queue.");
       } else {
         Alert.alert("Error", "Failed to join the queue.");
       }
@@ -530,31 +463,58 @@ export default function MenuScreen() {
       </View>
     );
   }
-  async function rateBarber( rating) {
-    const barberId=await AsyncStorage.getItem("id");
-    await AsyncStorage.removeItem("id");
-    console.log("Rating barber with id:", barberId, "and rating:", rating);
-    
-    try {
-      const response = await fetch(`${API_BASE}/barber/rate`, {
+  async function resetRatingModalFlag() {
+      // Reset the pendingRating flag for the user
+      try{
+      const resetResponse = await fetch(`${API_BASE}/reset-pendingRating`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-        
+          Authorization: `Bearer ${await AsyncStorage.getItem("userToken")}`,
         },
-        body: JSON.stringify({ barberId, rating,uid })
+        body: JSON.stringify({ uid }), // Send the user's UID
       });
   
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!resetResponse.ok) {
+        const errorData = await resetResponse.json();
+        console.error("Error resetting pending rating:", errorData);
+        return;
+      }
+    }
+    catch (error) {
+      console.error("Error resetting pending rating:", error);
+    }
+  }
+
+
+  async function rateBarber(rating) {
+   
+    await AsyncStorage.removeItem("id");
+
+    if(!rating) 
+      rating=5;
+    try {
+      // Submit the rating
+      const ratingResponse = await fetch(`${API_BASE}/barber/rate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ rating,uid }),
+      });
+  
+      if (!ratingResponse.ok) {
+        const errorData = await ratingResponse.json();
         console.error("Error rating barber:", errorData);
         return;
       }
   
-      const data = await response.json();
+       // Reset the pendingRating flag for the user
+      resetRatingModalFlag();
+  
+      const data = await ratingResponse.json();
       console.log("Rating submitted successfully:", data);
-      // Optionally, update your UI with the average rating:
-      // updateAverageRating(data.averageRating);
+      setRatingModalVisible(false); // Close the rating modal
     } catch (error) {
       console.error("Error rating barber:", error);
     }
@@ -782,6 +742,7 @@ export default function MenuScreen() {
         style={styles.ratingCloseButton}
         onPress={() => {
           console.log("Rating modal closed without submitting.");
+          resetRatingModalFlag();
           setRatingModalVisible(false);
         }}
       >

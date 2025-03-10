@@ -22,6 +22,7 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true, // Set the app badge count
   }),
 });
+import { useFocusEffect } from '@react-navigation/native';
 
 // Function to register push notifications
 async function registerForPushNotifications(uid) {
@@ -56,8 +57,8 @@ async function registerForPushNotifications(uid) {
           projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
         })
       ).data;
-      console.log("Expo Push Token generated:", token);
-      Alert.alert("Expo Push Token generated:", token);
+      // console.log("Expo Push Token generated:", token);
+      // Alert.alert("Expo Push Token generated:", token);
     } catch (error) {
       console.error("Error generating Expo Push Token:", error);
       Alert.alert(
@@ -121,8 +122,6 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Listen for notifications when the app is in the foreground
- 
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
@@ -153,8 +152,8 @@ export default function LoginScreen() {
       let userType = email === "superadmin" ? "superadmin" : "user";
       await AsyncStorage.setItem("userType", userType);
 
-      Alert.alert("Success", `Logged in as: ${email}`);
-
+     // Alert.alert("Success", `Logged in as: ${email}`);
+     await registerForPushNotifications(data.user.id);
       // Navigate immediately
       if (userType === "superadmin") {
         router.replace("/(superadmin)/menu");
@@ -163,7 +162,7 @@ export default function LoginScreen() {
       }
 
       // Register push notifications without awaiting (to avoid delay)
-      await registerForPushNotifications(data.user.id);
+     
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");

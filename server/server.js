@@ -51,7 +51,10 @@ mongoose
       date: Date,
       cost: Number
     }],
-    pendingRating: { type: Boolean, default: false }, // New field
+    pendingRating: {
+      status: { type: Boolean, default: false },
+      bid: { type: mongoose.Schema.Types.ObjectId, ref: 'Barber', default: null }
+    },
     notification: { // New field
       enabled: { type: Boolean, default: false },
       title: String,
@@ -167,6 +170,7 @@ app.post("/notify", async (req, res) => {
       body,
       data: data || {}
     };
+    
     await user.save();
     // Build the notification message.
     const message = {
@@ -705,7 +709,8 @@ app.post("/barber/add-history", barberAuthMiddleware, async (req, res) => {
     // Update user history
     console.log("Updating user history...");
     user.history.push({ service: serviceString, cost, date: new Date() });
-    user.pendingRating = true; 
+    user.pendingRating.status = true;
+    user.pendingRating.bid = barberId;
     await user.save();
     console.log("User history updated successfully");
 
@@ -791,25 +796,28 @@ app.delete("/barber/profile", async (req, res) => {
   
 app.post("/barber/rate",  async (req, res) => {
     try {
-      const { barberId, rating } = req.body;
-
-    
-      
-    
-      if (!barberId || !rating || rating < 1 || rating > 5) {
-        return res.status(400).json({ error: "Invalid rating data" });
+      const { rating,uid } = req.body;
+      const userId = uid;
+  
+      const user = await User.findById(userId);
+      if (!user || !user.pendingRating.status || !user.pendingRating.bid) {
+        return res.status(400).json({ error: "No pending rating" });
       }
   
+      const barberId = user.pendingRating.bid;
       const barber = await Barber.findById(barberId);
-      if (!barber) {
-        return res.status(404).json({ error: "Barber not found" });
-      }
   
+      // Update barber's rating
       barber.ratings.push(rating);
       barber.totalStarsEarned += rating;
       barber.totalRatings += 1;
       await barber.save();
-    
+  
+      // Reset user's pending rating
+      user.pendingRating.status = false;
+      user.pendingRating.bid = null;
+      await user.save();
+  
       
       res.json({
         message: "Rating submitted",
@@ -893,7 +901,12 @@ app.post("/reset-pendingRating", authMiddleware, async (req, res) => {
     // Find the user and update pendingRating to false
     const user = await User.findByIdAndUpdate(
       uid,
-      { pendingRating: false },
+      { 
+        $set: { 
+          "pendingRating.status": false, 
+          "pendingRating.bid": null 
+        } 
+      },
       { new: true }
     );
 

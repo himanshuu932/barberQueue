@@ -85,7 +85,7 @@ export default function BarberLoginScreen() {
       console.log(data.barber.id);
       await AsyncStorage.setItem("userType", "barber");
 
-      Alert.alert("Success", `Logged in as Barber: ${email}`);
+   //   Alert.alert("Success", `Logged in as Barber: ${email}`);
 
       // Register push notifications for this user
       await registerForPushNotifications(data.barber.id);
