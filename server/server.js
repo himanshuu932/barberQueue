@@ -223,8 +223,7 @@ app.post("/signup", async (req, res) => {
     // Generate a JWT token
     const token = jwt.sign(
       { id: newUser._id, email: newUser.email },
-      SECRET_KEY,
-      { expiresIn: "1h" }
+      SECRET_KEY
     );
     res
       .status(201)
@@ -253,9 +252,9 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
     // Generate a JWT token
-    const token = jwt.sign({ id: user._id, email: user.email }, SECRET_KEY, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign({ id: user._id, email: user.email }, SECRET_KEY
+     
+    );
     res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (error) {
     console.error("Error during login:", error);
@@ -591,8 +590,7 @@ app.post("/barber/signup", async (req, res) => {
 
     const token = jwt.sign(
       { id: newBarber._id, email: newBarber.email, role: "barber" },
-      SECRET_KEY,
-      { expiresIn: "1h" }
+      SECRET_KEY
     );
 
     res.status(201).json({
@@ -627,8 +625,7 @@ app.post("/barber/login", async (req, res) => {
 
     const token = jwt.sign(
       { id: barber._id, email: barber.email, role: "barber" },
-      SECRET_KEY,
-      { expiresIn: "1h" }
+      SECRET_KEY
     );
 
     res.json({
