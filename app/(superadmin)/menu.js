@@ -8,6 +8,7 @@ import {
   Dimensions,
   ImageBackground
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { format, utcToZonedTime } from "date-fns-tz";
@@ -21,6 +22,7 @@ const carouselData = [
 ];
 
 const Menu = () => {
+  const [shopId, setShopId] = useState(null);
   const [todayStats, setTodayStats] = useState({
     earnings: 0,
     customers: 0,
@@ -29,19 +31,31 @@ const Menu = () => {
   });
 
   useEffect(() => {
-    fetchTodayStats();
+    const getShopId = async () => {
+      try {
+        const uid = await AsyncStorage.getItem("uid");
+        if (!uid) {
+          console.error("Shop ID not found in AsyncStorage");
+          return;
+        }
+        setShopId(uid);
+        fetchTodayStats(uid); // Fetch stats after getting shopId
+      } catch (error) {
+        console.error("Error fetching shop ID:", error);
+      }
+    };
+
+    getShopId();
   }, []);
 
-  const fetchTodayStats = async () => {
+  const fetchTodayStats = async (uid) => {
     try {
-      const barbersResponse = await fetch("https://barberqueue-24143206157.us-central1.run.app/barbers");
+      const barbersResponse = await fetch(`https://barberqueue-24143206157.us-central1.run.app/barbers?shopId=${uid}`);
       const barbersData = await barbersResponse.json();
 
       const now = new Date();
       const todayIST = utcToZonedTime(now, IST_TIMEZONE);
-      const todayDateString = format(todayIST, "yyyy-MM-dd", {
-        timeZone: IST_TIMEZONE,
-      });
+      const todayDateString = format(todayIST, "yyyy-MM-dd", { timeZone: IST_TIMEZONE });
 
       let totalEarnings = 0;
       let customerCount = 0;
@@ -58,13 +72,10 @@ const Menu = () => {
             totalEarnings += transaction.totalCost;
             customerCount += 1;
 
-            if (transaction.services && typeof transaction.services === "string") {
-              transaction.services
-                .split(",")
-                .map((service) => service.trim())
-                .forEach((service) => {
-                  serviceCount[service] = (serviceCount[service] || 0) + 1;
-                });
+            if (transaction.services) {
+              transaction.services.forEach((service) => {
+                serviceCount[service] = (serviceCount[service] || 0) + 1;
+              });
             }
 
             barberEarnings[barber.name] += transaction.totalCost;
@@ -81,12 +92,12 @@ const Menu = () => {
         }
       });
 
-      let popularBarber = "None";
-      let maxCustomerCount = 0;
+      let topEmployee = "None";
+      let maxEarnings = 0;
       Object.entries(barberEarnings).forEach(([barber, earnings]) => {
-        if (earnings > maxCustomerCount) {
-          maxCustomerCount = earnings;
-          popularBarber = barber;
+        if (earnings > maxEarnings) {
+          maxEarnings = earnings;
+          topEmployee = barber;
         }
       });
 
@@ -94,7 +105,7 @@ const Menu = () => {
         earnings: totalEarnings,
         customers: customerCount,
         popularService: popularService,
-        topEmployee: popularBarber,
+        topEmployee: topEmployee,
       });
     } catch (error) {
       console.error("Error fetching today's stats:", error);
@@ -175,7 +186,6 @@ const Menu = () => {
 };
 
 const styles = StyleSheet.create({
-
   backgroundImage: {
     flex: 1,
     resizeMode: "cover",
@@ -183,7 +193,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(237, 236, 236, 0.77)",
@@ -198,13 +207,10 @@ const styles = StyleSheet.create({
   carouselContainer: {
     marginBottom: 20,
   },
-  carouselContentContainer: {
-    // paddingHorizontal: 20,
-  },
+  carouselContentContainer: {},
   carouselImage: {
     height: 200,
     borderRadius: 12,
-    // marginRight: 10,
   },
   smallCardsContainer: {
     flexDirection: "row",

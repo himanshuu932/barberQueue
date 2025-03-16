@@ -18,7 +18,7 @@ import { StorageAccessFramework } from "expo-file-system";
 import { Alert, Platform, PermissionsAndroid } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons"; // Better icon set
 import { LinearGradient } from "expo-linear-gradient"; // Optional for modern look
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 // Register translations
 registerTranslation('en', en);
 
@@ -37,7 +37,8 @@ const AdminPaymentHistory = () => {
   const [showVisualizations, setShowVisualizations] = useState(true);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [graphFlag, setGraphFlag] = useState(1); // 1: LineChart, 2: PieChart, 3: Calendar
-
+   const [shopId ,setShopId]=useState(null);
+  
   const savePdfToDownloads = async () => {
     try {
       // Define the file path in app storage
@@ -62,18 +63,38 @@ const AdminPaymentHistory = () => {
     }
   };
 
+
   useFocusEffect(
     useCallback(() => {
-      fetchAllData();
+      const fetchData = async () => {
+        try {
+          const uid = await AsyncStorage.getItem("uid");
+          if (!uid) {
+            Alert.alert("Error", "Shop ID not found in AsyncStorage");
+            return;
+          }
+  
+          setShopId(uid);
+          // Debugging: Check if UID is retrieved
+          fetchAllData(uid); // Pass uid directly instead of using shopId state
+        } catch (error) {
+          console.error("Error fetching Shop ID:", error);
+        }
+      };
+  
+      fetchData();
+  
       return () => {
-        console.log('Screen unfocused');
+        console.log("Screen unfocused");
       };
     }, [])
   );
+  
 
-  const fetchAllData = async () => {
+  const fetchAllData = async (uid) => {
+    console.log(uid);
     try {
-      const barbersResponse = await fetch('https://barberqueue-24143206157.us-central1.run.app/barbers');
+      const barbersResponse = await fetch(`https://barberqueue-24143206157.us-central1.run.app/barbers?shopId=${uid}`);
       const barbersData = await barbersResponse.json();
       setBarbers(barbersData);
 

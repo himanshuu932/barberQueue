@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Linking,
+  Alert,
 } from "react-native";
 import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 import * as Location from "expo-location";
@@ -13,6 +14,7 @@ import MapViewDirections from "react-native-maps-directions";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import Constants from "expo-constants";
 import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const GOOGLE_MAPS_APIKEY = Constants.expoConfig?.extra?.googleMapsApiKey;
 console.log("API Key:", GOOGLE_MAPS_APIKEY);
@@ -21,15 +23,11 @@ export default function LocateScreen() {
   const [currentRegion, setCurrentRegion] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [showNavigation, setShowNavigation] = useState(false);
+  const [shopDestination, setShopDestination] = useState(null);
   const mapRef = useRef(null);
   const locationSubscription = useRef(null);
 
-  const destination = {
-    latitude: 26.7323339,
-    longitude: 83.4292296,
-  };
-
-  // Function to request permission and get the current location
+  // Request permission and get current user location
   const requestLocationPermissionAndSetLocation = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
@@ -46,10 +44,34 @@ export default function LocateScreen() {
     });
   };
 
-  // Run on mount: request permission and subscribe to location changes
+  // Fetch shop coordinates using shopId from AsyncStorage
+  const fetchShopCoordinates = async () => {
+    try {
+      const shopId = await AsyncStorage.getItem("uid");
+      if (shopId) {
+        const response = await fetch(`https://barberqueue-24143206157.us-central1.run.app/shop/coordinates?id=${shopId}`);
+        const data = await response.json();
+        if (response.ok && data.x !== undefined && data.y !== undefined) {
+          setShopDestination({
+            latitude: data.x,
+            longitude: data.y,
+          });
+        } else {
+          console.error("Error fetching shop coordinates:", data.message);
+        }
+      } else {
+        console.error("Shop ID not found in AsyncStorage");
+      }
+    } catch (error) {
+      console.error("Error fetching shop coordinates:", error);
+    }
+  };
+
+  // On mount, request location and fetch shop coordinates. Also subscribe to location updates.
   useEffect(() => {
     (async () => {
       await requestLocationPermissionAndSetLocation();
+      await fetchShopCoordinates();
       const subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
@@ -75,7 +97,7 @@ export default function LocateScreen() {
     };
   }, []);
 
-  // Check for permissions on screen focus and prompt if not granted
+  // Check permissions on screen focus
   useFocusEffect(
     useCallback(() => {
       (async () => {
@@ -100,24 +122,34 @@ export default function LocateScreen() {
     );
   }
 
+  // Animate map to the shop destination
   const handleLocate = () => {
-    setShowNavigation(true);
-    if (mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: destination.latitude,
-          longitude: destination.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
-        1000
-      );
+    if (shopDestination) {
+      setShowNavigation(true);
+      if (mapRef.current) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: shopDestination.latitude,
+            longitude: shopDestination.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          },
+          1000
+        );
+      }
+    } else {
+      Alert.alert("Destination not available", "Shop coordinates not fetched yet.");
     }
   };
 
+  // Open Google Maps navigation with the shop destination
   const handleNavigate = () => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}`;
-    Linking.openURL(url);
+    if (shopDestination) {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${shopDestination.latitude},${shopDestination.longitude}`;
+      Linking.openURL(url);
+    } else {
+      Alert.alert("Destination not available", "Shop coordinates not fetched yet.");
+    }
   };
 
   return (
@@ -129,18 +161,20 @@ export default function LocateScreen() {
         initialRegion={currentRegion}
         showsUserLocation={true}
       >
-        <Marker
-          coordinate={destination}
-          title="Destination"
-          description="Your selected location"
-        />
-        {showNavigation && (
+        {shopDestination && (
+          <Marker
+            coordinate={shopDestination}
+            title="Shop Location"
+            description="Destination fetched from shop details"
+          />
+        )}
+        {showNavigation && shopDestination && (
           <MapViewDirections
             origin={{
               latitude: currentRegion.latitude,
               longitude: currentRegion.longitude,
             }}
-            destination={destination}
+            destination={shopDestination}
             apikey={GOOGLE_MAPS_APIKEY}
             strokeWidth={4}
             strokeColor="#FF4500"

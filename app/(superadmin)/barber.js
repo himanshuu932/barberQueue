@@ -11,18 +11,21 @@ import {
   Alert,
   ImageBackground
 } from "react-native";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 const Barber = () => {
   const [barbers, setBarbers] = useState([]);
   const [selectedBarber, setSelectedBarber] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false); // For editing a barber
   const [isAddModalVisible, setIsAddModalVisible] = useState(false); // For adding a new barber
+  const [shopId, setShopId] = useState(null);
+  
   const [newEmployee, setNewEmployee] = useState({
     name: "",
     email: "",
     password: "",
     phone: "",
   });
+
   const [updatedBarber, setUpdatedBarber] = useState({
     name: "",
     email: "",
@@ -30,10 +33,18 @@ const Barber = () => {
     password: ""
   });
 
-  // Reusable fetch function to refresh the barbers list.
-  const fetchBarbers = async () => {
+  useEffect(() => {
+    const fetchData = async () => {
+      const uid = await AsyncStorage.getItem("uid");
+      setShopId(uid);
+      fetchBarbers(uid);
+    };
+    fetchData();
+  }, []);
+
+  const fetchBarbers = async (uid) => {
     try {
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barbers");
+      const response = await fetch(`https://barberqueue-24143206157.us-central1.run.app/barbers?shopId=${uid}`);
       const data = await response.json();
       if (response.ok) {
         setBarbers(data);
@@ -46,11 +57,12 @@ const Barber = () => {
     }
   };
 
-  useEffect(() => {
-    fetchBarbers();
-  }, []);
-
   const handleSaveEmployee = async () => {
+    if (!shopId) {
+      Alert.alert("Error", "Shop ID not found.");
+      return;
+    }
+
     if (!newEmployee.name || !newEmployee.email || !newEmployee.password || !newEmployee.phone) {
       Alert.alert("Error", "Please fill all fields.");
       return;
@@ -60,37 +72,74 @@ const Barber = () => {
       const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barber/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newEmployee),
+        body: JSON.stringify({ ...newEmployee, shopId })
       });
 
       const data = await response.json();
       if (response.ok) {
         setNewEmployee({ name: "", email: "", password: "", phone: "" });
         setIsAddModalVisible(false);
-        Alert.alert("Success", "Employee added successfully!");
-        fetchBarbers(); // Refresh list after adding
+        Alert.alert("Success", "Barber added successfully!");
+        fetchBarbers(shopId);
       } else {
-        Alert.alert("Error", data.error || "Failed to add employee");
+        Alert.alert("Error", data.error || "Failed to add barber");
       }
     } catch (error) {
-      console.error("Error adding employee:", error);
+      console.error("Error adding barber:", error);
       Alert.alert("Error", "Could not connect to the server");
     }
   };
 
-  // New function to delete a barber.
+  const handleUpdateBarber = async () => {
+    if (!shopId) {
+      Alert.alert("Error", "Shop ID not found.");
+      return;
+    }
+
+    if (!updatedBarber.name || !updatedBarber.email || !updatedBarber.phone) {
+      Alert.alert("Error", "Please fill all fields.");
+      return;
+    }
+
+    try {
+      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barber/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...updatedBarber, bid: selectedBarber._id, shopId })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setIsModalVisible(false);
+        Alert.alert("Success", "Barber profile updated successfully!");
+        fetchBarbers(shopId);
+      } else {
+        Alert.alert("Error", data.error || "Failed to update barber");
+      }
+    } catch (error) {
+      console.error("Error updating barber:", error);
+      Alert.alert("Error", "Could not connect to the server");
+    }
+  };
+
   const handleDeleteBarber = async () => {
+    if (!shopId) {
+      Alert.alert("Error", "Shop ID not found.");
+      return;
+    }
+
     try {
       const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barber/profile", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bid: selectedBarber._id }),
+        body: JSON.stringify({ bid: selectedBarber._id, shopId })
       });
+
       const data = await response.json();
       if (response.ok) {
         Alert.alert("Success", "Barber deleted successfully!");
         setIsModalVisible(false);
-        fetchBarbers(); // Refresh list after deletion
+        fetchBarbers(shopId);
       } else {
         Alert.alert("Error", data.error || "Failed to delete barber");
       }
@@ -138,36 +187,7 @@ const Barber = () => {
     );
   };
   
-  const handleUpdateBarber = async () => {
-    if (!updatedBarber.name || !updatedBarber.email || !updatedBarber.phone) {
-      Alert.alert("Error", "Please fill all fields.");
-      return;
-    }
 
-    try {
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/barber/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...updatedBarber, bid: selectedBarber._id })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setIsModalVisible(false);
-        Alert.alert("Success", "Barber profile updated successfully!");
-        setBarbers((prevBarbers) =>
-          prevBarbers.map((b) =>
-            b._id === selectedBarber._id ? { ...b, ...updatedBarber } : b
-          )
-        );
-      } else {
-        Alert.alert("Error", data.error || "Failed to update barber");
-      }
-    } catch (error) {
-      console.error("Error updating barber:", error);
-      Alert.alert("Error", "Could not connect to the server");
-    }
-  };
   const [isConfirmVisible, setIsConfirmVisible] = useState(false);
 
   return (

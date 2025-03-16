@@ -31,7 +31,7 @@ export default function PreLoginScreen() {
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.push("/login")}
+            onPress={() => router.push("/owner-login")}
           >
             <Text style={styles.buttonText}>Login as Owner</Text>
           </TouchableOpacity>

@@ -27,12 +27,10 @@ export default function TabProfileScreen() {
   const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
   const fetchProfile = async () => {
     try {
-      const token = await AsyncStorage.getItem("userToken");
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/profile", {
+      const uid = await AsyncStorage.getItem("uid");
+      console.log("Checking pending rating or notifications for UID:", uid);
+      const response = await fetch(`https://barberqueue-24143206157.us-central1.run.app/profile?uid=${uid}`, {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
       const data = await response.json();
       setProfile(data);
@@ -83,6 +81,7 @@ export default function TabProfileScreen() {
     try {
       await AsyncStorage.removeItem("userToken");
       await AsyncStorage.removeItem("id");
+      await AsyncStorage.removeItem("u  id");
       router.replace("../pre-login");
     } catch (error) {
       console.error("Error logging out:", error);

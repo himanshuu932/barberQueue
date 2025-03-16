@@ -19,13 +19,15 @@ import { PlusButtonContext } from "./_layout"; // Adjust this import path as nee
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { io } from "socket.io-client"; // Import socket.io-client
 import { useFocusEffect } from '@react-navigation/native';
+
+const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
+
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
   const [queueItems, setQueueItems] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
-  const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
-  const shineAnimation = useRef(new Animated.Value(0)).current;
+  const [shopId, setShopId] = useState(null); // Shop ID state from AsyncStorage
   const [barberId, setBarberId] = useState(null); // Barber ID state
   const [socket, setSocket] = useState(null);
 
@@ -47,12 +49,21 @@ export default function MenuScreen() {
 
   // Get the setter from context to register our plus button handler
   const { setPlusButtonHandler } = useContext(PlusButtonContext);
+  
+  // Fetch barberId (if needed) and shopId from AsyncStorage
   useEffect(() => {
-    const fetchBarberId = async () => {
-      const id = await AsyncStorage.getItem("uid");
-      setBarberId(id); // Set the barberId state
+    const fetchIds = async () => {
+      // For barberId, if stored under a different key use that key
+      const bId = await AsyncStorage.getItem("uid");
+      setBarberId(bId);
+      // Fetch shopId from AsyncStorage with key "shopId"
+      const sId = await AsyncStorage.getItem("shopId");
+      if (!sId) {
+        console.error("shopId not found in AsyncStorage");
+      }
+      setShopId(sId);
     };
-    fetchBarberId();
+    fetchIds();
   }, []);
 
   // Register handleIncrement as the plus button handler when this screen mounts.
@@ -79,10 +90,11 @@ export default function MenuScreen() {
     }
   }, [socket]);
 
-  // Fetch queue data from the server
+  // Fetch queue data from the server (include shopId in query)
   const fetchQueueData = async () => {
+    if (!shopId) return; // Ensure shopId is available
     try {
-      const response = await fetch(`${API_BASE}/queue`);
+      const response = await fetch(`${API_BASE}/queue?shopId=${shopId}`);
       const data = await response.json();
       setQueueLength(data.queueLength);
       setQueueItems(data.data);
@@ -91,14 +103,15 @@ export default function MenuScreen() {
     }
   };
 
-  
-useFocusEffect(
+  useFocusEffect(
     React.useCallback(() => {
       fetchQueueData();
-    }, [])
+    }, [shopId])
   );
-  // Mark user as served (existing functionality)
+
+  // Mark user as served (modified to include shopId in the backend request)
   const markUserServed = async (userId, userName, services, cost) => {
+    if (!shopId) return;
     console.log("Mark user as served", userId, userName);
     try {
       const token = await AsyncStorage.getItem("userToken");
@@ -112,7 +125,8 @@ useFocusEffect(
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ barberId, userId, service: services, cost }),
+        // Include shopId in the request body
+        body: JSON.stringify({ shopId, barberId, userId, service: services, cost }),
       });
       if (response.ok) {
         await fetch(`${API_BASE}/notify`, {
@@ -127,7 +141,8 @@ useFocusEffect(
         });
         socket.emit("markedServed", { userId, userName });
       }
-      await fetch(`${API_BASE}/queue?uid=${encodeURIComponent(userId)}`, {
+      // Include shopId when removing from queue
+      await fetch(`${API_BASE}/queue?shopId=${shopId}&uid=${encodeURIComponent(userId)}`, {
         method: "DELETE",
       });
       fetchQueueData();
@@ -142,9 +157,11 @@ useFocusEffect(
   };
 
   const removePerson = async (name, uid) => {
-    const res = await fetch(`${API_BASE}/queue?uid=${encodeURIComponent(uid)}`, {
-      method: "DELETE",
-    });
+    if (!shopId) return;
+    const res = await fetch(
+      `${API_BASE}/queue?shopId=${shopId}&uid=${encodeURIComponent(uid)}`,
+      { method: "DELETE" }
+    );
     if (res.ok) {
       await fetch(`${API_BASE}/notify`, {
         method: "POST",
@@ -161,11 +178,13 @@ useFocusEffect(
   };
 
   const moveDownPerson = async (name, id, uid) => {
+    if (!shopId) return;
     try {
+      // Include shopId in the PATCH request body
       const res = await fetch(`${API_BASE}/queue/move`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, id }),
+        body: JSON.stringify({ shopId, name, id }),
       });
   
       if (res.ok) {
@@ -196,7 +215,7 @@ useFocusEffect(
           console.error("Failed to send notification");
         }
   
-        socket.emit("moveDownQueue", { name: name, id: id, uid: uid });
+        socket.emit("moveDownQueue", { shopId, name, id, uid });
         fetchQueueData();
       } else {
         console.error("Failed to move user down in the queue");
@@ -208,8 +227,12 @@ useFocusEffect(
     }
   };
 
-  // NEW: Combined joinQueue function that uses both the name and the checklist
+  // Combined joinQueue function that uses both the name and the checklist
   const joinQueue = async () => {
+    if (!shopId) {
+      Alert.alert("Error", "Shop ID not available.");
+      return;
+    }
     let finalName = newName.trim();
     if (finalName === "") {
       const now = new Date();
@@ -238,10 +261,12 @@ useFocusEffect(
     }
 
     try {
+      // Include shopId in the joinQueue POST request
       const response = await fetch(`${API_BASE}/queue`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          shopId,
           name: finalName,
           id: id,
           code: code,
@@ -252,6 +277,7 @@ useFocusEffect(
       
       if (response.ok) {
         socket.emit("joinQueue", {
+          shopId,
           name: finalName,
           id: id,
           code: code,
@@ -363,63 +389,62 @@ useFocusEffect(
 
         {/* Modified Modal: Now includes both name input and checklist */}
         <Modal
-  transparent={true}
-  animationType="slide"
-  visible={modalVisible}
-  onRequestClose={handleCancel}
->
-  <View style={styles.modalContainer}>
-    <View style={styles.modalContent}>
-      <Text style={styles.modalTitle}>Enter Name & Select Services</Text>
-      <TextInput
-        style={styles.modalInput}
-        value={newName}
-        onChangeText={setNewName}
-        placeholder="Enter your name"
-        onFocus={() => setNewName("")}
-      />
-      {/* Render checklist items */}
-      <FlatList
-        data={checklist}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.checklistItem}
-            onPress={() =>
-              setChecklist((prev) =>
-                prev.map((i) =>
-                  i.id === item.id ? { ...i, checked: !i.checked } : i
-                )
-              )
-            }
-          >
-            <View style={styles.checklistRow}>
-              <Text style={styles.checklistText}>{item.text}</Text>
-              <Text style={styles.checklistPrice}>{item.price}</Text>
-              <Icon
-                name={item.checked ? "check-box" : "check-box-outline-blank"}
-                size={24}
-                color="green"
+          transparent={true}
+          animationType="slide"
+          visible={modalVisible}
+          onRequestClose={handleCancel}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Enter Name & Select Services</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={newName}
+                onChangeText={setNewName}
+                placeholder="Enter your name"
+                onFocus={() => setNewName("")}
               />
+              {/* Render checklist items */}
+              <FlatList
+                data={checklist}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.checklistItem}
+                    onPress={() =>
+                      setChecklist((prev) =>
+                        prev.map((i) =>
+                          i.id === item.id ? { ...i, checked: !i.checked } : i
+                        )
+                      )
+                    }
+                  >
+                    <View style={styles.checklistRow}>
+                      <Text style={styles.checklistText}>{item.text}</Text>
+                      <Text style={styles.checklistPrice}>{item.price}</Text>
+                      <Icon
+                        name={item.checked ? "check-box" : "check-box-outline-blank"}
+                        size={24}
+                        color="green"
+                      />
+                    </View>
+                  </TouchableOpacity>
+                )}
+                keyExtractor={(item) => item.id.toString()}
+              />
+              <Text style={styles.totalPrice}>
+                Total Price: ₹{totalSelectedPrice}
+              </Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.modalButton} onPress={handleCancel}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalButton} onPress={joinQueue}>
+                  <Text style={styles.modalButtonText}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.id.toString()}
-      />
-      <Text style={styles.totalPrice}>
-        Total Price: ₹{totalSelectedPrice}
-      </Text>
-      <View style={styles.modalButtons}>
-        <TouchableOpacity style={styles.modalButton} onPress={handleCancel}>
-          <Text style={styles.modalButtonText}>Cancel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.modalButton} onPress={joinQueue}>
-          <Text style={styles.modalButtonText}>Confirm</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-</Modal>
-
+          </View>
+        </Modal>
       </View>
     </ImageBackground>
   );
@@ -653,3 +678,4 @@ const styles = StyleSheet.create({
     color: "#007bff",
   },
 });
+

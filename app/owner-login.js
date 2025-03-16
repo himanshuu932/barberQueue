@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,11 +17,12 @@ import * as Notifications from "expo-notifications";
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
+    shouldShowAlert: true, // Show an alert when the app is in the foreground
+    shouldPlaySound: true, // Play a sound when the notification is received
+    shouldSetBadge: true, // Set the app badge count
   }),
 });
+import { useFocusEffect } from '@react-navigation/native';
 
 // Function to register push notifications
 async function registerForPushNotifications(uid) {
@@ -56,22 +57,27 @@ async function registerForPushNotifications(uid) {
           projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
         })
       ).data;
+      // console.log("Expo Push Token generated:", token);
+      // Alert.alert("Expo Push Token generated:", token);
     } catch (error) {
       console.error("Error generating Expo Push Token:", error);
       Alert.alert(
         "Error Generating Push Token",
         `An error occurred while generating the push token: ${error.message}`
       );
-      return;
+      return; // Exit the function if token generation fails
     }
 
     // Step 3: Send token to your custom backend
     try {
-      const response = await fetch("http://10.0.2.2:5000/register-push-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, token }),
-      });
+      const response = await fetch(
+        "https://barberqueue-24143206157.us-central1.run.app/shop/register-push-token",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid, token }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -123,31 +129,37 @@ export default function LoginScreen() {
     }
 
     try {
-      const response = await fetch("http://10.0.2.2:5000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+        "https://barberqueue-24143206157.us-central1.run.app/shop/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
 
       const data = await response.json();
       if (!response.ok) {
         Alert.alert("Error", data.error || "Login failed");
         return;
       }
-      console.log(data);
+      console.log(data.shop.id);
       // Store token and user data
       await AsyncStorage.setItem("userToken", data.token);
-      await AsyncStorage.setItem("userName", data.user.name);
-      await AsyncStorage.setItem("uid", data.user.id);
+      await AsyncStorage.setItem("userName", data.shop.name);
+      await AsyncStorage.setItem("uid", data.shop.id);
+      
+      let userType = "superadmin";
+      await AsyncStorage.setItem("userType", userType);
 
-      // Register push notifications
-      await registerForPushNotifications(data.user.id);
+     // Alert.alert("Success", `Logged in as: ${email}`);
+     await registerForPushNotifications(data.shop.id);
+      // Navigate immediately
+         router.replace("/(superadmin)/menu");
+      
 
-      // Check if a pinned shop exists; if so, store it and navigate to menu; otherwise navigate to shop
-      if (data.user.pinnedShop) {
-        await AsyncStorage.setItem("pinnedShop", data.user.pinnedShop);
-        
-      } router.replace("/(tabs)/menu");
+      // Register push notifications without awaiting (to avoid delay)
+     
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
@@ -158,7 +170,7 @@ export default function LoginScreen() {
     <ImageBackground source={require("./image/bglogin.png")} style={styles.background}>
       <View style={styles.overlay}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Login</Text>
+          <Text style={styles.title}>Owner Login</Text>
 
           <TextInput
             style={styles.input}
@@ -190,7 +202,7 @@ export default function LoginScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/signup")}>
+          <TouchableOpacity onPress={() => router.push("/owner-signup")}>
             <Text style={styles.registerText}>
               Don't have an account? <Text style={styles.link}>Sign Up</Text>
             </Text>
