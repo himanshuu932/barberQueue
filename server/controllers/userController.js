@@ -4,7 +4,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 const { Expo } = require("expo-server-sdk");
 const expo = new Expo();
-const SECRET_KEY = process.env.SECRET; 
+const SECRET_KEY = "your-secret-key"; 
 
 exports.checkNotifications = async (req, res) => {
   try {

@@ -13,14 +13,14 @@ const dotenv = require("dotenv");
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
-const SECRET_KEY = process.env.SECRET;
+const SECRET_KEY = "your-secret-key";
 const shopRoutes = require("./routes/shopRoutes");
 const userRoutes = require("./routes/userRoutes");
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-const MONGO_URI =process.env.MONGO_URI;
+const MONGO_URI ="mongodb+srv://himanshuu932:88087408601@cluster0.lu2g8bw.mongodb.net/barber?retryWrites=true&w=majority&appName=Cluster0";
 mongoose.connect(MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,

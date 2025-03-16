@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const Shop = require('../models/Shop');
 const dotenv = require("dotenv");
 dotenv.config();
-const JWT_SECRET = process.env.SECRET;
+const JWT_SECRET = "your-secret-key";
 
 exports.signup = async (req, res) => {
   try {
