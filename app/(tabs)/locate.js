@@ -47,7 +47,7 @@ export default function LocateScreen() {
   // Fetch shop coordinates using shopId from AsyncStorage
   const fetchShopCoordinates = async () => {
     try {
-      const shopId = await AsyncStorage.getItem("uid");
+      const shopId = await AsyncStorage.getItem("pinnedShop");
       if (shopId) {
         const response = await fetch(`https://barberqueue-24143206157.us-central1.run.app/shop/coordinates?id=${shopId}`);
         const data = await response.json();
@@ -97,7 +97,7 @@ export default function LocateScreen() {
     };
   }, []);
 
-  // Check permissions on screen focus
+  // On page focus, check permissions and refetch shop coordinates.
   useFocusEffect(
     useCallback(() => {
       (async () => {
@@ -105,6 +105,7 @@ export default function LocateScreen() {
         if (status !== "granted") {
           await requestLocationPermissionAndSetLocation();
         }
+        await fetchShopCoordinates();
       })();
     }, [])
   );
