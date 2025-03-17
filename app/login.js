@@ -139,7 +139,8 @@ export default function LoginScreen() {
       await AsyncStorage.setItem("userToken", data.token);
       await AsyncStorage.setItem("userName", data.user.name);
       await AsyncStorage.setItem("uid", data.user.id);
-
+      let userType = "user";
+      await AsyncStorage.setItem("userType", userType);
       // Register push notifications
       await registerForPushNotifications(data.user.id);
 
