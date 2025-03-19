@@ -130,7 +130,7 @@ export default function MenuScreen() {
   const checkPendingRatingAndNotifications = async () => {
     try {
       const storedUid = await AsyncStorage.getItem("uid");
-      console.log("Checking pending rating/notifications for UID:", storedUid);
+      //console.log("Checking pending rating/notifications for UID:", storedUid);
       const response = await fetch(`${API_BASE}/profile?uid=${storedUid}`, {
         method: "GET",
       });
@@ -152,11 +152,11 @@ export default function MenuScreen() {
         finalStatus = status;
       }
       if (finalStatus !== "granted") {
-        console.log("Failed to get push token for notifications!");
+        //console.log("Failed to get push token for notifications!");
         return;
       }
       const token = (await Notifications.getExpoPushTokenAsync()).data;
-      console.log("Expo Push Token:", token);
+      //console.log("Expo Push Token:", token);
       await fetch(`${API_BASE}/register-push-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -188,7 +188,7 @@ export default function MenuScreen() {
     try {
       const storedShopId = await AsyncStorage.getItem("pinnedShop");
       if (!storedShopId) {
-        console.log("Shop ID not loaded yet");
+        //console.log("Shop ID not loaded yet");
         return;
       }
       const response = await fetch(`${API_BASE}/queue?shopId=${storedShopId}`);
@@ -201,12 +201,12 @@ export default function MenuScreen() {
         setQueueItems(data.data);
 
         const storedUid = await AsyncStorage.getItem("uid");
-        console.log("Checking pending rating/notifications for UID:", storedUid);
+        //console.log("Checking pending rating/notifications for UID:", storedUid);
         const userResponse = await fetch(`${API_BASE}/profile?uid=${storedUid}`, {
           method: "GET",
         });
         const userData = await userResponse.json();
-        console.log("User data:", userData.notification);
+        //console.log("User data:", userData.notification);
         if (userData.notification && userData.notification.enabled) {
           await Notifications.scheduleNotificationAsync({
             content: {
@@ -418,7 +418,7 @@ export default function MenuScreen() {
       }
       resetRatingModalFlag();
       const data = await ratingResponse.json();
-      console.log("Rating submitted successfully:", data);
+      //console.log("Rating submitted successfully:", data);
       setRatingModalVisible(false);
     } catch (error) {
       console.error("Error rating barber:", error);
@@ -688,14 +688,14 @@ async function getShopName(uid) {
               ratingCount={5}
               imageSize={40}
               onFinishRating={(value) => {
-                console.log("User selected rating:", value);
+                //console.log("User selected rating:", value);
                 setRating(value);
               }}
             />
             <TouchableOpacity
               style={styles.ratingSubmitButton}
               onPress={() => {
-                console.log("Rating submitted:", rating);
+                //console.log("Rating submitted:", rating);
                 rateBarber(rating);
                 setRatingModalVisible(false);
               }}
@@ -705,7 +705,7 @@ async function getShopName(uid) {
             <TouchableOpacity
               style={styles.ratingCloseButton}
               onPress={() => {
-                console.log("Rating modal closed without submitting.");
+                //console.log("Rating modal closed without submitting.");
                 resetRatingModalFlag();
                 setRatingModalVisible(false);
               }}

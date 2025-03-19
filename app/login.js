@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   ImageBackground,
   StyleSheet,
+  ActivityIndicator,
   Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -28,7 +30,6 @@ async function registerForPushNotifications(uid) {
   console.log("Registering for push notifications for uid:", uid);
 
   try {
-    // Step 1: Check and request permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     console.log("Existing permission status:", existingStatus);
 
@@ -48,12 +49,11 @@ async function registerForPushNotifications(uid) {
       return;
     }
 
-    // Step 2: Generate Expo Push Token
     let token;
     try {
       token = (
         await Notifications.getExpoPushTokenAsync({
-          projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
+          projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
         })
       ).data;
     } catch (error) {
@@ -65,7 +65,6 @@ async function registerForPushNotifications(uid) {
       return;
     }
 
-    // Step 3: Send token to your custom backend
     try {
       const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/register-push-token", {
         method: "POST",
@@ -93,7 +92,6 @@ async function registerForPushNotifications(uid) {
       );
     }
 
-    // Step 4: Configure Android notification channel
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "default",
@@ -115,13 +113,15 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
       return;
     }
-
+    setLoading(true);
     try {
       const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/login", {
         method: "POST",
@@ -132,6 +132,7 @@ export default function LoginScreen() {
       const data = await response.json();
       if (!response.ok) {
         Alert.alert("Error", data.error || "Login failed");
+        setLoading(false);
         return;
       }
       console.log(data);
@@ -144,14 +145,15 @@ export default function LoginScreen() {
       // Register push notifications
       await registerForPushNotifications(data.user.id);
 
-      // Check if a pinned shop exists; if so, store it and navigate to menu; otherwise navigate to shop
       if (data.user.pinnedShop) {
         await AsyncStorage.setItem("pinnedShop", data.user.pinnedShop);
-        
-      } router.replace("/(tabs)/menu");
+      }
+      // Replace the screen so user can't navigate back to login
+      router.replace("/(tabs)/menu");
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
+      setLoading(false);
     }
   };
 
@@ -171,23 +173,35 @@ export default function LoginScreen() {
             onChangeText={setEmail}
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="rgb(0, 0, 0)"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              placeholder="Password"
+              placeholderTextColor="rgb(0, 0, 0)"
+              secureTextEntry={!passwordVisible}
+              value={password}
+              onChangeText={setPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setPasswordVisible(!passwordVisible)}
+            >
+              <Icon name={passwordVisible ? "visibility" : "visibility-off"} size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity style={styles.buttonContainer} onPress={handleLogin}>
+          <TouchableOpacity style={styles.buttonContainer} onPress={handleLogin} disabled={loading}>
             <LinearGradient
               colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>Login</Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buttonText}>Login</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -240,6 +254,20 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     color: "rgb(0, 0, 0)",
   },
+  passwordContainer: {
+    position: "relative",
+    width: "100%",
+    marginBottom: 15,
+  },
+  passwordInput: {
+    paddingRight: 45, // Extra padding to avoid overlapping with the eye icon
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 10,
+    top: "50%",
+    transform: [{ translateY: -20 }],
+  },
   buttonContainer: {
     width: "100%",
     borderRadius: 8,
@@ -261,7 +289,7 @@ const styles = StyleSheet.create({
     color: "rgb(255, 255, 255)",
   },
   link: {
-    color: "#FFFFFF",
+    color: "rgb(3, 75, 163)",
     fontWeight: "900",
   },
 });
