@@ -13,7 +13,7 @@ const {
   addRateListItem,
   updateRateListItem,
   deleteRateListItem,
-  getCoordinates
+  getCoordinates,updateProfile
 } = require('../controllers/shopControllers');
 
 const router = express.Router();
@@ -24,7 +24,7 @@ router.post('/login', login);
 router.post('/update-address', updateAddress);
 router.get('/profile', getProfile);
 router.get('/shops', getAllShops);
-
+router.patch('/profile/update', updateProfile);
 // History Routes
 router.get('/history/:date', getHistoryByDate);
 router.get('/history', getAllHistory);
