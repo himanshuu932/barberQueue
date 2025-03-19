@@ -188,13 +188,16 @@ exports.registerForPushNotifications = async (req, res) => {
 exports.getAllShops = async (req, res) => {
   console.log("Fetching all shops...");
   try {
-    const shops = await Shop.find().select('_id name email trialStatus trialStartDate trialEndDate address');
+    // Find shops where trialStatus is not 'expired'
+    const shops = await Shop.find({ trialStatus: { $ne: 'expired' } })
+      .select('_id name email trialStatus trialStartDate trialEndDate address');
     res.json(shops);
   } catch (error) {
     console.error("Error fetching all shops:", error);
     res.status(500).json({ message: "Server error while fetching shops." });
   }
 };
+
 exports.updateAddress = async (req, res) => {
   try {
     console.log("Updating address...");
