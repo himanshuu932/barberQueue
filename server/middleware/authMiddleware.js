@@ -1,15 +1,29 @@
-const authMiddleware = (req, res, next) => {
-  const token = req.header("Authorization");
-  if (!token) {
-    return res.status(401).json({ error: "Access denied. No token provided." });
+const Shop = require('../models/Shop'); // Adjust the path as needed
+
+const checkTrialMiddleware = async (req, res, next) => {
+  // Get shopId from query or body (adjust according to your endpoint design)
+  const shopId = req.query.shopId || req.body.shopId;
+  if (!shopId) {
+    return res.status(400).json({ error: "shopId is required" });
   }
+
   try {
-    const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY);
-    req.user = decoded;
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ error: "Shop not found" });
+    }
+
+    // If trialEndDate is set and the current date is past it, block the action
+    if (shop.trialEndDate && new Date() > shop.trialEndDate) {
+      return res.status(403).json({ error: "Trial or subscription period has ended. Please renew to access queue features." });
+    }
+
+    // Otherwise, proceed to the next middleware/route handler
     next();
   } catch (error) {
-    res.status(401).json({ error: "Invalid or expired token." });
+    console.error("Error in trial check middleware:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
-module.exports = authMiddleware;
+module.exports = checkTrialMiddleware;

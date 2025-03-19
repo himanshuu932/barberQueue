@@ -26,13 +26,18 @@ exports.signup = async (req, res) => {
 
     // Create a new shop document; trialStatus and trialStartDate use their default values.
     // Include the address if provided.
+    const trialPeriodInDays = 30;
+    const trialEndDate = new Date(Date.now() + trialPeriodInDays * 24 * 60 * 60 * 1000);
+    
     const newShop = new Shop({
       name,
       email,
       password: hashedPassword,
       expoPushToken,
-      address: address || undefined
+      address: address || undefined,
+      trialEndDate  // Save the calculated end date
     });
+    
 
     await newShop.save();
 
@@ -183,7 +188,7 @@ exports.registerForPushNotifications = async (req, res) => {
 exports.getAllShops = async (req, res) => {
   console.log("Fetching all shops...");
   try {
-    const shops = await Shop.find().select('_id name email trialStatus trialStartDate address');
+    const shops = await Shop.find().select('_id name email trialStatus trialStartDate trialEndDate address');
     res.json(shops);
   } catch (error) {
     console.error("Error fetching all shops:", error);

@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 const SECRET_KEY = process.env.SECRET;
 const shopRoutes = require("./routes/shopRoutes");
 const userRoutes = require("./routes/userRoutes");
-
+const checkTrialMiddleware = require('./middleware/authMiddleware')
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -95,7 +95,7 @@ io.on("connection", (socket) => {
    =============================== */
 
 // GET /queue?shopId=...
-app.get("/queue", async (req, res) => {
+app.get("/queue",checkTrialMiddleware, async (req, res) => {
   try {
     const { shopId } = req.query;
     console.log(`DEBUG: Fetching queue for shop ${shopId}`);
@@ -125,7 +125,7 @@ app.get("/queue", async (req, res) => {
 });
 
 // POST /queue
-app.post("/queue", async (req, res) => {
+app.post("/queue",checkTrialMiddleware, async (req, res) => {
   console.log("Queue", req.body);
   try {
     let { shopId, name, id, services, code, totalCost } = req.body;
@@ -160,7 +160,7 @@ app.post("/queue", async (req, res) => {
 });
 
 // PATCH /queue/move
-app.patch("/queue/move", async (req, res) => {
+app.patch("/queue/move", checkTrialMiddleware,async (req, res) => {
   try {
     const { shopId, id } = req.body;
     if (!shopId || !id) return res.status(400).json({ error: "shopId and id are required" });
@@ -191,7 +191,7 @@ app.patch("/queue/move", async (req, res) => {
 });
 
 // PATCH /update-services
-app.patch("/update-services", async (req, res) => {
+app.patch("/update-services",checkTrialMiddleware, async (req, res) => {
   try {
     const { shopId, uid, services, totalCost } = req.body;
     if (!shopId || !uid || !services || !Array.isArray(services) || typeof totalCost !== "number") {
@@ -218,7 +218,7 @@ app.patch("/update-services", async (req, res) => {
 });
 
 // DELETE /queue
-app.delete("/queue", async (req, res) => {
+app.delete("/queue", checkTrialMiddleware,async (req, res) => {
   try {
     const { shopId, uid } = req.query;
     if (!shopId) return res.status(400).json({ error: "shopId is required" });

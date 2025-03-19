@@ -40,30 +40,17 @@ const ShopSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   expoPushToken: { type: String },
-  // New address field: an object containing textData, x, and y
   address: {
     textData: { type: String, default: "" },
     x: { type: Number, default: 0 },
     y: { type: Number, default: 0 }
   },
-  history: [
-    {
-      service: String,
-      date: Date,
-      cost: Number
-    }
-  ],
-  notification: {
-    enabled: { type: Boolean, default: false },
-    title: String,
-    body: String,
-    data: mongoose.Schema.Types.Mixed
-  },
-  trialStatus: { type: String, default: 'trial' },
+  // Existing fields...
+  trialStatus: { type: String, default: 'trial' }, // you can continue using this if needed
   trialStartDate: { type: Date, default: Date.now },
+  trialEndDate: { type: Date }, // New field to store when the trial/subscription ends
   queues: [QueueSchema],
   barbers: [BarberSchema],
-  // New rateList field: an array of objects each containing service and price
   rateList: {
     type: [
       {
@@ -74,6 +61,7 @@ const ShopSchema = new mongoose.Schema({
     default: []
   }
 });
+
 
 const Shop = mongoose.model("Shop", ShopSchema);
 module.exports = Shop;
