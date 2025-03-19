@@ -100,7 +100,7 @@ exports.login = async (req, res) => {
   }
 };
 
-exports.getProfile = async (req, res) => {
+exports.getProfile = async (req, res) => { 
   try {
     const shopId = req.query.id; 
 
@@ -108,7 +108,7 @@ exports.getProfile = async (req, res) => {
       return res.status(400).json({ message: "Shop ID is required in query parameters" });
     }
 
-    const shop = await Shop.findById(shopId).select('name email trialStatus trialStartDate address');
+    const shop = await Shop.findById(shopId).select('name email trialStatus trialStartDate trialEndDate address');
     if (!shop) {
       return res.status(404).json({ message: "Shop not found" });
     }
