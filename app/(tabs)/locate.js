@@ -7,34 +7,66 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
+  Image,
 } from "react-native";
 import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 import * as Location from "expo-location";
-import MapViewDirections from "react-native-maps-directions";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import Constants from "expo-constants";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const GOOGLE_MAPS_APIKEY = Constants.expoConfig?.extra?.googleMapsApiKey;
-console.log("API Key:", GOOGLE_MAPS_APIKEY);
 
 export default function LocateScreen() {
   const [currentRegion, setCurrentRegion] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
-  const [showNavigation, setShowNavigation] = useState(false);
   const [shopDestination, setShopDestination] = useState(null);
+  const [distance, setDistance] = useState(null);
   const mapRef = useRef(null);
   const locationSubscription = useRef(null);
 
+  // Helper: convert degrees to radians.
+  const toRad = (value) => (value * Math.PI) / 180;
+
+  // Helper: calculate haversine distance (in km) between two coordinates.
+  // Note: This is the straight-line distance, not the route (driving) distance.
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth radius in km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Update distance whenever currentRegion or shopDestination changes.
+  useEffect(() => {
+    if (currentRegion && shopDestination) {
+      const d = calculateDistance(
+        currentRegion.latitude,
+        currentRegion.longitude,
+        shopDestination.latitude,
+        shopDestination.longitude
+      );
+      setDistance(d);
+    }
+  }, [currentRegion, shopDestination]);
+
   // Request permission and get current user location
   const requestLocationPermissionAndSetLocation = async () => {
+    //console.log("Requesting location permission...");
     let { status } = await Location.requestForegroundPermissionsAsync();
+    //console.log("Location permission status:", status);
     if (status !== "granted") {
       setErrorMsg("Permission to access location was denied");
+      console.error("Location permission was denied");
       return;
     }
     let location = await Location.getCurrentPositionAsync({});
+    //console.log("Fetched current location:", location);
     const { latitude, longitude } = location.coords;
     setCurrentRegion({
       latitude,
@@ -42,20 +74,28 @@ export default function LocateScreen() {
       latitudeDelta: 0.01,
       longitudeDelta: 0.01,
     });
+    //console.log("Set current region to:", { latitude, longitude });
   };
 
-  // Fetch shop coordinates using shopId from AsyncStorage
+  // Fetch shop coordinates using shopId from AsyncStorage with your requested swapping logic.
   const fetchShopCoordinates = async () => {
     try {
+      //console.log("Fetching shop coordinates...");
       const shopId = await AsyncStorage.getItem("pinnedShop");
+      //console.log("Fetched pinnedShop from AsyncStorage:", shopId);
       if (shopId) {
-        const response = await fetch(`https://barberqueue-24143206157.us-central1.run.app/shop/coordinates?id=${shopId}`);
+        const response = await fetch(
+          `https://barberqueue-24143206157.us-central1.run.app/shop/coordinates?id=${shopId}`
+        );
         const data = await response.json();
+        //console.log("Shop coordinates API response:", data);
         if (response.ok && data.x !== undefined && data.y !== undefined) {
+          // Swap the values so that y becomes latitude and x becomes longitude.
           setShopDestination({
             latitude: data.x,
             longitude: data.y,
           });
+          //console.log("Set shop destination to:", { latitude: data.x, longitude: data.y });
         } else {
           console.error("Error fetching shop coordinates:", data.message);
         }
@@ -72,6 +112,7 @@ export default function LocateScreen() {
     (async () => {
       await requestLocationPermissionAndSetLocation();
       await fetchShopCoordinates();
+      //console.log("Setting up location watch subscription...");
       const subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
@@ -80,6 +121,7 @@ export default function LocateScreen() {
         },
         (newLocation) => {
           const { latitude, longitude } = newLocation.coords;
+          //console.log("Location update received:", { latitude, longitude });
           setCurrentRegion({
             latitude,
             longitude,
@@ -92,16 +134,19 @@ export default function LocateScreen() {
     })();
     return () => {
       if (locationSubscription.current) {
+        //console.log("Removing location subscription...");
         locationSubscription.current.remove();
       }
     };
   }, []);
 
-  // On page focus, check permissions and refetch shop coordinates.
+  // On page focus, recheck location permissions and refetch shop coordinates.
   useFocusEffect(
     useCallback(() => {
       (async () => {
+        //console.log("Page focused. Rechecking location permissions...");
         const { status } = await Location.getForegroundPermissionsAsync();
+        //console.log("Foreground permissions status on focus:", status);
         if (status !== "granted") {
           await requestLocationPermissionAndSetLocation();
         }
@@ -126,8 +171,8 @@ export default function LocateScreen() {
   // Animate map to the shop destination
   const handleLocate = () => {
     if (shopDestination) {
-      setShowNavigation(true);
       if (mapRef.current) {
+        //console.log("Animating map to shop destination:", shopDestination);
         mapRef.current.animateToRegion(
           {
             latitude: shopDestination.latitude,
@@ -140,6 +185,15 @@ export default function LocateScreen() {
       }
     } else {
       Alert.alert("Destination not available", "Shop coordinates not fetched yet.");
+      console.error("Shop destination is not available.");
+    }
+  };
+
+  // Animate map to the user's current location
+  const handleCurrentLocation = () => {
+    if (currentRegion && mapRef.current) {
+      //console.log("Animating map to current location:", currentRegion);
+      mapRef.current.animateToRegion(currentRegion, 1000);
     }
   };
 
@@ -147,9 +201,11 @@ export default function LocateScreen() {
   const handleNavigate = () => {
     if (shopDestination) {
       const url = `https://www.google.com/maps/dir/?api=1&destination=${shopDestination.latitude},${shopDestination.longitude}`;
+      //console.log("Opening Google Maps with URL:", url);
       Linking.openURL(url);
     } else {
       Alert.alert("Destination not available", "Shop coordinates not fetched yet.");
+      console.error("Shop destination is not available for navigation.");
     }
   };
 
@@ -160,8 +216,13 @@ export default function LocateScreen() {
         provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={currentRegion}
-        showsUserLocation={true}
       >
+        {/* Custom user marker in place of default blue dot */}
+        {currentRegion && (
+          <Marker coordinate={currentRegion}>
+            <Image source={require("../image/user.png")} style={styles.profileImage} />
+          </Marker>
+        )}
         {shopDestination && (
           <Marker
             coordinate={shopDestination}
@@ -169,32 +230,24 @@ export default function LocateScreen() {
             description="Destination fetched from shop details"
           />
         )}
-        {showNavigation && shopDestination && (
-          <MapViewDirections
-            origin={{
-              latitude: currentRegion.latitude,
-              longitude: currentRegion.longitude,
-            }}
-            destination={shopDestination}
-            apikey={GOOGLE_MAPS_APIKEY}
-            strokeWidth={4}
-            strokeColor="#FF4500"
-          />
-        )}
       </MapView>
 
+      {/* Distance overlay in top right corner */}
+      {distance !== null && (
+        <View style={styles.distanceContainer}>
+          <Text style={styles.distanceText}>{distance.toFixed(2)} km</Text>
+        </View>
+      )}
+
       <View style={styles.floatingButtonContainer}>
-        <TouchableOpacity
-          style={[styles.fab, styles.locateButton]}
-          onPress={handleLocate}
-        >
+        <TouchableOpacity style={[styles.fab, styles.locateButton]} onPress={handleLocate}>
           <Icon name="store" size={24} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.fab, styles.navigateButton]}
-          onPress={handleNavigate}
-        >
+        <TouchableOpacity style={[styles.fab, styles.navigateButton]} onPress={handleNavigate}>
           <Icon name="navigation" size={24} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.fab, styles.myLocationButton]} onPress={handleCurrentLocation}>
+          <Icon name="my-location" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>
@@ -251,5 +304,29 @@ const styles = StyleSheet.create({
   },
   navigateButton: {
     backgroundColor: "#28A745",
+  },
+  myLocationButton: {
+    backgroundColor: "#FF8C00",
+  },
+  profileImage: {
+    width: 30,
+    height: 30,
+    borderRadius: 15, // Perfect circle for 30x30 image
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  distanceContainer: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  distanceText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

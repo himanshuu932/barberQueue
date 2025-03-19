@@ -23,7 +23,7 @@ export default function Layout() {
     <PlusButtonContext.Provider value={{ plusButtonHandler, setPlusButtonHandler }}>
       {/* Custom Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>My App</Text>
+        <Text style={styles.title}>Numbr</Text>
       </View>
 
       {/* Tabs Component */}

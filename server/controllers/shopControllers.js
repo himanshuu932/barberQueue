@@ -97,7 +97,7 @@ exports.login = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const shopId = req.query.id; // Extract shop ID from query
+    const shopId = req.query.id; 
 
     if (!shopId) {
       return res.status(400).json({ message: "Shop ID is required in query parameters" });
@@ -337,5 +337,33 @@ exports.getCoordinates = async (req, res) => {
   } catch (error) {
     console.error("Error fetching coordinates:", error);
     res.status(500).json({ message: "Server error while fetching coordinates." });
+  }
+};
+// In shopControllers.js
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { shopId, name, email, address } = req.body;
+    if (!shopId) {
+      return res.status(400).json({ message: "Shop ID is required." });
+    }
+
+    // Build an update object with only the provided fields
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (address && typeof address === 'object') updateData.address = address;
+
+    // Find and update the shop document
+    const updatedShop = await Shop.findByIdAndUpdate(shopId, updateData, {
+      new: true,
+    });
+    if (!updatedShop) {
+      return res.status(404).json({ message: "Shop not found." });
+    }
+    res.json({ message: "Profile updated successfully", shop: updatedShop });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "Server error while updating profile." });
   }
 };

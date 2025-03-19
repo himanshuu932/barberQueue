@@ -12,7 +12,7 @@ const expo = new Expo();
 const dotenv = require("dotenv");
 dotenv.config();
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 5000;
 const SECRET_KEY = process.env.SECRET;
 const shopRoutes = require("./routes/shopRoutes");
 const userRoutes = require("./routes/userRoutes");

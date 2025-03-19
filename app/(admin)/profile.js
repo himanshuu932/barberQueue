@@ -1,6 +1,7 @@
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useRef, useState } from "react";
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -10,12 +11,14 @@ import {
   TouchableOpacity,
   Animated,
   ActivityIndicator,
-  ImageBackground
+  ImageBackground,
+  Modal,
+  TextInput,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect } from '@react-navigation/native';
 
-export default function TabProfileScreen({ navigation }) {
+export default function TabProfileScreen() {
   const router = useRouter();
   const shineAnimation = useRef(new Animated.Value(0)).current;
   const [barber, setBarber] = useState(null);
@@ -24,6 +27,11 @@ export default function TabProfileScreen({ navigation }) {
   
   // Remove hardcoded shopId and instead fetch it from AsyncStorage
   const [shopId, setShopId] = useState(null);
+
+  // New states for editing profile and updating status
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({ name: "", email: "", phone: "" });
+  const [updating, setUpdating] = useState(false);
 
   // Fetch shopId from AsyncStorage on mount
   useEffect(() => {
@@ -110,6 +118,39 @@ export default function TabProfileScreen({ navigation }) {
     }
   };
 
+  // Function to update barber profile using the provided backend route
+  const updateUserProfile = async () => {
+    try {
+      setUpdating(true);
+      const response = await fetch(`https://barberqueue-24143206157.us-central1.run.app/barber/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopId, // Including shopId as per original functionality
+          bid: barber?._id, // Barber ID from fetched barber details
+          name: editedProfile.name,
+          email: editedProfile.email,
+          phone: editedProfile.phone,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error updating barber profile:", errorData);
+        Alert.alert("Error", errorData.error || "Failed to update profile");
+        return;
+      }
+      const data = await response.json();
+      setBarber(data.barber);
+      setIsModalVisible(false);
+      Alert.alert("Success", "Profile updated successfully");
+    } catch (error) {
+      console.error("Error updating barber profile:", error);
+      Alert.alert("Error", "An error occurred while updating your profile.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -132,6 +173,23 @@ export default function TabProfileScreen({ navigation }) {
       <View style={styles.container}>
         <View style={styles.profileBox}>
           <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
+            {/* Edit Button */}
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => {
+                setEditedProfile({
+                  name: barber?.name || "",
+                  email: barber?.email || "",
+                  phone: barber?.phone || "",
+                });
+                setIsModalVisible(true);
+              }}
+            >
+              <Image
+                source={require("../image/editw.png")}
+                style={{ width: 25, height: 25, tintColor: "white" }}
+              />
+            </TouchableOpacity>
             <Animated.View
               style={[
                 styles.shine,
@@ -152,7 +210,7 @@ export default function TabProfileScreen({ navigation }) {
               />
             </Animated.View>
             <View style={styles.profileContent}>
-              <Image source={{ uri: "https://via.placeholder.com/80" }} style={styles.profileImage} />
+              <Image source={require("../image/user.png")} style={styles.profileImage} />
               <View>
                 <Text style={styles.username}>{barber?.name || "John Doe"}</Text>
                 <Text style={styles.userInfo}>{barber?.phone || "+1 234 567 8900"}</Text>
@@ -169,15 +227,19 @@ export default function TabProfileScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Payment History</Text>
           <View style={styles.paymentBox}>
             <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 280 }}>
-              {barber?.history?.map((item, index) => (
-                <View key={index} style={styles.paymentCard}>
-                  <View style={styles.paymentRow}>
-                    <Text style={styles.paymentDate}>{new Date(item.date).toLocaleDateString()}</Text>
-                    <Text style={styles.paymentAmount}>₹{item.totalCost}</Text>
+              {(!barber?.history || barber.history.length === 0) ? (
+                <Text style={styles.noHistoryText}>No payment history available.</Text>
+              ) : (
+                barber.history.map((item, index) => (
+                  <View key={index} style={styles.paymentCard}>
+                    <View style={styles.paymentRow}>
+                      <Text style={styles.paymentDate}>{new Date(item.date).toLocaleDateString()}</Text>
+                      <Text style={styles.paymentAmount}>₹{item.totalCost}</Text>
+                    </View>
+                    <Text style={styles.paymentDescription}>{item.services}</Text>
                   </View>
-                  <Text style={styles.paymentDescription}>{item.services}</Text>
-                </View>
-              ))}
+                ))
+              )}
             </ScrollView>
           </View>
         </View>
@@ -187,6 +249,44 @@ export default function TabProfileScreen({ navigation }) {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      {/* Modal for editing profile */}
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Name"
+              value={editedProfile.name}
+              onChangeText={(text) => setEditedProfile({ ...editedProfile, name: text })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={editedProfile.email}
+              onChangeText={(text) => setEditedProfile({ ...editedProfile, email: text })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Phone"
+              value={editedProfile.phone}
+              onChangeText={(text) => setEditedProfile({ ...editedProfile, phone: text })}
+            />
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={updateUserProfile} disabled={updating}>
+                {updating ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.modalButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ImageBackground>
   );
 }
@@ -228,7 +328,8 @@ const styles = StyleSheet.create({
     height: 180, 
     borderRadius: 10, 
     overflow: "hidden", 
-    marginBottom: 20 
+    marginBottom: 20,
+    position: "relative"
   },
   profileBackground: { 
     width: "100%", 
@@ -317,10 +418,17 @@ const styles = StyleSheet.create({
     color: "#777", 
     marginTop: 4 
   },
+  noHistoryText: {
+    fontSize: 16,
+    color: "#555",
+    textAlign: "center",
+    marginTop: 10,
+  },
   buttonContainer: { 
-    // Positioned at the bottom by using marginBottom if needed, or adjust container layout accordingly
+    position: "absolute",   
     width: "90%", 
-    marginBottom: 10 
+    bottom:"-1%", 
+    marginBottom: "1.5%" 
   },
   button: { 
     padding: 12, 
@@ -332,5 +440,59 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     fontWeight: "bold" 
   },
+  editButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    padding: 5,
+    backgroundColor: "transparent",
+    borderRadius: 5,
+    zIndex: 1,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    width: "85%",
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  input: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 10,
+    fontSize: 16,
+  },
+  modalButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  modalButton: {
+    flex: 1,
+    backgroundColor: "#1a1a1a",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginHorizontal: 5,
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
 });
-

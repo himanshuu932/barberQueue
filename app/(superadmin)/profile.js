@@ -1,12 +1,11 @@
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from "@react-navigation/native";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { 
   View, 
   Text, 
   StyleSheet, 
-  ScrollView, 
   Image, 
   TouchableOpacity, 
   Animated, 
@@ -19,6 +18,8 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
+import * as Location from "expo-location";
+import MapView, { Marker } from "react-native-maps";
 
 export default function TabProfileScreen() {
   const router = useRouter();
@@ -26,9 +27,19 @@ export default function TabProfileScreen() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editedProfile, setEditedProfile] = useState({ name: "", email: "", phone: "" });
+  const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [updateLoading, setUpdateLoading] = useState(false);
+  // editedProfile holds name, email, and an address object (textData, x, and y)
+  const [editedProfile, setEditedProfile] = useState({ 
+    name: "", 
+    email: "", 
+    address: { textData: "", y: 0, x: 0 }
+  });
   const [shopId, setShopId] = useState(null);
   const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
+  // State to track location picked in map modal
+  const [selectedLocation, setSelectedLocation] = useState(null);
 
   // Fetch the shopId from AsyncStorage and then get the profile
   useFocusEffect(
@@ -46,22 +57,19 @@ export default function TabProfileScreen() {
           console.error("Error in useFocusEffect:", error);
         }
       };
-
       getShopIdAndProfile();
     }, [])
   );
 
-  // Updated fetchProfile that accepts shopId
+  // Fetch profile by shopId
   const fetchProfile = async (uid) => {
     try {
       const response = await fetch(`${API_BASE}/shop/profile?id=${uid}`, {
         method: "GET",
       });
-  
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-  
       const data = await response.json();
       setProfile(data);
     } catch (error) {
@@ -92,7 +100,6 @@ export default function TabProfileScreen() {
     inputRange: [0, 1],
     outputRange: [-200, 900],
   });
-
   const shineTranslateY = shineAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: [-200, 250],
@@ -108,13 +115,39 @@ export default function TabProfileScreen() {
     }
   };
 
-  // Updated updateUserProfile uses the shopId from state
-  async function updateUserProfile(name, email) {
+  // When "Fetch Current Location" is pressed, update the form's coordinate values.
+  const handleGetCurrentLocation = async () => {
     try {
-      const response = await fetch(`${API_BASE}/shop/profile`, {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission to access location was denied");
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({});
+      setEditedProfile((prev) => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          x: location.coords.latitude,
+          y: location.coords.longitude,
+        },
+      }));
+      Alert.alert("Location fetched", "Coordinates have been updated.");
+    } catch (error) {
+      console.error("Error fetching location:", error);
+      Alert.alert("Error", "Unable to fetch location.");
+    }
+  };
+
+  // Update user profile (including updated address coordinates) using the shopId
+  async function updateUserProfile() {
+    try {
+      const { name, email, address } = editedProfile;
+      console.log("Updating user profile with details:", { shopId, name, email, address });
+      const response = await fetch(`${API_BASE}/shop/profile/update`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: shopId, name, email })
+        body: JSON.stringify({ shopId, name, email, address }),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -124,50 +157,137 @@ export default function TabProfileScreen() {
       const data = await response.json();
       console.log("User profile updated successfully:", data);
       setIsModalVisible(false);
-      // Refresh the profile using the shopId
       fetchProfile(shopId);
     } catch (error) {
       console.error("Error updating user profile:", error);
     }
   }
-
+  
+  const LocationPreview = () => {
+    if (!editedProfile.address.x || !editedProfile.address.y) {
+      return (
+        <View style={styles.locationPreviewPlaceholder}>
+          <Icon name="map-marker" size={24} color="#888" />
+          <Text style={styles.locationPreviewText}>No location selected</Text>
+        </View>
+      );
+    }
+    
+    return (
+      <View style={styles.locationPreview}>
+        <MapView
+          style={styles.previewMap}
+          region={{
+            latitude: editedProfile.address.x,
+            longitude: editedProfile.address.y,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          }}
+          scrollEnabled={false}
+          zoomEnabled={false}
+          rotateEnabled={false}
+          pitchEnabled={false}
+        >
+          <Marker coordinate={{ 
+            latitude: editedProfile.address.x, 
+            longitude: editedProfile.address.y 
+          }} />
+        </MapView>
+      </View>
+    );
+  };const handleOpenLocationPicker = async () => {
+    let defaultLocation;
+    
+    // Try to use existing location data first
+    if (editedProfile.address.x && editedProfile.address.y) {
+      defaultLocation = { 
+        latitude: editedProfile.address.x, 
+        longitude: editedProfile.address.y 
+      };
+    } else if (profile?.address?.x && profile?.address?.y) {
+      defaultLocation = { 
+        latitude: profile.address.x, 
+        longitude: profile.address.y 
+      };
+    } else {
+      // Otherwise try to get current location
+      const currentLocation = await getCurrentLocation();
+      defaultLocation = currentLocation || { latitude: 26.7282867, longitude: 83.4410984 };
+    }
+    
+    setSelectedLocation(defaultLocation);
+    setIsLocationPickerVisible(true);
+  };
   return (
-    <ImageBackground source={require("../image/bglogin.png")}
-      style={styles.backgroundImage}>
+    <ImageBackground 
+      source={require("../image/bglogin.png")}
+      style={styles.backgroundImage}
+    >
       <View style={styles.container}>
-        <View style={styles.overlay}/>
+        <View style={styles.overlay} />
         {/* Fixed header */}
         <View style={styles.header}>
           <View style={styles.profileBox}>
-            <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
-              <TouchableOpacity style={styles.editButton} onPress={() => { setEditedProfile(profile); setIsModalVisible(true); }}>
+            <LinearGradient 
+              colors={["#1a1a1a", "#333333", "#1a1a1a"]} 
+              style={styles.profileBackground}
+            >
+              <TouchableOpacity 
+                style={styles.editButton} 
+                onPress={() => { 
+                  // Pre-fill editedProfile state with current profile data
+                  setEditedProfile({
+                    name: profile?.name || "",
+                    email: profile?.email || "",
+                    address: profile?.address || { textData: "", x: 0, y: 0 },
+                  });
+                  setIsModalVisible(true); 
+                }}
+              >
                 <Image 
                   source={require("../image/editw.png")}
                   style={{ width: 25, height: 25, tintColor: "white" }}
                 />
               </TouchableOpacity>
               <Animated.View
-                style={[styles.shine, { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] }]}
+                style={[
+                  styles.shine, 
+                  { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] }
+                ]}
               >
-                <LinearGradient colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} start={{ x: 0, y: 0 }}
+                <LinearGradient 
+                  colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} 
+                  start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.shineGradient} />
+                  style={styles.shineGradient} 
+                />
               </Animated.View>
               <View style={styles.profileContent}>
-                <Image source={require("../image/user.png")} style={styles.profileImage} />
+                <Image 
+                  source={require("../image/user.png")} 
+                  style={styles.profileImage} 
+                />
                 <View style={styles.profileDetails}>
                   {loading ? (
                     <ActivityIndicator size="large" color="#fff" />
                   ) : (
                     <View>
-                      <Text style={styles.username}>{profile?.name || "User Name"}</Text>                
-                      <Text style={styles.userInfo}>Username: {profile?.email || "N/A"}</Text>
-                      <Text style={styles.userInfo}>Status:{profile?.trialStatus || "N/A"}</Text>
+                      <Text style={styles.username}>
+                        {profile?.name || "User Name"}
+                      </Text>                
                       <Text style={styles.userInfo}>
-                        {profile?.trialStartDate ? new Date(profile.trialStartDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+                        Username: {profile?.email || "N/A"}
+                      </Text>
+                      <Text style={styles.userInfo}>
+                        Status: {profile?.trialStatus || "N/A"}
+                      </Text>
+                      <Text style={styles.userInfo}>
+                        {profile?.trialStartDate 
+                          ? new Date(profile.trialStartDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) 
+                          : "N/A"}
                       </Text>  
                       <Text style={styles.userInfo}>
-                      {profile?.address.textData}
+                        Address: {profile?.address.textData || ""}
                       </Text>
                     </View>
                   )}
@@ -177,9 +297,12 @@ export default function TabProfileScreen() {
           </View>
         </View>
 
-        {/* Scrollable history list */}
+        {/* Company / Info Section */}
         <View style={styles.companyContainer}>
-          <LinearGradient colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} style={styles.companyBackground}>
+          <LinearGradient 
+            colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} 
+            style={styles.companyBackground}
+          >
             <Text style={styles.companyTitle}>Bludgers Technologies</Text>
             <Text style={styles.companyTagline}>Innovating Daily Living</Text>
             <Text style={styles.companyDescription}>
@@ -187,19 +310,27 @@ export default function TabProfileScreen() {
               ensuring the best user experience with cutting-edge solutions.
             </Text>
             <View style={styles.divider} />
-            <TouchableOpacity onPress={() => Linking.openURL("mailto:himanshu@gmail.com")}>
-              <Text style={styles.companyWebsite}>📧 Mail: himanshu@gmail.com</Text>
+            <TouchableOpacity onPress={() => Linking.openURL("mailto:bludgers52@gmail.com")}>
+              <Text style={styles.companyWebsite}>📧 Mail: bludgers52@gmail.com</Text>
             </TouchableOpacity>
             <View style={styles.phoneContainer}>
-              <Icon name="phone" size={18} color="#00aaff" />
-              <Text style={styles.numberText}>Phone :- 8601346652</Text>
+            <TouchableOpacity onPress={() => Linking.openURL('tel:8601346652')}>
+  <View style={styles.phoneContainer}>
+    <Icon name="phone" size={18} color="#00aaff" />
+    <Text style={styles.numberText}>Phone :- 8601346652</Text>
+  </View>
+</TouchableOpacity>
+
             </View>
           </LinearGradient>
         </View>
       
         {/* Fixed logout button */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
+          <TouchableOpacity 
+            style={styles.buttonContainer} 
+            onPress={handleLogout}
+          >
             <LinearGradient 
               colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} 
               style={styles.button}
@@ -209,19 +340,138 @@ export default function TabProfileScreen() {
           </TouchableOpacity>
         </View>
       
+        {/* Modal for editing profile */}
         <Modal visible={isModalVisible} transparent animationType="slide">
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Edit Profile</Text>
-              <TextInput style={styles.input} placeholder="Name" value={editedProfile.name} onChangeText={(text) => setEditedProfile({ ...editedProfile, name: text })} />
-              <TextInput style={styles.input} placeholder="Email" value={editedProfile.email} onChangeText={(text) => setEditedProfile({ ...editedProfile, email: text })} />
-              <View style={styles.modalButtonContainer}>
-                <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Edit Profile</Text>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Name</Text>
+            <TextInput 
+              style={[styles.input]} 
+              placeholder="Name" 
+              value={editedProfile.name} 
+              onChangeText={(text) => {
+                setEditedProfile({ ...editedProfile, name: text });
+                
+              }} 
+            />
+           
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput 
+              style={[styles.input]} 
+              placeholder="Email" 
+              value={editedProfile.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              onChangeText={(text) => {
+                setEditedProfile({ ...editedProfile, email: text });
+               }} 
+            />
+            </View>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Address</Text>
+            <TextInput 
+              style={[styles.input]} 
+              placeholder="Address" 
+              value={editedProfile.address.textData} 
+              onChangeText={(text) => {
+                setEditedProfile({ 
+                  ...editedProfile, 
+                  address: { ...editedProfile.address, textData: text } 
+                });
+                }} 
+            />
+            </View>
+          
+          <LocationPreview />
+          
+          <TouchableOpacity 
+            style={styles.chooseLocationButton}
+            onPress={handleOpenLocationPicker}
+          >
+            <Icon name="map-marker" size={18} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.modalButtonText}>Choose Location on Map</Text>
+          </TouchableOpacity>
+          
+           <View style={styles.modalButtonContainer}>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.cancelButton]} 
+              onPress={() => setIsModalVisible(false)}
+              disabled={updateLoading}
+            >
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.saveButton, updateLoading && styles.disabledButton]} 
+              onPress={updateUserProfile}
+              disabled={updateLoading}
+            >
+              {updateLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.modalButtonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+        {/* Modal for picking location on map */}
+        <Modal visible={isLocationPickerVisible} transparent animationType="slide">
+          <View style={styles.locationModalContainer}>
+            <View style={styles.locationModalContent}>
+              <MapView
+                style={styles.locationMap}
+                initialRegion={{
+                  latitude: selectedLocation ? selectedLocation.latitude : (profile && profile.address.x ? profile.address.x : 26.7282867),
+                  longitude: selectedLocation ? selectedLocation.longitude : (profile && profile.address.y ? profile.address.y : 83.4410984),
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                onPress={(e) => {
+                  const { latitude, longitude } = e.nativeEvent.coordinate;
+                  setSelectedLocation({ latitude, longitude });
+                }}
+              >
+                <Marker 
+                  coordinate={selectedLocation || { 
+                    latitude: profile && profile.address.x ? profile.address.x : 26.7282867, 
+                    longitude: profile && profile.address.y ? profile.address.y : 83.4410984 
+                  }} 
+                />
+              </MapView>
+              <View style={styles.locationModalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, { flex: 1 }]} 
+                  onPress={() => setIsLocationPickerVisible(false)}
+                >
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.modalButton} onPress={() => updateUserProfile(editedProfile.name, editedProfile.email)}>
-                  <Text style={styles.modalButtonText}>Save</Text>
-                </TouchableOpacity>
+                <TouchableOpacity 
+  style={[styles.modalButton, { flex: 1 }]} 
+  onPress={() => {
+    if (selectedLocation) {
+      console.log("Selected location details:", selectedLocation);
+      setEditedProfile((prev) => ({
+        ...prev,
+        address: { ...prev.address, x: selectedLocation.latitude, y: selectedLocation.longitude },
+      }));
+      setIsLocationPickerVisible(false);
+    } else {
+      Alert.alert("No location selected", "Please tap on the map to choose a location.");
+    }
+  }}
+>
+  <Text style={styles.modalButtonText}>Save Location</Text>
+</TouchableOpacity>
+
               </View>
             </View>
           </View>
@@ -229,7 +479,7 @@ export default function TabProfileScreen() {
       </View>
     </ImageBackground>
   );
-} 
+}
 
 const styles = StyleSheet.create({
   backgroundImage: {
@@ -239,6 +489,44 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  locationPreview: {
+    height: 150,
+    marginBottom: 15,
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
+  previewMap: {
+    width: "100%",
+    height: "100%",
+  },
+  locationPreviewPlaceholder: {
+    height: 100,
+    marginBottom: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    backgroundColor: "#f5f5f5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  locationPreviewText: {
+    color: "#888",
+    marginTop: 5,
+  },
+  
+  chooseLocationButton: {
+    backgroundColor: "#000", // A distinct green color
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#1e7e34",
+  },
+  
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(237, 236, 236, 0.77)",
@@ -288,6 +576,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  infoText: {
+    textAlign: "center",
+    marginBottom: 10,
+    fontSize: 14,
+    color: "#333",
   },
   editButton: {
     position: "absolute",
@@ -358,28 +652,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginTop: 2,
   },
-  historyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-    alignSelf: "flex-start",
-  },
-  historyScroll: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  historyScrollContent: {
-    paddingBottom: 20,
-  },
   companyContainer: {
     width: "90%",
     borderRadius: 10,
     overflow: "hidden",
     left: "5%",
-  },
-  companyScroll: {
-    width: "100%",
-    paddingHorizontal: 20,
   },
   companyBackground: {
     padding: 20,
@@ -412,9 +689,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   divider: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "left",
     height: 1,
     backgroundColor: "#444",
     width: "100%",
@@ -424,7 +698,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 10,
-    width: "100%",
     justifyContent: "flex-start",
   },
   numberText: {
@@ -433,19 +706,18 @@ const styles = StyleSheet.create({
     color: "#00aaff",
     marginLeft: 5,
   },
- footer: {
-  position: "absolute",
-  width:"90%",
-  bottom: 20,
-  left: "5%",
-  right: 0,
-  alignItems: "center",
-  justifyContent: "center",
-},
-
+  footer: {
+    position: "absolute",
+    width: "90%",
+    bottom: 20,
+    left: "5%",
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   buttonContainer: {
-    bottom:"1%", 
     width: "100%",
+    bottom: "1%",
   },
   button: {
     padding: 12,
@@ -457,5 +729,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+  // Styles for location picker modal
+  locationModalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  locationModalContent: {
+    width: "90%",
+    height: "70%",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  locationMap: {
+    flex: 1,
+  },
+  locationModalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    padding: 10,
+  },
 });
-

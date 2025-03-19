@@ -21,6 +21,7 @@ import { LinearGradient } from "expo-linear-gradient"; // Optional for modern lo
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // Register translations
 registerTranslation('en', en);
+import { ActivityIndicator } from 'react-native';
 
 const IST_TIMEZONE = 'Asia/Kolkata';
 const screenWidth = Dimensions.get("window").width - 32; // Accounting for padding
@@ -38,32 +39,206 @@ const AdminPaymentHistory = () => {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [graphFlag, setGraphFlag] = useState(1); // 1: LineChart, 2: PieChart, 3: Calendar
    const [shopId ,setShopId]=useState(null);
-  
-  const savePdfToDownloads = async () => {
-    try {
-      // Define the file path in app storage
-      const pdfUri = `${FileSystem.documentDirectory}RecentTransactions.pdf`;
-  
-      if (Platform.OS === "android") {
-        // Use Expo Sharing API to allow the user to save the file manually
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(pdfUri, { mimeType: "application/pdf" });
-          Alert.alert("Success", "Choose 'Save to Downloads' in the sharing options.");
-        } else {
-          Alert.alert("Error", "Sharing is not supported on this device.");
-        }
-      } else {
-        // iOS: Save the file to the app's document directory
-        Alert.alert("iOS Info", "File is saved in the app's document directory.");
-      }
-    } catch (error) {
-      console.error("Error saving file:", error);
-      Alert.alert("Error", "Failed to save the PDF.");
+  // Add this state at the top of your component
+const [isLoading, setIsLoading] = useState(false);
+ 
+
+  // Add this function to fetch shop profile data
+const fetchShopProfile = async (shopId) => {
+  try {
+    const response = await fetch(`https://barberqueue-24143206157.us-central1.run.app/shop/profile?id=${shopId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch shop profile');
     }
+    const shopData = await response.json();
+    return shopData;
+  } catch (error) {
+    console.error('Error fetching shop profile:', error);
+    throw error;
+  }
+};
+
+// Update the PDF generation function to include shop info
+const createAndSavePdf = async () => {
+  try {
+    // Show loading indicator
+    setIsLoading(true);
+    
+    // Get shop data
+    let shopData = { name: "Shop", address: "" };
+    try {
+      shopData = await fetchShopProfile(shopId);
+    } catch (error) {
+      console.error('Could not fetch shop data:', error);
+      // Continue with default shop info if fetch fails
+    }
+    
+    // 1. Create the HTML content for the PDF
+    const htmlContent = generatePdfContent(filteredPayments, shopData);
+    
+    // 2. Generate the PDF using expo-print
+    const { uri } = await Print.printToFileAsync({
+      html: htmlContent,
+      base64: false
+    });
+    
+    console.log('PDF created at', uri);
+    
+    // Generate a filename with current date
+    const currentDate = format(new Date(), 'yyyy-MM-dd', { timeZone: IST_TIMEZONE });
+    const fileName = `Transactions_${shopData.name.replace(/\s+/g, '_')}_${currentDate}.pdf`;
+    
+    // 3. Share the file
+    if (Platform.OS === "android") {
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          dialogTitle: "Download Transaction Report",
+          UTI: "com.adobe.pdf",
+          filename: fileName
+        });
+        Alert.alert("Success", "File ready to be saved to your device.");
+      } else {
+        Alert.alert("Error", "Sharing is not supported on this device.");
+      }
+    } else {
+      // iOS
+      await Sharing.shareAsync(uri, {
+        mimeType: "application/pdf",
+        UTI: "com.adobe.pdf",
+        filename: fileName
+      });
+      Alert.alert("Success", "PDF shared successfully.");
+    }
+  } catch (error) {
+    console.error("Error creating/sharing PDF:", error);
+    Alert.alert("Error", "Failed to create or save the PDF.");
+  } finally {
+    // Hide loading indicator
+    setIsLoading(false);
+  }
+};
+
+// Updated function to generate PDF content with shop info and current date
+const generatePdfContent = (transactions, shopData) => {
+  // Format current date in IST
+  const currentDate = format(utcToZonedTime(new Date(), IST_TIMEZONE), 'MMMM dd, yyyy', { timeZone: IST_TIMEZONE });
+  const currentTime = format(utcToZonedTime(new Date(), IST_TIMEZONE), 'HH:mm:ss', { timeZone: IST_TIMEZONE });
+  
+  // Format address to keep it on the left side without crossing half the page
+  const formatAddress = (address) => {
+    if (!address) return '';
+    
+    // Split address into chunks of reasonable length
+    const maxLength = 30;
+    let lines = [];
+    let remaining = address;
+    
+    while (remaining.length > 0) {
+      // Find a good breaking point
+      let breakPoint = Math.min(maxLength, remaining.length);
+      if (breakPoint < remaining.length) {
+        // Try to break at a space
+        const lastSpace = remaining.substring(0, breakPoint).lastIndexOf(' ');
+        if (lastSpace > 0) {
+          breakPoint = lastSpace;
+        }
+      }
+      
+      lines.push(remaining.substring(0, breakPoint));
+      remaining = remaining.substring(breakPoint).trim();
+    }
+    
+    return lines.join('<br>');
   };
 
+  // Create a table for transactions
+  const tableRows = transactions.map(payment => `
+    <tr>
+      <td>${payment.barberName}</td>
+      <td>₹${payment.totalCost}</td>
+      <td>${payment.services.join(", ")}</td>
+      <td>${payment.date} • ${payment.time}</td>
+    </tr>
+  `).join('');
 
+  // Create the HTML content with the new structure
+  return `
+    <html>
+      <head>
+        <style>
+          body { font-family: 'Helvetica', sans-serif; padding: 20px; }
+          h1 { text-align: center; color: #333; margin-bottom: 30px; }
+          .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+          .shop-name { font-size: 18px; font-weight: bold; margin: 0; }
+          .report-date { text-align: right; color: #666; margin: 0; }
+          .shop-id { color: #666; margin: 5px 0; }
+          .address { color: #666; max-width: 50%; margin: 5px 0; }
+          .time-info { text-align: right; color: #666; margin: 5px 0; }
+          .summary { display: flex; justify-content: space-between; margin: 30px 0; }
+          .summary-card { padding: 15px; border-radius: 8px; width: 45%; }
+          .revenue { background-color: #00b894; color: white; }
+          .customers { background-color: #0984e3; color: white; }
+          .card-title { margin: 0 0 10px 0; font-size: 16px; }
+          .card-value { margin: 0; font-size: 24px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          .transactions-title { margin: 30px 0 10px 0; }
+          .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #999; }
+        </style>
+      </head>
+      <body>
+        <h1>Transaction Report</h1>
+        
+        <div class="header-row">
+          <p class="shop-name">${shopData.name}</p>
+          <p class="report-date">Report Generated: ${currentDate}</p>
+        </div>
+        
+        <div class="header-row">
+          <div>
+            <p class="shop-id">Shop ID: ${shopId}</p>
+            <p class="address">${formatAddress(shopData.address.textData || '')}</p>
+          </div>
+          <p class="time-info">Time: ${currentTime} IST</p>
+        </div>
+        
+        <div class="summary">
+          <div class="summary-card revenue">
+            <h3 class="card-title">Total Revenue</h3>
+            <p class="card-value">₹${totalRevenue}</p>
+          </div>
+          <div class="summary-card customers">
+            <h3 class="card-title">Total Customers</h3>
+            <p class="card-value">${totalCustomers}</p>
+          </div>
+        </div>
+        
+        <h2 class="transactions-title">Transactions (${filter} - ${barberFilter})</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Barber</th>
+              <th>Amount</th>
+              <th>Services</th>
+              <th>Date & Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          <p>Numbr - Automated Report</p>
+        </div>
+      </body>
+    </html>
+  `;
+};
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
@@ -602,11 +777,20 @@ const AdminPaymentHistory = () => {
         {/* Recent Transactions */}
         <View style={styles.controlsContainer}>
           <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          <TouchableOpacity style={styles.buttonContainer} onPress={savePdfToDownloads} activeOpacity={0.7}>
-            <LinearGradient colors={["#e63946", "#d62828"]} style={styles.pdfButton}>
-              <MaterialCommunityIcons name="file-export" size={25} color="white" />
-            </LinearGradient>
-          </TouchableOpacity>
+          <TouchableOpacity 
+  style={styles.buttonContainer} 
+  onPress={createAndSavePdf} 
+  activeOpacity={0.7}
+  disabled={isLoading}
+>
+  <LinearGradient colors={["#e63946", "#d62828"]} style={styles.pdfButton}>
+    {isLoading ? (
+      <ActivityIndicator size="small" color="white" />
+    ) : (
+      <MaterialCommunityIcons name="file-export" size={25} color="white" />
+    )}
+  </LinearGradient>
+</TouchableOpacity>
         </View>
         <View style={styles.recentTransactionsContainer}>
           <ScrollView style={styles.recentTransactionsScroll} nestedScrollEnabled={true}>

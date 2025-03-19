@@ -7,12 +7,15 @@ import {
   TouchableOpacity,
   ImageBackground,
   StyleSheet,
+  ActivityIndicator,
   Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
+import { useFocusEffect } from "@react-navigation/native";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -22,7 +25,6 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true, // Set the app badge count
   }),
 });
-import { useFocusEffect } from '@react-navigation/native';
 
 // Function to register push notifications
 async function registerForPushNotifications(uid) {
@@ -57,15 +59,13 @@ async function registerForPushNotifications(uid) {
           projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
         })
       ).data;
-      // console.log("Expo Push Token generated:", token);
-      // Alert.alert("Expo Push Token generated:", token);
     } catch (error) {
       console.error("Error generating Expo Push Token:", error);
       Alert.alert(
         "Error Generating Push Token",
         `An error occurred while generating the push token: ${error.message}`
       );
-      return; // Exit the function if token generation fails
+      return;
     }
 
     // Step 3: Send token to your custom backend
@@ -121,13 +121,15 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
       return;
     }
-
+    setLoading(true);
     try {
       const response = await fetch(
         "https://barberqueue-24143206157.us-central1.run.app/shop/login",
@@ -141,6 +143,7 @@ export default function LoginScreen() {
       const data = await response.json();
       if (!response.ok) {
         Alert.alert("Error", data.error || "Login failed");
+        setLoading(false);
         return;
       }
       console.log(data.shop.id);
@@ -148,21 +151,17 @@ export default function LoginScreen() {
       await AsyncStorage.setItem("userToken", data.token);
       await AsyncStorage.setItem("userName", data.shop.name);
       await AsyncStorage.setItem("uid", data.shop.id);
-      
       let userType = "superadmin";
       await AsyncStorage.setItem("userType", userType);
 
-     // Alert.alert("Success", `Logged in as: ${email}`);
-     await registerForPushNotifications(data.shop.id);
-      // Navigate immediately
-         router.replace("/(superadmin)/menu");
-      
+      await registerForPushNotifications(data.shop.id);
 
-      // Register push notifications without awaiting (to avoid delay)
-     
+      // Navigate immediately and remove this screen from the stack
+      router.replace("/(superadmin)/menu");
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
+      setLoading(false);
     }
   };
 
@@ -182,23 +181,32 @@ export default function LoginScreen() {
             onChangeText={setEmail}
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="rgb(0, 0, 0)"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              placeholder="Password"
+              placeholderTextColor="rgb(0, 0, 0)"
+              secureTextEntry={!passwordVisible}
+              value={password}
+              onChangeText={setPassword}
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setPasswordVisible(!passwordVisible)}>
+              <Icon name={passwordVisible ? "visibility" : "visibility-off"} size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity style={styles.buttonContainer} onPress={handleLogin}>
+          <TouchableOpacity style={styles.buttonContainer} onPress={handleLogin} disabled={loading}>
             <LinearGradient
               colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.button}
             >
-              <Text style={styles.buttonText}>Login</Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buttonText}>Login</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -250,6 +258,20 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     color: "rgb(0, 0, 0)",
+  },
+  passwordContainer: {
+    position: "relative",
+    width: "100%",
+    marginBottom: 15,
+  },
+  passwordInput: {
+    paddingRight: 45, // Extra right padding to avoid text overlap with the eye icon
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 10,
+    top: "50%",
+    transform: [{ translateY: -20 }],
   },
   buttonContainer: {
     width: "100%",

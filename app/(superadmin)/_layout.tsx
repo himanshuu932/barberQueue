@@ -8,7 +8,7 @@ export default function Layout() {
   return (<>
     <View style={styles.header}>
         
-          <Text style={styles.title}>My App</Text>
+          <Text style={styles.title}>Numbr</Text>
         </View>
     <View style={styles.container}>
       <Tabs
