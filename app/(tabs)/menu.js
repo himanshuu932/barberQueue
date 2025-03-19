@@ -12,6 +12,7 @@ import {
   FlatList,
   TextInput,
   Platform,
+  Dimensions,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
@@ -30,7 +31,7 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
-
+const { width, height } = Dimensions.get("window");
 export default function MenuScreen() {
   const navigation = useNavigation();
   const [queueLength, setQueueLength] = useState(null);
@@ -62,6 +63,27 @@ export default function MenuScreen() {
   const [rating, setRating] = useState(0);
   const [infoModalChecklist, setInfoModalChecklist] = useState([]);
   const [totalCostForInfo, setTotalCostForInfo] = useState(0);
+  const [isConfirming, setIsConfirming] = useState(false);
+  useEffect(() => {
+    if (!modalVisible) {
+      setIsConfirming(false);
+    }
+  }, [modalVisible]);
+  const joinQueueHandler = async () => {
+    if (isConfirming) return; // prevent duplicate clicks
+
+    setIsConfirming(true);
+    try {
+      // Assume joinQueue returns a promise.
+      await joinQueue();
+      // Optionally, you might want to close the modal here:
+      // setModalVisible(false);
+    } catch (error) {
+      console.error(error);
+    }
+    // Reset after the join process is done so the button can be clicked next time
+    setIsConfirming(false);
+  };
   const totalSelectedPrice = checklist
     .filter((item) => item.checked)
     .reduce((sum, item) => sum + item.price, 0);
@@ -231,6 +253,32 @@ export default function MenuScreen() {
       setLoading(false);
     }
   };
+  const index = queueItems.findIndex((item) => item.uid === uid);
+  const userPosition = index >= 0 ? index + 1 : null;
+  const avgServiceTime = 10;
+  const initialWaitTime = userPosition ? userPosition * avgServiceTime * 60 : null;
+
+  useEffect(() => {
+    let timer;
+    const updateRemainingTime = async () => {
+      // Get the join timestamp from AsyncStorage
+      const joinTimeStr = await AsyncStorage.getItem("joinTimestamp");
+      if (joinTimeStr && userPosition) {
+        const joinTime = Number(joinTimeStr);
+        const elapsed = Math.floor((Date.now() - joinTime) / 1000); // in seconds
+        const expectedWaitTime = userPosition * avgServiceTime * 60; // in seconds
+        // Calculate the new remaining time (if negative, display 0)
+        setRemainingTime(expectedWaitTime - elapsed > 0 ? expectedWaitTime - elapsed : 0);
+      }
+    };
+    if (userPosition) {
+      // Update immediately on mount
+      updateRemainingTime();
+      // Then update every second
+      timer = setInterval(updateRemainingTime, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [userPosition]);
 
   const updateUserServices = async (selectedServices, totalCost) => {
     if (!selectedServices || selectedServices.length === 0) {
@@ -463,9 +511,9 @@ async function getShopName(uid) {
        
         {/* Button to choose shop */}
     
-        {queueItems.length > 0 && (
+        {userPosition && (
           <Text style={styles.waitTime}>
-            Estimated Wait: <Text style={styles.timer}>{formatTime(remainingTime)}</Text>
+              Estimated Wait: <Text style={styles.timer}>{formatTime(remainingTime)}</Text>
           </Text>
         )}
         <Text style={styles.queue}>👤 {queueLength}</Text>
@@ -503,7 +551,7 @@ async function getShopName(uid) {
           ))}
         </ScrollView>
   
-        <View style={styles.buttonContainer}>
+        <View style={styles.absoluteButtons}>
           {combinedName && queueItems.some((item) => item.uid === uid) ? (
             <TouchableOpacity style={styles.leaveButton} onPress={leaveQueue}>
               <Icon name="sign-out" size={24} color="white" />
@@ -643,7 +691,11 @@ async function getShopName(uid) {
                 keyExtractor={(item) => item.id.toString()}
               />
               <Text style={styles.totalPrice}>Total Price: ₹{totalSelectedPrice}</Text>
-              <TouchableOpacity style={styles.confirmButton} onPress={joinQueue}>
+              <TouchableOpacity
+                style={[styles.confirmButton, isConfirming && styles.disabledButton]}
+                onPress={joinQueueHandler}
+                disabled={isConfirming}
+              >
                 <Text style={styles.buttonText}>Confirm</Text>
               </TouchableOpacity>
             </View>
@@ -659,8 +711,8 @@ async function getShopName(uid) {
   transparent
   onRequestClose={() => setChooseShopModalVisible(false)}
 >
-  <View style={[shopListStyles.modalContainer, { marginTop: 60 }]}>
-    <View style={[shopListStyles.modalContent, { maxHeight: "100%" }]}>
+  <View style={shopListStyles.modalContainer}>
+    <View style={shopListStyles.modalContent}>
       <ShopList 
         onSelect={refreshShop} 
         onClose={() => setChooseShopModalVisible(false)} 
@@ -721,7 +773,7 @@ async function getShopName(uid) {
   style={styles.chooseShopButton}
   onPress={() => setChooseShopModalVisible(true)}
 >
-  <FontAwesome5 name="store" solid size={15} color="#fff"  />
+  <FontAwesome5 name="store" solid size={20.5} color="#fff"  />
   
 </TouchableOpacity>
     </ImageBackground>
@@ -730,19 +782,21 @@ async function getShopName(uid) {
   
 // Inline ShopList component (similar to your AllShops component)
 // It accepts an onSelect prop that is called after a shop is chosen.
-const ShopList = ({ onSelect,onClose }) => {
+const ShopList = ({ onSelect, onClose }) => {
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   useEffect(() => {
     fetchShops();
   }, []);
-  
+
   const fetchShops = async () => {
     try {
-      const response = await fetch("https://barberqueue-24143206157.us-central1.run.app/shop/shops");
+      const response = await fetch(
+        "https://barberqueue-24143206157.us-central1.run.app/shop/shops"
+      );
       if (!response.ok) {
         throw new Error("Network response was not ok");
       }
@@ -754,7 +808,7 @@ const ShopList = ({ onSelect,onClose }) => {
       setLoading(false);
     }
   };
-  
+
   const handleSelectShop = async (shopId) => {
     try {
       await AsyncStorage.setItem("pinnedShop", shopId);
@@ -765,28 +819,87 @@ const ShopList = ({ onSelect,onClose }) => {
       console.error("Error saving pinned shop:", error);
     }
   };
-  
+
   const filteredShops = shops.filter((shop) =>
     shop.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
-  const renderShop = ({ item }) => (
-    <TouchableOpacity
-      style={shopListStyles.shopContainer}
-      onPress={() => handleSelectShop(item._id)}
-    >
-      <Text style={shopListStyles.shopName}>{item.name}</Text>
-      <Text>{item.email}</Text>
-      <Text>{item._id}</Text>
-      {item.address && (
-        <View style={shopListStyles.addressContainer}>
-          <Text>{`Address: ${item.address.textData}`}</Text>
-          <Text>{`Coordinates: (${item.address.x}, ${item.address.y})`}</Text>
+
+  async function fetchBarbersAndCalculateAverage(shopId) {
+    try {
+      const response = await fetch(
+        `https://barberqueue-24143206157.us-central1.run.app/barbers?shopId=${shopId}`
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const barbers = await response.json();
+
+      let overallSum = 0;
+      barbers.forEach((barber) => {
+        let avgRating = 0;
+        if (barber.totalRatings > 0) {
+          avgRating = barber.totalStarsEarned / barber.totalRatings;
+        } else if (barber.ratings && barber.ratings.length > 0) {
+          const total = barber.ratings.reduce((sum, rating) => sum + rating, 0);
+          avgRating = total / barber.ratings.length;
+        }
+        overallSum += avgRating;
+      });
+      const overallAverage = barbers.length > 0 ? overallSum / barbers.length : 0;
+      return { overallAverage };
+    } catch (error) {
+      console.error("Error fetching barbers and calculating average:", error);
+      return { overallAverage: 0 };
+    }
+  }
+
+  // Inner component for each shop item.
+  const ShopItem = ({ item }) => {
+    const [averageRating, setAverageRating] = useState(null);
+
+    useEffect(() => {
+      async function getAverageRating() {
+        const { overallAverage } = await fetchBarbersAndCalculateAverage(item._id);
+        setAverageRating(overallAverage);
+      }
+      getAverageRating();
+    }, [item._id]);
+
+    return (
+      <TouchableOpacity
+        style={shopListStyles.shopContainer}
+        onPress={() => handleSelectShop(item._id)}
+      >
+        <View style={shopListStyles.itemHeader}>
+          <Text style={shopListStyles.shopName}>{item.name}</Text>
+          <Text style={shopListStyles.shopName}>{item.address.x}</Text>
         </View>
-      )}
-    </TouchableOpacity>
-  );
-  
+        {item.address && (
+          <View style={shopListStyles.addressContainer}>
+            <Text style={shopListStyles.addressText}>
+              {`Address: ${item.address.textData}`}
+            </Text>
+          </View>
+        )}
+        {averageRating !== null && (
+          <View style={shopListStyles.ratingContainer}>
+            <Text style={shopListStyles.ratingText}>
+              Rating : {averageRating.toFixed(1)}
+            </Text>
+            <Icon
+              name="star"
+              size={16}
+              color="#FFD700"
+              style={shopListStyles.starIcon}
+            />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderShop = ({ item }) => <ShopItem item={item} />;
+
   const renderHeader = () => (
     <View style={shopListStyles.headerContainer}>
       <View
@@ -799,7 +912,7 @@ const ShopList = ({ onSelect,onClose }) => {
         <Text style={shopListStyles.heading}>Choose Shop</Text>
         {onClose && (
           <TouchableOpacity onPress={onClose}>
-            <Icon name="times-circle" size={20} color="black" />
+            <Icon name="close" size={20} color="black" />
           </TouchableOpacity>
         )}
       </View>
@@ -811,7 +924,7 @@ const ShopList = ({ onSelect,onClose }) => {
       />
     </View>
   );
-  
+
   if (loading) {
     return (
       <View style={shopListStyles.centered}>
@@ -819,7 +932,7 @@ const ShopList = ({ onSelect,onClose }) => {
       </View>
     );
   }
-  
+
   if (error) {
     return (
       <View style={shopListStyles.centered}>
@@ -827,7 +940,7 @@ const ShopList = ({ onSelect,onClose }) => {
       </View>
     );
   }
-  
+
   return (
     <FlatList
       data={filteredShops}
@@ -839,8 +952,31 @@ const ShopList = ({ onSelect,onClose }) => {
     />
   );
 };
-  
+
 const shopListStyles = StyleSheet.create({
+  itemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxHeight: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
   listContainer: {
     paddingBottom: 16,
     backgroundColor: "#fff",
@@ -852,41 +988,70 @@ const shopListStyles = StyleSheet.create({
   },
   headerContainer: {
     backgroundColor: "#fff",
-    padding: 16,
+    padding: 10,
     borderBottomWidth: 1,
-    borderColor: "#ccc",
+    borderBottomColor: "#e0e0e0",
     marginBottom: 8,
   },
   heading: {
     fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
+    fontWeight: "700",
+    // marginBottom: 8,
+    color: "#333",
   },
   searchInput: {
-    backgroundColor: "#f1f1f1",
+    backgroundColor: "#fff",
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    marginVertical: 10,
   },
   shopContainer: {
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#fff",
     padding: 16,
     marginBottom: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#e0e0e0",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
   },
   shopName: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "600",
     marginBottom: 4,
+    color: "#333",
   },
   addressContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+  },
+  addressText: {
+    flexBasis: "100%",
+    color: "#555",
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 8,
   },
-});
-  
+  ratingText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+    marginRight: 4,
+  },
+  starIcon: {
+    marginTop: 2, // Adjust this value if needed to align vertically
+  },
+});  
   
 const styles = StyleSheet.create({
   ratingModalContainer: {
@@ -1036,30 +1201,40 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#555",
   },
+  absoluteButtons: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    pointerEvents: "box-none",
+  },
+  // Join button is positioned at the bottom-right
   joinButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
+    position: "absolute",
+    bottom: height * 0.03, // 2% from bottom of the screen
+    right: width * 0.06,   // 3% from right edge
+    width: width * 0.13,   // roughly 13% of screen width
+    height: width * 0.13,
+    borderRadius: (width * 0.13) / 4,
     backgroundColor: "rgb(48, 139, 36)",
     justifyContent: "center",
     alignItems: "center",
     elevation: 3,
   },
+  // Leave button is positioned at the top-left
   leaveButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
+    position: "absolute",
+    top: height * 0.17,    // 2% from top
+    left: width * 0.83,    // 3% from left
+    width: width * 0.13,
+    height: width * 0.13,
+    borderRadius: (width * 0.13) / 4,
     backgroundColor: "rgb(212, 53, 53)",
     justifyContent: "center",
     alignItems: "center",
     elevation: 3,
-  },
-  buttonContainer: {
-    position: "absolute",
-    bottom: 20,
-    right: 25,
-    flexDirection: "row",
-    gap: 10,
   },
   shopName: {
     position: "absolute",
@@ -1075,10 +1250,12 @@ const styles = StyleSheet.create({
   },
   chooseShopButton: {
     position: "absolute",
-    top: 5,
-    left: 10,
+    top: "1%",
+    left: "3%",
+    height: 45,
+    width: 45,
     backgroundColor: "#007bff",
-    padding: 10,
+    padding: "10",
     borderRadius: 8,
     zIndex: 100,
   },
