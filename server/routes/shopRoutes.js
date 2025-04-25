@@ -18,7 +18,7 @@ const {
 
 const router = express.Router();
 
-// Auth & Shop Routes
+
 router.post('/signup', signup);
 router.post('/login', login);
 router.post('/update-address', updateAddress);

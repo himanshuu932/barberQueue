@@ -2,19 +2,19 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Image, 
-  TouchableOpacity, 
-  Animated, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Animated,
   Alert,
   ActivityIndicator,
   Modal,
   TextInput,
   Linking,
-  ImageBackground
+  ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
@@ -24,24 +24,48 @@ import MapView, { Marker } from "react-native-maps";
 export default function TabProfileScreen() {
   const router = useRouter();
   const shineAnimation = useRef(new Animated.Value(0)).current;
+  
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  // Add the missing state for the location picker modal:
   const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
-  const [updateLoading, setUpdateLoading] = useState(false);
+  
   // editedProfile holds name, email, and an address object (textData, x, and y)
-  const [editedProfile, setEditedProfile] = useState({ 
-    name: "", 
-    email: "", 
-    address: { textData: "", y: 0, x: 0 }
+  const [editedProfile, setEditedProfile] = useState({
+    name: "",
+    email: "",
+    address: { textData: "", y: 0, x: 0 },
   });
   const [shopId, setShopId] = useState(null);
   const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
   // State to track location picked in map modal
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  // Fetch the shopId from AsyncStorage and then get the profile
+  // Define the available payment plans
+  const plans = [
+    { id: "monthly", label: "Monthly - ₹241", value: 241 },
+    { id: "quarterly", label: "Quarterly - ₹700", value: 700 },
+    { id: "halfYearly", label: "Half-Yearly - ₹2790", value: 2790 },
+    { id: "yearly", label: "Yearly - ₹5500", value: 5500 },
+  ];
+
+  // Dummy payment initiation function – replace with your payment gateway integration
+  const initiatePayment = async (planId) => {
+    const selectedPlanData = plans.find((plan) => plan.id === planId);
+    if (!selectedPlanData) {
+      Alert.alert("Please select a plan");
+      return;
+    }
+    console.log("Initiating payment for plan:", selectedPlanData);
+    // Replace the following with your payment gateway code
+    Alert.alert("Payment", `Payment initiated for ${selectedPlanData.label}`);
+    // After payment, you may want to update trial status and close the modal:
+    setPaymentModalVisible(false);
+  };
+
   useFocusEffect(
     useCallback(() => {
       const getShopIdAndProfile = async () => {
@@ -162,7 +186,7 @@ export default function TabProfileScreen() {
       console.error("Error updating user profile:", error);
     }
   }
-  
+
   const LocationPreview = () => {
     if (!editedProfile.address.x || !editedProfile.address.y) {
       return (
@@ -172,7 +196,7 @@ export default function TabProfileScreen() {
         </View>
       );
     }
-    
+
     return (
       <View style={styles.locationPreview}>
         <MapView
@@ -188,107 +212,95 @@ export default function TabProfileScreen() {
           rotateEnabled={false}
           pitchEnabled={false}
         >
-          <Marker coordinate={{ 
-            latitude: editedProfile.address.x, 
-            longitude: editedProfile.address.y 
-          }} />
+          <Marker coordinate={{ latitude: editedProfile.address.x, longitude: editedProfile.address.y }} />
         </MapView>
       </View>
     );
-  };const handleOpenLocationPicker = async () => {
+  };
+
+  const handleOpenLocationPicker = async () => {
     let defaultLocation;
-    
-    // Try to use existing location data first
     if (editedProfile.address.x && editedProfile.address.y) {
-      defaultLocation = { 
-        latitude: editedProfile.address.x, 
-        longitude: editedProfile.address.y 
+      defaultLocation = {
+        latitude: editedProfile.address.x,
+        longitude: editedProfile.address.y,
       };
     } else if (profile?.address?.x && profile?.address?.y) {
-      defaultLocation = { 
-        latitude: profile.address.x, 
-        longitude: profile.address.y 
+      defaultLocation = {
+        latitude: profile.address.x,
+        longitude: profile.address.y,
       };
     } else {
-      // Otherwise try to get current location
-      const currentLocation = await getCurrentLocation();
-      defaultLocation = currentLocation || { latitude: 26.7282867, longitude: 83.4410984 };
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      defaultLocation = currentLocation
+        ? { latitude: currentLocation.coords.latitude, longitude: currentLocation.coords.longitude }
+        : { latitude: 26.7282867, longitude: 83.4410984 };
     }
-    
     setSelectedLocation(defaultLocation);
     setIsLocationPickerVisible(true);
   };
+
   return (
-    <ImageBackground 
-      source={require("../image/bglogin.png")}
-      style={styles.backgroundImage}
-    >
+    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
       <View style={styles.container}>
         <View style={styles.overlay} />
         {/* Fixed header */}
         <View style={styles.header}>
           <View style={styles.profileBox}>
-            <LinearGradient 
-              colors={["#1a1a1a", "#333333", "#1a1a1a"]} 
-              style={styles.profileBackground}
-            >
-              <TouchableOpacity 
-                style={styles.editButton} 
-                onPress={() => { 
-                  // Pre-fill editedProfile state with current profile data
+            <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => {
                   setEditedProfile({
                     name: profile?.name || "",
                     email: profile?.email || "",
                     address: profile?.address || { textData: "", x: 0, y: 0 },
                   });
-                  setIsModalVisible(true); 
+                  setIsModalVisible(true);
                 }}
               >
-                <Image 
-                  source={require("../image/editw.png")}
-                  style={{ width: 25, height: 25, tintColor: "white" }}
-                />
+                <Image source={require("../image/editw.png")} style={{ width: 25, height: 25, tintColor: "white" }} />
               </TouchableOpacity>
               <Animated.View
                 style={[
-                  styles.shine, 
-                  { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] }
+                  styles.shine,
+                  { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] },
                 ]}
               >
-                <LinearGradient 
-                  colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]} 
+                <LinearGradient
+                  colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.shineGradient} 
+                  style={styles.shineGradient}
                 />
               </Animated.View>
               <View style={styles.profileContent}>
-                <Image 
-                  source={require("../image/user.png")} 
-                  style={styles.profileImage} 
-                />
+                <Image source={require("../image/user.png")} style={styles.profileImage} />
                 <View style={styles.profileDetails}>
                   {loading ? (
                     <ActivityIndicator size="large" color="#fff" />
                   ) : (
                     <View>
-                      <Text style={styles.username}>
-                        {profile?.name || "User Name"}
-                      </Text>                
+                      <Text style={styles.username}>{profile?.name || "User Name"}</Text>
+                      <Text style={styles.userInfo}>Username: {profile?.email || "N/A"}</Text>
+                      <Text style={styles.userInfo}>Status: {profile?.trialStatus || "N/A"}</Text>
                       <Text style={styles.userInfo}>
-                        Username: {profile?.email || "N/A"}
-                      </Text>
-                      <Text style={styles.userInfo}>
-                        Status: {profile?.trialStatus || "N/A"}
-                      </Text>
-                      <Text style={styles.userInfo}>
-                        {profile?.trialStartDate 
-                          ? new Date(profile.trialStartDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) 
+                        Ends on:{" "}
+                        {profile?.trialEndDate
+                          ? new Date(profile.trialEndDate).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
                           : "N/A"}
-                      </Text>  
-                      <Text style={styles.userInfo}>
-                        Address: {profile?.address.textData || ""}
                       </Text>
+                      <Text style={styles.userInfo}>Address: {profile?.address?.textData || ""}</Text>
+                      {/* Conditionally render Renew button if trial is expired */}
+                      {profile?.trialStatus?.toLowerCase() === "expired" && (
+                        <TouchableOpacity style={styles.renewButton} onPress={() => setPaymentModalVisible(true)}>
+                          <Text style={styles.renewButtonText}>Renew</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>
@@ -299,10 +311,7 @@ export default function TabProfileScreen() {
 
         {/* Company / Info Section */}
         <View style={styles.companyContainer}>
-          <LinearGradient 
-            colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} 
-            style={styles.companyBackground}
-          >
+          <LinearGradient colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} style={styles.companyBackground}>
             <Text style={styles.companyTitle}>Bludgers Technologies</Text>
             <Text style={styles.companyTagline}>Innovating Daily Living</Text>
             <Text style={styles.companyDescription}>
@@ -314,114 +323,87 @@ export default function TabProfileScreen() {
               <Text style={styles.companyWebsite}>📧 Mail: bludgers52@gmail.com</Text>
             </TouchableOpacity>
             <View style={styles.phoneContainer}>
-            <TouchableOpacity onPress={() => Linking.openURL('tel:8601346652')}>
-  <View style={styles.phoneContainer}>
-    <Icon name="phone" size={18} color="#00aaff" />
-    <Text style={styles.numberText}>Phone :- 8601346652</Text>
-  </View>
-</TouchableOpacity>
-
+              <TouchableOpacity onPress={() => Linking.openURL("tel:8601346652")}>
+                <View style={styles.phoneContainer}>
+                  <Icon name="phone" size={18} color="#00aaff" />
+                  <Text style={styles.numberText}>Phone :- 8601346652</Text>
+                </View>
+              </TouchableOpacity>
             </View>
           </LinearGradient>
         </View>
-      
+
         {/* Fixed logout button */}
         <View style={styles.footer}>
-          <TouchableOpacity 
-            style={styles.buttonContainer} 
-            onPress={handleLogout}
-          >
-            <LinearGradient 
-              colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} 
-              style={styles.button}
-            >
+          <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
+            <LinearGradient colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]} style={styles.button}>
               <Text style={styles.buttonText}>Logout</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
-      
+
         {/* Modal for editing profile */}
         <Modal visible={isModalVisible} transparent animationType="slide">
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Edit Profile</Text>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Name</Text>
-            <TextInput 
-              style={[styles.input]} 
-              placeholder="Name" 
-              value={editedProfile.name} 
-              onChangeText={(text) => {
-                setEditedProfile({ ...editedProfile, name: text });
-                
-              }} 
-            />
-           
-          </View>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput 
-              style={[styles.input]} 
-              placeholder="Email" 
-              value={editedProfile.email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              onChangeText={(text) => {
-                setEditedProfile({ ...editedProfile, email: text });
-               }} 
-            />
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Name"
+                  value={editedProfile.name}
+                  onChangeText={(text) => {
+                    setEditedProfile({ ...editedProfile, name: text });
+                  }}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  value={editedProfile.email}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  onChangeText={(text) => {
+                    setEditedProfile({ ...editedProfile, email: text });
+                  }}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Address</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Address"
+                  value={editedProfile.address.textData}
+                  onChangeText={(text) => {
+                    setEditedProfile({ ...editedProfile, address: { ...editedProfile.address, textData: text } });
+                  }}
+                />
+              </View>
+
+              <LocationPreview />
+
+              <TouchableOpacity style={styles.chooseLocationButton} onPress={handleOpenLocationPicker}>
+                <Icon name="map-marker" size={18} color="#fff" style={styles.buttonIcon} />
+                <Text style={styles.modalButtonText}>Choose Location on Map</Text>
+              </TouchableOpacity>
+
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsModalVisible(false)}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={updateUserProfile}>
+                  <Text style={styles.modalButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Address</Text>
-            <TextInput 
-              style={[styles.input]} 
-              placeholder="Address" 
-              value={editedProfile.address.textData} 
-              onChangeText={(text) => {
-                setEditedProfile({ 
-                  ...editedProfile, 
-                  address: { ...editedProfile.address, textData: text } 
-                });
-                }} 
-            />
-            </View>
-          
-          <LocationPreview />
-          
-          <TouchableOpacity 
-            style={styles.chooseLocationButton}
-            onPress={handleOpenLocationPicker}
-          >
-            <Icon name="map-marker" size={18} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.modalButtonText}>Choose Location on Map</Text>
-          </TouchableOpacity>
-          
-           <View style={styles.modalButtonContainer}>
-            <TouchableOpacity 
-              style={[styles.modalButton, styles.cancelButton]} 
-              onPress={() => setIsModalVisible(false)}
-              disabled={updateLoading}
-            >
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.modalButton, styles.saveButton, updateLoading && styles.disabledButton]} 
-              onPress={updateUserProfile}
-              disabled={updateLoading}
-            >
-              {updateLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.modalButtonText}>Save</Text>
-              )}
-            </TouchableOpacity>
           </View>
-        </View>
-      </View>
-    </Modal>
+        </Modal>
 
         {/* Modal for picking location on map */}
         <Modal visible={isLocationPickerVisible} transparent animationType="slide">
@@ -430,8 +412,16 @@ export default function TabProfileScreen() {
               <MapView
                 style={styles.locationMap}
                 initialRegion={{
-                  latitude: selectedLocation ? selectedLocation.latitude : (profile && profile.address.x ? profile.address.x : 26.7282867),
-                  longitude: selectedLocation ? selectedLocation.longitude : (profile && profile.address.y ? profile.address.y : 83.4410984),
+                  latitude: selectedLocation
+                    ? selectedLocation.latitude
+                    : profile && profile.address.x
+                    ? profile.address.x
+                    : 26.7282867,
+                  longitude: selectedLocation
+                    ? selectedLocation.longitude
+                    : profile && profile.address.y
+                    ? profile.address.y
+                    : 83.4410984,
                   latitudeDelta: 0.01,
                   longitudeDelta: 0.01,
                 }}
@@ -440,38 +430,58 @@ export default function TabProfileScreen() {
                   setSelectedLocation({ latitude, longitude });
                 }}
               >
-                <Marker 
-                  coordinate={selectedLocation || { 
-                    latitude: profile && profile.address.x ? profile.address.x : 26.7282867, 
-                    longitude: profile && profile.address.y ? profile.address.y : 83.4410984 
-                  }} 
+                <Marker
+                  coordinate={
+                    selectedLocation || {
+                      latitude: profile && profile.address.x ? profile.address.x : 26.7282867,
+                      longitude: profile && profile.address.y ? profile.address.y : 83.4410984,
+                    }
+                  }
                 />
               </MapView>
               <View style={styles.locationModalButtons}>
-                <TouchableOpacity 
-                  style={[styles.modalButton, { flex: 1 }]} 
-                  onPress={() => setIsLocationPickerVisible(false)}
-                >
+                <TouchableOpacity style={[styles.modalButton, { flex: 1 }]} onPress={() => setIsLocationPickerVisible(false)}>
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-  style={[styles.modalButton, { flex: 1 }]} 
-  onPress={() => {
-    if (selectedLocation) {
-      console.log("Selected location details:", selectedLocation);
-      setEditedProfile((prev) => ({
-        ...prev,
-        address: { ...prev.address, x: selectedLocation.latitude, y: selectedLocation.longitude },
-      }));
-      setIsLocationPickerVisible(false);
-    } else {
-      Alert.alert("No location selected", "Please tap on the map to choose a location.");
-    }
-  }}
->
-  <Text style={styles.modalButtonText}>Save Location</Text>
-</TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { flex: 1 }]}
+                  onPress={() => {
+                    if (selectedLocation) {
+                      setEditedProfile((prev) => ({
+                        ...prev,
+                        address: { ...prev.address, x: selectedLocation.latitude, y: selectedLocation.longitude },
+                      }));
+                      setIsLocationPickerVisible(false);
+                    } else {
+                      Alert.alert("No location selected", "Please tap on the map to choose a location.");
+                    }
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>Save Location</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
+        {/* Payment Modal */}
+        <Modal visible={isPaymentModalVisible} transparent animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Choose a Payment Plan</Text>
+              {plans.map((plan) => (
+                <TouchableOpacity key={plan.id} style={styles.planOption} onPress={() => setSelectedPlan(plan.id)}>
+                  <View style={[styles.radioButton, selectedPlan === plan.id && styles.radioButtonSelected]} />
+                  <Text style={styles.planLabel}>{plan.label}</Text>
+                </TouchableOpacity>
+              ))}
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity style={[styles.modalButton, { backgroundColor: "#aaa" }]} onPress={() => setPaymentModalVisible(false)}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalButton} onPress={() => initiatePayment(selectedPlan)}>
+                  <Text style={styles.modalButtonText}>Pay Now</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -489,107 +499,9 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  locationPreview: {
-    height: 150,
-    marginBottom: 15,
-    borderRadius: 8,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#ccc",
-  },
-  previewMap: {
-    width: "100%",
-    height: "100%",
-  },
-  locationPreviewPlaceholder: {
-    height: 100,
-    marginBottom: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    backgroundColor: "#f5f5f5",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  locationPreviewText: {
-    color: "#888",
-    marginTop: 5,
-  },
-  
-  chooseLocationButton: {
-    backgroundColor: "#000", // A distinct green color
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: "center",
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#1e7e34",
-  },
-  
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(237, 236, 236, 0.77)",
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    width: "85%",
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 10,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-  input: {
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 16,
-  },
-  modalButtonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  modalButton: {
-    flex: 1,
-    backgroundColor: "#1a1a1a",
-    padding: 10,
-    borderRadius: 5,
-    alignItems: "center",
-    marginHorizontal: 5,
-  },
-  modalButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  infoText: {
-    textAlign: "center",
-    marginBottom: 10,
-    fontSize: 14,
-    color: "#333",
-  },
-  editButton: {
-    position: "absolute",
-    top: 0,
-    right: 5,
-    padding: 3,
-    borderRadius: 6,
-    alignItems: "center",
   },
   container: {
     flex: 1,
@@ -612,6 +524,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
+  },
+  editButton: {
+    position: "absolute",
+    top: 0,
+    right: 5,
+    padding: 3,
+    borderRadius: 6,
+    alignItems: "center",
   },
   shine: {
     position: "absolute",
@@ -651,6 +571,19 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#fff",
     marginTop: 2,
+  },
+  renewButton: {
+    marginTop: 10,
+    backgroundColor: "#28a745",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+    alignSelf: "flex-start",
+  },
+  renewButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   companyContainer: {
     width: "90%",
@@ -717,7 +650,6 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     width: "100%",
-    bottom: "1%",
   },
   button: {
     padding: 12,
@@ -729,7 +661,96 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  // Styles for location picker modal
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    width: "85%",
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  inputContainer: {
+    marginBottom: 10,
+  },
+  inputLabel: {
+    marginBottom: 5,
+    fontSize: 16,
+  },
+  input: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    padding: 10,
+    fontSize: 16,
+  },
+  chooseLocationButton: {
+    backgroundColor: "#000",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#1e7e34",
+  },
+  modalButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  modalButton: {
+    flex: 1,
+    backgroundColor: "#1a1a1a",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginHorizontal: 5,
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  cancelButton: {},
+  saveButton: {},
+  locationPreview: {
+    height: 150,
+    marginBottom: 15,
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
+  previewMap: {
+    width: "100%",
+    height: "100%",
+  },
+  locationPreviewPlaceholder: {
+    height: 100,
+    marginBottom: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    backgroundColor: "#f5f5f5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  locationPreviewText: {
+    color: "#888",
+    marginTop: 5,
+  },
   locationModalContainer: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.7)",
@@ -751,4 +772,25 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     padding: 10,
   },
+  planOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  radioButton: {
+    height: 20,
+    width: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#1a1a1a",
+    marginRight: 10,
+  },
+  radioButtonSelected: {
+    backgroundColor: "#1a1a1a",
+  },
+  planLabel: {
+    fontSize: 16,
+  },
 });
+
+export { TabProfileScreen };

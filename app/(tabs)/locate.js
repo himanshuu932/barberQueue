@@ -85,7 +85,7 @@ export default function LocateScreen() {
       //console.log("Fetched pinnedShop from AsyncStorage:", shopId);
       if (shopId) {
         const response = await fetch(
-          `https://barberqueue-24143206157.us-central1.run.app/shop/coordinates?id=${shopId}`
+          `http://10.0.2.2:5000/shop/coordinates?id=${shopId}`
         );
         const data = await response.json();
         //console.log("Shop coordinates API response:", data);

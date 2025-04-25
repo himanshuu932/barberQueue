@@ -25,7 +25,7 @@ export default function TabProfileScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ name: "", email: "" });
   const [isUpdating, setIsUpdating] = useState(false);
-  const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
+  const API_BASE = "http://10.0.2.2:5000";
 
   // Fetch profile data and store user id
   const fetchProfile = async () => {

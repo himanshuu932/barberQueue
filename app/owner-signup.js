@@ -32,7 +32,7 @@ export default function SignupScreen() {
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
+  const API_BASE = "http://10.0.2.2:5000";
 
   // Register for push notifications
   useEffect(() => {

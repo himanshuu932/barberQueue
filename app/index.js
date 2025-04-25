@@ -30,13 +30,10 @@ export default function Index() {
     checkLoginStatus();
   }, []);
 
-  // While we’re checking AsyncStorage, render nothing (or a splash/loading)
-  if (isLoggedIn === null) {
+   if (isLoggedIn === null) {
     return null;
   }
-
-  // Use a nested (or chained) ternary to redirect properly
-  return (
+ return (
     <Redirect
       href={
         isLoggedIn

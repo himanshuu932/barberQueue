@@ -71,7 +71,7 @@ async function registerForPushNotifications(uid) {
     // Step 3: Send token to your custom backend
     try {
       const response = await fetch(
-        "https://barberqueue-24143206157.us-central1.run.app/shop/register-push-token",
+        "http://10.0.2.2:5000/shop/register-push-token",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -132,7 +132,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const response = await fetch(
-        "https://barberqueue-24143206157.us-central1.run.app/shop/login",
+        "http://10.0.2.2:5000/shop/login",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
