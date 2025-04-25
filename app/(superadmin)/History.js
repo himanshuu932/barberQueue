@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Switch } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Switch, ImageBackground } from "react-native";
 import { Menu, Provider } from "react-native-paper";
 import { DatePickerModal } from "react-native-paper-dates";
 import { format, utcToZonedTime } from 'date-fns-tz';
@@ -8,9 +8,20 @@ import { en } from 'react-native-paper-dates';
 import {BarChart, PieChart, LineChart } from "react-native-chart-kit";
 import { startOfMonth, endOfMonth, eachDayOfInterval, getDate, getDay } from 'date-fns';
 import { useFocusEffect } from '@react-navigation/native';
-
+import RNHTMLtoPDF from 'react-native-html-to-pdf';
+import * as Print from 'expo-print';
+import * as FileSystem from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
+import * as Sharing from "expo-sharing";
+// import * as IntentLauncher from "expo-intent-launcher";
+import { StorageAccessFramework } from "expo-file-system";
+import { Alert, Platform, PermissionsAndroid } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons"; // Better icon set
+import { LinearGradient } from "expo-linear-gradient"; // Optional for modern look
+import AsyncStorage from "@react-native-async-storage/async-storage";
 // Register translations
 registerTranslation('en', en);
+import { ActivityIndicator } from 'react-native';
 
 const IST_TIMEZONE = 'Asia/Kolkata';
 const screenWidth = Dimensions.get("window").width - 32; // Accounting for padding
@@ -27,19 +38,238 @@ const AdminPaymentHistory = () => {
   const [showVisualizations, setShowVisualizations] = useState(true);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [graphFlag, setGraphFlag] = useState(1); // 1: LineChart, 2: PieChart, 3: Calendar
+   const [shopId ,setShopId]=useState(null);
+  // Add this state at the top of your component
+const [isLoading, setIsLoading] = useState(false);
+ 
 
+  // Add this function to fetch shop profile data
+const fetchShopProfile = async (shopId) => {
+  try {
+    const response = await fetch(`https://barberqueue-24143206157.us-central1.run.app/shop/profile?id=${shopId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch shop profile');
+    }
+    const shopData = await response.json();
+    return shopData;
+  } catch (error) {
+    console.error('Error fetching shop profile:', error);
+    throw error;
+  }
+};
+
+// Update the PDF generation function to include shop info
+const createAndSavePdf = async () => {
+  try {
+    // Show loading indicator
+    setIsLoading(true);
+    
+    // Get shop data
+    let shopData = { name: "Shop", address: "" };
+    try {
+      shopData = await fetchShopProfile(shopId);
+    } catch (error) {
+      console.error('Could not fetch shop data:', error);
+      // Continue with default shop info if fetch fails
+    }
+    
+    // 1. Create the HTML content for the PDF
+    const htmlContent = generatePdfContent(filteredPayments, shopData);
+    
+    // 2. Generate the PDF using expo-print
+    const { uri } = await Print.printToFileAsync({
+      html: htmlContent,
+      base64: false
+    });
+    
+    console.log('PDF created at', uri);
+    
+    // Generate a filename with current date
+    const currentDate = format(new Date(), 'yyyy-MM-dd', { timeZone: IST_TIMEZONE });
+    const fileName = `Transactions_${shopData.name.replace(/\s+/g, '_')}_${currentDate}.pdf`;
+    
+    // 3. Share the file
+    if (Platform.OS === "android") {
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          dialogTitle: "Download Transaction Report",
+          UTI: "com.adobe.pdf",
+          filename: fileName
+        });
+        Alert.alert("Success", "File ready to be saved to your device.");
+      } else {
+        Alert.alert("Error", "Sharing is not supported on this device.");
+      }
+    } else {
+      // iOS
+      await Sharing.shareAsync(uri, {
+        mimeType: "application/pdf",
+        UTI: "com.adobe.pdf",
+        filename: fileName
+      });
+      Alert.alert("Success", "PDF shared successfully.");
+    }
+  } catch (error) {
+    console.error("Error creating/sharing PDF:", error);
+    Alert.alert("Error", "Failed to create or save the PDF.");
+  } finally {
+    // Hide loading indicator
+    setIsLoading(false);
+  }
+};
+
+// Updated function to generate PDF content with shop info and current date
+const generatePdfContent = (transactions, shopData) => {
+  // Format current date in IST
+  const currentDate = format(utcToZonedTime(new Date(), IST_TIMEZONE), 'MMMM dd, yyyy', { timeZone: IST_TIMEZONE });
+  const currentTime = format(utcToZonedTime(new Date(), IST_TIMEZONE), 'HH:mm:ss', { timeZone: IST_TIMEZONE });
+  
+  // Format address to keep it on the left side without crossing half the page
+  const formatAddress = (address) => {
+    if (!address) return '';
+    
+    // Split address into chunks of reasonable length
+    const maxLength = 30;
+    let lines = [];
+    let remaining = address;
+    
+    while (remaining.length > 0) {
+      // Find a good breaking point
+      let breakPoint = Math.min(maxLength, remaining.length);
+      if (breakPoint < remaining.length) {
+        // Try to break at a space
+        const lastSpace = remaining.substring(0, breakPoint).lastIndexOf(' ');
+        if (lastSpace > 0) {
+          breakPoint = lastSpace;
+        }
+      }
+      
+      lines.push(remaining.substring(0, breakPoint));
+      remaining = remaining.substring(breakPoint).trim();
+    }
+    
+    return lines.join('<br>');
+  };
+
+  // Create a table for transactions
+  const tableRows = transactions.map(payment => `
+    <tr>
+      <td>${payment.barberName}</td>
+      <td>₹${payment.totalCost}</td>
+      <td>${payment.services.join(", ")}</td>
+      <td>${payment.date} • ${payment.time}</td>
+    </tr>
+  `).join('');
+
+  // Create the HTML content with the new structure
+  return `
+    <html>
+      <head>
+        <style>
+          body { font-family: 'Helvetica', sans-serif; padding: 20px; }
+          h1 { text-align: center; color: #333; margin-bottom: 30px; }
+          .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+          .shop-name { font-size: 18px; font-weight: bold; margin: 0; }
+          .report-date { text-align: right; color: #666; margin: 0; }
+          .shop-id { color: #666; margin: 5px 0; }
+          .address { color: #666; max-width: 50%; margin: 5px 0; }
+          .time-info { text-align: right; color: #666; margin: 5px 0; }
+          .summary { display: flex; justify-content: space-between; margin: 30px 0; }
+          .summary-card { padding: 15px; border-radius: 8px; width: 45%; }
+          .revenue { background-color: #00b894; color: white; }
+          .customers { background-color: #0984e3; color: white; }
+          .card-title { margin: 0 0 10px 0; font-size: 16px; }
+          .card-value { margin: 0; font-size: 24px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          .transactions-title { margin: 30px 0 10px 0; }
+          .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #999; }
+        </style>
+      </head>
+      <body>
+        <h1>Transaction Report</h1>
+        
+        <div class="header-row">
+          <p class="shop-name">${shopData.name}</p>
+          <p class="report-date">Report Generated: ${currentDate}</p>
+        </div>
+        
+        <div class="header-row">
+          <div>
+            <p class="shop-id">Shop ID: ${shopId}</p>
+            <p class="address">${formatAddress(shopData.address.textData || '')}</p>
+          </div>
+          <p class="time-info">Time: ${currentTime} IST</p>
+        </div>
+        
+        <div class="summary">
+          <div class="summary-card revenue">
+            <h3 class="card-title">Total Revenue</h3>
+            <p class="card-value">₹${totalRevenue}</p>
+          </div>
+          <div class="summary-card customers">
+            <h3 class="card-title">Total Customers</h3>
+            <p class="card-value">${totalCustomers}</p>
+          </div>
+        </div>
+        
+        <h2 class="transactions-title">Transactions (${filter} - ${barberFilter})</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Barber</th>
+              <th>Amount</th>
+              <th>Services</th>
+              <th>Date & Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          <p>Numbr - Automated Report</p>
+        </div>
+      </body>
+    </html>
+  `;
+};
   useFocusEffect(
     useCallback(() => {
-      fetchAllData();
+      const fetchData = async () => {
+        try {
+          const uid = await AsyncStorage.getItem("uid");
+          if (!uid) {
+            Alert.alert("Error", "Shop ID not found in AsyncStorage");
+            return;
+          }
+  
+          setShopId(uid);
+          // Debugging: Check if UID is retrieved
+          fetchAllData(uid); // Pass uid directly instead of using shopId state
+        } catch (error) {
+          console.error("Error fetching Shop ID:", error);
+        }
+      };
+  
+      fetchData();
+  
       return () => {
-        console.log('Screen unfocused');
+        console.log("Screen unfocused");
       };
     }, [])
   );
+  
 
-  const fetchAllData = async () => {
+  const fetchAllData = async (uid) => {
+    console.log(uid);
     try {
-      const barbersResponse = await fetch('https://barberqueue-24143206157.us-central1.run.app/barbers');
+      const barbersResponse = await fetch(`https://barberqueue-24143206157.us-central1.run.app/barbers?shopId=${uid}`);
       const barbersData = await barbersResponse.json();
       setBarbers(barbersData);
 
@@ -306,7 +536,6 @@ const AdminPaymentHistory = () => {
     for (let i = 0; i < allCells.length; i += 7) {
       weeks.push(allCells.slice(i, i + 7));
     }
-    
     return (
       <View style={styles.calendarInnerContainer}>
         <View style={styles.calendarHeader}>
@@ -374,16 +603,54 @@ const AdminPaymentHistory = () => {
   };
 
   return (
-    <Provider>
+    <ImageBackground source={require("../image/bglogin.png")}
+    style={styles.backgroundImage}>
+      <View style={styles.overlay}/>
+      <Provider>
       <ScrollView style={styles.container}>
-        <Text style={styles.header}>Statistics</Text>
-      <View style={styles.outerContainer}>
-  <View style={styles.toggleContainer}>
+        <Text style={styles.header}>STATISTICS</Text>
+        <View style={styles.outerContainer}>
+  <View style={styles.filterGroup}>
+    <Menu
+      visible={filterMenuVisible}
+      onDismiss={() => setFilterMenuVisible(false)}
+      anchor={
+        <TouchableOpacity onPress={() => setFilterMenuVisible(true)} style={styles.filterButton}>
+          <Text style={styles.filterButtonText}>📅 {filter}</Text>
+        </TouchableOpacity>
+      }
+    >
+      {["All", "Today", "This Week", "This Month", "Custom Date"].map(f => (
+        <Menu.Item key={f} onPress={() => {
+          setFilter(f);
+          setFilterMenuVisible(false);
+          if (f === "Custom Date") setDatePickerVisible(true);
+        }} title={f} />
+      ))}
+    </Menu>
+    <Menu
+      visible={barberMenuVisible}
+      onDismiss={() => setBarberMenuVisible(false)}
+      anchor={
+        <TouchableOpacity onPress={() => setBarberMenuVisible(true)} style={styles.filterButton}>
+          <Text style={styles.filterButtonText}>💈 {barberFilter}</Text>
+        </TouchableOpacity>
+      }
+    >
+      {["All", ...barbers.map(b => b.name)].map(barber => (
+        <Menu.Item key={barber} onPress={() => {
+          setBarberFilter(barber);
+          setBarberMenuVisible(false);
+        }} title={barber} />
+      ))}
+    </Menu>
+  </View>
+  <View style={styles.visualizeGroup}>
     <Text style={styles.toggleLabel}>Visualize</Text>
     <Switch
       value={showVisualizations}
       onValueChange={setShowVisualizations}
-      trackColor={{ false: "#d3d3d3", true: "#0984e3" }}
+      trackColor={{ false: "rgb(0,0,0)", true: "#0984e3" }}
       thumbColor={showVisualizations ? "#ffffff" : "#f4f3f4"}
     />
   </View>
@@ -509,45 +776,22 @@ const AdminPaymentHistory = () => {
         )}
         {/* Recent Transactions */}
         <View style={styles.controlsContainer}>
-  <Text style={styles.sectionTitle}>Recent Transactions</Text>
-  <View style={styles.filterRow}>
-    <Menu
-      visible={filterMenuVisible}
-      onDismiss={() => setFilterMenuVisible(false)}
-      anchor={
-        <TouchableOpacity onPress={() => setFilterMenuVisible(true)} style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>📅 {filter}</Text>
-        </TouchableOpacity>
-      }
-    >
-      {["All", "Today", "This Week", "This Month", "Custom Date"].map(f => (
-        <Menu.Item key={f} onPress={() => {
-          setFilter(f);
-          setFilterMenuVisible(false);
-          if (f === "Custom Date") setDatePickerVisible(true);
-        }} title={f} />
-      ))}
-    </Menu>
-    <Menu
-      visible={barberMenuVisible}
-      onDismiss={() => setBarberMenuVisible(false)}
-      anchor={
-        <TouchableOpacity onPress={() => setBarberMenuVisible(true)} style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>💈 {barberFilter}</Text>
-        </TouchableOpacity>
-      }
-    >
-      {["All", ...barbers.map(b => b.name)].map(barber => (
-        <Menu.Item key={barber} onPress={() => {
-          setBarberFilter(barber);
-          setBarberMenuVisible(false);
-        }} title={barber} />
-      ))}
-    </Menu>
-  </View>
-</View>
-
-        
+          <Text style={styles.sectionTitle}>Recent Transactions</Text>
+          <TouchableOpacity 
+  style={styles.buttonContainer} 
+  onPress={createAndSavePdf} 
+  activeOpacity={0.7}
+  disabled={isLoading}
+>
+  <LinearGradient colors={["#e63946", "#d62828"]} style={styles.pdfButton}>
+    {isLoading ? (
+      <ActivityIndicator size="small" color="white" />
+    ) : (
+      <MaterialCommunityIcons name="file-export" size={25} color="white" />
+    )}
+  </LinearGradient>
+</TouchableOpacity>
+        </View>
         <View style={styles.recentTransactionsContainer}>
           <ScrollView style={styles.recentTransactionsScroll} nestedScrollEnabled={true}>
             {filteredPayments.map((payment, index) => (
@@ -566,10 +810,39 @@ const AdminPaymentHistory = () => {
         </View>
       </ScrollView>
     </Provider>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+
+  buttonContainer: {
+    borderRadius: 15,
+    overflow: "hidden",
+  },
+  pdfButton: {
+    padding: 7,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    width: 40,
+    height: 40,
+  },
+
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
+  },
+
   recentTransactionsContainer: {
     maxHeight: 550,
     backgroundColor: "#ffffff",
@@ -583,26 +856,25 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 16,
-    backgroundColor: '#f5f5f5'
   },
   header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#2d3436',
+    fontSize: 30,
+    fontWeight: '900',
+    // marginBottom: 20,
+    // color: '#2d3436',
     textAlign: 'center'
   },
   controlsContainer: {
-    flexDirection: 'row', // Aligns items in the same row
-    justifyContent: 'space-between', // Pushes elements to opposite ends
-    alignItems: 'center', // Aligns items vertically
-    marginBottom: 20,
-    width: '100%', // Ensures it takes full width
+    flexDirection: "row",  // Arrange items in a row
+    justifyContent: "space-between", // Space between title & button
+    alignItems: "center",  // Center vertically
+    paddingHorizontal: 15, // Add padding for spacing
+    marginBottom: 10, // Adjust spacing below the section
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2d3436',
+    fontSize: 20, 
+    fontWeight: "bold",
+    color: "#333", // Darker text for better visibility
   },
   filterRow: {
     flexDirection: 'row',
@@ -610,19 +882,31 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     padding: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     elevation: 2,
+    marginRight: 8, // Optional, to add a little space between the filter buttons
   },
   filterButtonText: {
-    color: '#2d3436',
-    fontWeight: '500',
+    color: "#2d3436",
+    fontWeight: "500",
   },
   outerContainer: {
-    width: "100%",  // Ensures full width of the screen
-    alignItems: "flex-end",  // Moves the entire box to the right
-    padding: 10, // Adds some padding for better spacing
+    flexDirection: "row",
+    justifyContent: "space-between", // This creates the gap between the two groups
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  filterGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  visualizeGroup: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   toggleContainer: {
     flexDirection: "row",  // Align items in a row
@@ -634,8 +918,9 @@ const styles = StyleSheet.create({
     minWidth: 10, // Optional: Adjust width based on content
   },
   toggleLabel: {
-    color: '#2d3436',
-    fontWeight: '500'
+    // color: "#2d3436",
+    fontWeight: "900",
+    marginRight: 8,
   },
   summaryContainer: {
     flexDirection: 'row',
@@ -799,12 +1084,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#444',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2d3436',
-    marginBottom: 12,
-  },
+  // sectionTitle: {
+  //   fontSize: 18,
+  //   fontWeight: '600',
+  //   color: '#2d3436',
+  //   // marginBottom: 12,
+  // },
   transactionCard: {
     backgroundColor: '#ffffff',
     borderRadius: 8,

@@ -8,7 +8,7 @@ export default function Layout() {
   return (<>
     <View style={styles.header}>
         
-          <Text style={styles.title}>My App</Text>
+          <Text style={styles.title}>Numbr</Text>
         </View>
     <View style={styles.container}>
       <Tabs
@@ -37,6 +37,23 @@ export default function Layout() {
             ),
           }}
         />
+        <Tabs.Screen
+  name="rateList"
+  options={{
+    title: "Rate",
+    tabBarIcon: ({ color, size }) => (
+      <Text
+        style={{
+          fontSize: size,
+          color,
+          transform: [{ translateY: -2 }], // adjust this value as needed
+        }}
+      >
+        {'\u20B9'}
+      </Text>
+    ),
+  }}
+/>
          <Tabs.Screen
           name="history"
           options={{
@@ -46,6 +63,9 @@ export default function Layout() {
             ),
           }}
         />
+         
+
+
         <Tabs.Screen
           name="profile"
           options={{

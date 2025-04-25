@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Redirect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 
+// Configure how notifications are handled when the app is in the foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true, // Show an alert when the app is in the foreground
+    shouldPlaySound: true, // Play a sound when the notification is received
+    shouldSetBadge: true, // Set the app badge count
+  }),
+});
 export default function Index() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
   const [userType, setUserType] = useState(null);
@@ -21,13 +30,10 @@ export default function Index() {
     checkLoginStatus();
   }, []);
 
-  // While we’re checking AsyncStorage, render nothing (or a splash/loading)
-  if (isLoggedIn === null) {
+   if (isLoggedIn === null) {
     return null;
   }
-
-  // Use a nested (or chained) ternary to redirect properly
-  return (
+ return (
     <Redirect
       href={
         isLoggedIn

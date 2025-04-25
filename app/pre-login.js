@@ -1,9 +1,41 @@
-import React from "react";
+import React,{useState,useEffect} from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ImageBackground } from "react-native";
 import { useRouter } from "expo-router";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function PreLoginScreen() {
   const router = useRouter();
+// Add these state variables and useEffect inside your PreLoginScreen component:
+const [isLoggedIn, setIsLoggedIn] = useState(null);
+const [userType, setUserType] = useState(null);
+
+useEffect(() => {
+  const checkLoginStatus = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const type = await AsyncStorage.getItem("userType");
+      setUserType(type);
+      setIsLoggedIn(!!token);
+      if (token) {
+        if (type === "barber") {
+          router.replace("/(admin)/menu");
+        } else if (type === "superadmin") {
+          router.replace("/(superadmin)/menu");
+        } else {
+          router.replace("/(tabs)/menu");
+        }
+      }
+    } catch (error) {
+      console.error("Error reading login status", error);
+      setIsLoggedIn(false);
+    }
+  };
+  checkLoginStatus();
+}, [router]);
+
+if (isLoggedIn === null) {
+  // Optionally, return a loading indicator here
+  return null;
+}
 
   return (
     <ImageBackground
@@ -12,9 +44,8 @@ export default function PreLoginScreen() {
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>Welcome to Barber App</Text>
-          <Text style={styles.subtitle}>Please select your role:</Text>
-
+          <Text style={styles.title}>Welcome to Numbr</Text>
+         
           <TouchableOpacity
             style={styles.button}
             onPress={() => router.push("/barber-login")}
@@ -31,7 +62,7 @@ export default function PreLoginScreen() {
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.push("/login")}
+            onPress={() => router.push("/owner-login")}
           >
             <Text style={styles.buttonText}>Login as Owner</Text>
           </TouchableOpacity>

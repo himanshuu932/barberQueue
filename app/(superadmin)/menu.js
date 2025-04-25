@@ -6,7 +6,9 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  ImageBackground
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { format, utcToZonedTime } from "date-fns-tz";
@@ -20,6 +22,7 @@ const carouselData = [
 ];
 
 const Menu = () => {
+  const [shopId, setShopId] = useState(null);
   const [todayStats, setTodayStats] = useState({
     earnings: 0,
     customers: 0,
@@ -28,19 +31,31 @@ const Menu = () => {
   });
 
   useEffect(() => {
-    fetchTodayStats();
+    const getShopId = async () => {
+      try {
+        const uid = await AsyncStorage.getItem("uid");
+        if (!uid) {
+          console.error("Shop ID not found in AsyncStorage");
+          return;
+        }
+        setShopId(uid);
+        fetchTodayStats(uid); // Fetch stats after getting shopId
+      } catch (error) {
+        console.error("Error fetching shop ID:", error);
+      }
+    };
+
+    getShopId();
   }, []);
 
-  const fetchTodayStats = async () => {
+  const fetchTodayStats = async (uid) => {
     try {
-      const barbersResponse = await fetch("https://barberqueue-24143206157.us-central1.run.app/barbers");
+      const barbersResponse = await fetch(`https://barberqueue-24143206157.us-central1.run.app/barbers?shopId=${uid}`);
       const barbersData = await barbersResponse.json();
 
       const now = new Date();
       const todayIST = utcToZonedTime(now, IST_TIMEZONE);
-      const todayDateString = format(todayIST, "yyyy-MM-dd", {
-        timeZone: IST_TIMEZONE,
-      });
+      const todayDateString = format(todayIST, "yyyy-MM-dd", { timeZone: IST_TIMEZONE });
 
       let totalEarnings = 0;
       let customerCount = 0;
@@ -57,13 +72,10 @@ const Menu = () => {
             totalEarnings += transaction.totalCost;
             customerCount += 1;
 
-            if (transaction.services && typeof transaction.services === "string") {
-              transaction.services
-                .split(",")
-                .map((service) => service.trim())
-                .forEach((service) => {
-                  serviceCount[service] = (serviceCount[service] || 0) + 1;
-                });
+            if (transaction.services) {
+              transaction.services.forEach((service) => {
+                serviceCount[service] = (serviceCount[service] || 0) + 1;
+              });
             }
 
             barberEarnings[barber.name] += transaction.totalCost;
@@ -80,12 +92,12 @@ const Menu = () => {
         }
       });
 
-      let popularBarber = "None";
-      let maxCustomerCount = 0;
+      let topEmployee = "None";
+      let maxEarnings = 0;
       Object.entries(barberEarnings).forEach(([barber, earnings]) => {
-        if (earnings > maxCustomerCount) {
-          maxCustomerCount = earnings;
-          popularBarber = barber;
+        if (earnings > maxEarnings) {
+          maxEarnings = earnings;
+          topEmployee = barber;
         }
       });
 
@@ -93,7 +105,7 @@ const Menu = () => {
         earnings: totalEarnings,
         customers: customerCount,
         popularService: popularService,
-        topEmployee: popularBarber,
+        topEmployee: topEmployee,
       });
     } catch (error) {
       console.error("Error fetching today's stats:", error);
@@ -101,70 +113,104 @@ const Menu = () => {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.contentContainer}
+    <ImageBackground
+      source={require("../image/bglogin.png")}
+      style={styles.backgroundImage}
     >
-      {/* Direct Image Section (Carousel removed) */}
-      <Image
-        source={{ uri: carouselData[0] }}
-        style={[styles.carouselImage, { width: screenWidth -40}]}
-        resizeMode="cover"
-      />
+      <View style={styles.overlay}/>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
+      >
+        {/* Image Carousel Section */}
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.carouselContainer}
+          contentContainerStyle={styles.carouselContentContainer}
+        >
+          {carouselData.map((imageUrl, index) => (
+            <Image
+              key={index}
+              source={{ uri: imageUrl }}
+              style={[styles.carouselImage, { width: screenWidth - 40 }]}
+              resizeMode="cover"
+            />
+          ))}
+        </ScrollView>
 
-      {/* Small Cards Section */}
-      <View style={styles.smallCardsContainer}>
-        {[
-          {
-            title: "Today's Earnings",
-            value: `₹${todayStats.earnings}`,
-            iconName: "money",
-            colors: ["#6a11cb", "#2575fc"],
-          },
-          {
-            title: "Today's Customers",
-            value: todayStats.customers.toString(),
-            iconName: "users",
-            colors: ["#ff7e5f", "#feb47b"],
-          },
-          {
-            title: "Popular Service",
-            value: todayStats.popularService,
-            iconName: "scissors",
-            colors: ["#4c669f", "#3b5998"],
-          },
-          {
-            title: "Top Employee",
-            value: todayStats.topEmployee,
-            iconName: "star",
-            colors: ["#30cfd0", "#330867"],
-          },
-        ].map((item, index) => (
-          <LinearGradient key={index} colors={item.colors} style={styles.smallCard}>
-            <Icon name={item.iconName} size={24} color="#fff" />
-            <Text style={styles.smallCardTitle}>{item.title}</Text>
-            <Text style={styles.smallCardValue}>{item.value}</Text>
-          </LinearGradient>
-        ))}
-      </View>
-    </ScrollView>
+        {/* Small Cards Section */}
+        <View style={styles.smallCardsContainer}>
+          {[
+            {
+              title: "Today's Earnings",
+              value: `₹${todayStats.earnings}`,
+              iconName: "money",
+              colors: ["#6a11cb", "#2575fc"],
+            },
+            {
+              title: "Today's Customers",
+              value: todayStats.customers.toString(),
+              iconName: "users",
+              colors: ["#ff7e5f", "#feb47b"],
+            },
+            {
+              title: "Popular Service",
+              value: todayStats.popularService,
+              iconName: "scissors",
+              colors: ["#4c669f", "#3b5998"],
+            },
+            {
+              title: "Top Employee",
+              value: todayStats.topEmployee,
+              iconName: "star",
+              colors: ["#30cfd0", "#330867"],
+            },
+          ].map((item, index) => (
+            <LinearGradient
+              key={index}
+              colors={item.colors}
+              style={styles.smallCard}
+            >
+              <Icon name={item.iconName} size={24} color="#fff" />
+              <Text style={styles.smallCardTitle}>{item.title}</Text>
+              <Text style={styles.smallCardValue}>{item.value}</Text>
+            </LinearGradient>
+          ))}
+        </View>
+      </ScrollView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237, 236, 236, 0.77)",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   contentContainer: {
     alignItems: "center",
     padding: 20,
   },
+  carouselContainer: {
+    marginBottom: 20,
+  },
+  carouselContentContainer: {},
   carouselImage: {
     height: 200,
     borderRadius: 12,
-    marginBottom: 16,
   },
   smallCardsContainer: {
     flexDirection: "row",

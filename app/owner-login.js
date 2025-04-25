@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,14 +14,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
+import { useFocusEffect } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
+    shouldShowAlert: true, // Show an alert when the app is in the foreground
+    shouldPlaySound: true, // Play a sound when the notification is received
+    shouldSetBadge: true, // Set the app badge count
   }),
 });
 
@@ -30,6 +31,7 @@ async function registerForPushNotifications(uid) {
   console.log("Registering for push notifications for uid:", uid);
 
   try {
+    // Step 1: Check and request permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     console.log("Existing permission status:", existingStatus);
 
@@ -49,11 +51,12 @@ async function registerForPushNotifications(uid) {
       return;
     }
 
+    // Step 2: Generate Expo Push Token
     let token;
     try {
       token = (
         await Notifications.getExpoPushTokenAsync({
-          projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
+          projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
         })
       ).data;
     } catch (error) {
@@ -65,12 +68,16 @@ async function registerForPushNotifications(uid) {
       return;
     }
 
+    // Step 3: Send token to your custom backend
     try {
-      const response = await fetch("http://10.0.2.2:5000/register-push-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, token }),
-      });
+      const response = await fetch(
+        "http://10.0.2.2:5000/shop/register-push-token",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid, token }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -92,6 +99,7 @@ async function registerForPushNotifications(uid) {
       );
     }
 
+    // Step 4: Configure Android notification channel
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "default",
@@ -113,8 +121,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -122,13 +130,15 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    console.log("Logging in with email:", email, "and password:", password);
     try {
-      const response = await fetch("http://10.0.2.2:5000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+        "http://10.0.2.2:5000/shop/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
 
       const data = await response.json();
       if (!response.ok) {
@@ -136,21 +146,18 @@ export default function LoginScreen() {
         setLoading(false);
         return;
       }
-      console.log(data);
+      console.log(data.shop.id);
       // Store token and user data
       await AsyncStorage.setItem("userToken", data.token);
-      await AsyncStorage.setItem("userName", data.user.name);
-      await AsyncStorage.setItem("uid", data.user.id);
-      let userType = "user";
+      await AsyncStorage.setItem("userName", data.shop.name);
+      await AsyncStorage.setItem("uid", data.shop.id);
+      let userType = "superadmin";
       await AsyncStorage.setItem("userType", userType);
-      // Register push notifications
-      await registerForPushNotifications(data.user.id);
 
-      if (data.user.pinnedShop) {
-        await AsyncStorage.setItem("pinnedShop", data.user.pinnedShop);
-      }
-      // Replace the screen so user can't navigate back to login
-      router.replace("/(tabs)/menu");
+      await registerForPushNotifications(data.shop.id);
+
+      // Navigate immediately and remove this screen from the stack
+      router.replace("/(superadmin)/menu");
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
@@ -162,7 +169,7 @@ export default function LoginScreen() {
     <ImageBackground source={require("./image/bglogin.png")} style={styles.background}>
       <View style={styles.overlay}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Login</Text>
+          <Text style={styles.title}>Owner Login</Text>
 
           <TextInput
             style={styles.input}
@@ -183,10 +190,7 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
             />
-            <TouchableOpacity
-              style={styles.eyeButton}
-              onPress={() => setPasswordVisible(!passwordVisible)}
-            >
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setPasswordVisible(!passwordVisible)}>
               <Icon name={passwordVisible ? "visibility" : "visibility-off"} size={24} color="#000" />
             </TouchableOpacity>
           </View>
@@ -206,7 +210,7 @@ export default function LoginScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/signup")}>
+          <TouchableOpacity onPress={() => router.push("/owner-signup")}>
             <Text style={styles.registerText}>
               Don't have an account? <Text style={styles.link}>Sign Up</Text>
             </Text>
@@ -261,7 +265,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   passwordInput: {
-    paddingRight: 45, // Extra padding to avoid overlapping with the eye icon
+    paddingRight: 45, // Extra right padding to avoid text overlap with the eye icon
   },
   eyeButton: {
     position: "absolute",
@@ -290,7 +294,7 @@ const styles = StyleSheet.create({
     color: "rgb(255, 255, 255)",
   },
   link: {
-    color: "rgb(3, 75, 163)",
+    color: "#FFFFFF",
     fontWeight: "900",
   },
 });

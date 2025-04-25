@@ -11,15 +11,23 @@ import {
   ScrollView,
   ImageBackground,
   FlatList,
+  TextInput,
   Platform,
+  Dimensions,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
+import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import Svg, { Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { io } from "socket.io-client";
-import { Rating } from "react-native-ratings"; // For star ratings
+import { Rating } from "react-native-ratings";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import {ShopList} from "../../components/Shop";
+import InfoModal from '../../components/InfoModal';
+import ChecklistModal from '../../components/Modal';
+import RatingModal from '../../components/RatingModal';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -28,74 +36,143 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
-
+const { width, height } = Dimensions.get("window");
 export default function MenuScreen() {
+  const navigation = useNavigation();
   const [queueLength, setQueueLength] = useState(null);
   const [queueItems, setQueueItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notified, setNotified] = useState(false);
   const [userName, setUserName] = useState(null);
   const [uid, setUid] = useState(null);
+  const [shopId, setShopId] = useState(null);
   const [socket, setSocket] = useState(null);
-  const [selectedServicesForInfo, setSelectedServicesForInfo] = useState([]);
-  const [totalCostForInfo, setTotalCostForInfo] = useState(0);
-  const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
   const [remainingTime, setRemainingTime] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [infomodalVisible, setinfomodalVisible] = useState(false);
-  const [checklist, setChecklist] = useState([
-    { id: 1, text: "Haircut", price: "₹70", checked: false },
-    { id: 2, text: "Beard Trim", price: "₹40", checked: false },
-    { id: 3, text: "Shave", price: "₹30", checked: false },
-    { id: 4, text: "Hair Wash", price: "₹300", checked: false },
-    { id: 5, text: "Head Massage", price: "₹120", checked: false },
-    { id: 6, text: "Facial", price: "₹150", checked: false },
-    { id: 7, text: "Hair Color", price: "₹200", checked: false },
-  ]);
-  const [ratingModalVisible, setRatingModalVisible] = useState(false); // State for rating popup
-  const [rating, setRating] = useState(0); // State for star rating
+  const [modalVisible, setModalVisible] = useState(false); // Checklist modal before joining
+  const [infomodalVisible, setinfomodalVisible] = useState(false); // Infomodal for editing services
+  const [chooseShopModalVisible, setChooseShopModalVisible] = useState(false); // Choose Shop modal
+  const API_BASE = "http://10.0.2.2:5000";
+  const [defaultChecklist, setDefaultChecklist] = useState([]);
+  const initialChecklist = [
+    { id: 1, text: "Haircut", price: 70, checked: false },
+    { id: 2, text: "Beard Trim", price: 40, checked: false },
+    { id: 3, text: "Shave", price: 30, checked: false },
+    { id: 4, text: "Hair Wash", price: 300, checked: false },
+    { id: 5, text: "Head Massage", price: 120, checked: false },
+    { id: 6, text: "Facial", price: 150, checked: false },
+    { id: 7, text: "Hair Color", price: 200, checked: false },
+  ];
 
+  const [checklist, setChecklist] = useState(initialChecklist);
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [rating, setRating] = useState(0);
   const [infoModalChecklist, setInfoModalChecklist] = useState([]);
+  const [totalCostForInfo, setTotalCostForInfo] = useState(0);
+  const [isConfirming, setIsConfirming] = useState(false);
+  useEffect(() => {
+    if (!modalVisible) {
+      setIsConfirming(false);
+    }
+  }, [modalVisible]);
+  const joinQueueHandler = async () => {
+    if (isConfirming) return; // prevent duplicate clicks
+
+    setIsConfirming(true);
+    try {
+      // Assume joinQueue returns a promise.
+      await joinQueue();
+      // Optionally, you might want to close the modal here:
+      // setModalVisible(false);
+    } catch (error) {
+      console.error(error);
+    }
+    // Reset after the join process is done so the button can be clicked next time
+    setIsConfirming(false);
+  };
   const totalSelectedPrice = checklist
     .filter((item) => item.checked)
-    .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0);
-
-    useFocusEffect(
-      useCallback(() => {
-        const loadUserData = async () => {
-          try {
-            const storedUserName = await AsyncStorage.getItem("userName");
-            const storedUid = await AsyncStorage.getItem("uid");
-            setUserName(storedUserName);
-            setUid(storedUid);
-          } catch (error) {
-            console.error("Error loading user data:", error);
-          }
-        };
-    
-        loadUserData();
-    
-        // Optionally, you can return a cleanup function here if needed
-        return () => {
-          // cleanup code if necessary
-        };
-      }, [])
-    );
-
+    .reduce((sum, item) => sum + item.price, 0);
+  const [shopName, setShopName] = useState("");
   const combinedName =
     userName && uid ? `${userName.substring(0, 2)}${uid.substring(0, 4)}` : null;
+    useEffect(() => { 
+      if(shopId) 
+        {getShopName(shopId).then(name => setShopName(name));
+
+         } }, [shopId]);
+  // Load user data on mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      const ps = await AsyncStorage.getItem("pinnedShop");
+      if(!ps)
+        setChooseShopModalVisible(true);
+      setShopId(ps);
+      const storedUserName = await AsyncStorage.getItem("userName");
+      const storedUid = await AsyncStorage.getItem("uid");
+      setUserName(storedUserName);
+      setUid(storedUid);
+    };
+    loadUserData();
+  }, []);
 
   useEffect(() => {
     Notifications.requestPermissionsAsync();
   }, []);
 
-  // Register for push notifications when uid is available
-  useEffect(() => {
-    async function registerForPushNotifications() {
-      if (!Constants.isDevice) {
-        console.log("Must use a physical device for Push Notifications");
+  // Refresh queue data and pending rating when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchQueueData();
+      checkPendingRatingAndNotifications();
+    }, [])
+  );
+  const fetchRateList = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/shop/rateList?id=${shopId}`);
+      if (!response.ok) {
+        console.error("Failed to fetch rate list");
         return;
       }
+      const data = await response.json();
+      const fetchedChecklist = data.map((item, index) => ({
+        id: index + 1,
+        text: item.service,
+        price: item.price,
+        checked: false,
+      }));
+      setDefaultChecklist(fetchedChecklist);
+      setChecklist(fetchedChecklist);
+    } catch (error) {
+      console.error("Error fetching rate list:", error);
+    }
+  };
+  
+
+  const refreshShop = async () => {
+    const storedShopId = await AsyncStorage.getItem("pinnedShop");
+    setShopId(storedShopId);
+    setChooseShopModalVisible(false);
+    await fetchQueueData();
+  };
+
+  const checkPendingRatingAndNotifications = async () => {
+    try {
+      const storedUid = await AsyncStorage.getItem("uid");
+      //console.log("Checking pending rating/notifications for UID:", storedUid);
+      const response = await fetch(`${API_BASE}/profile?uid=${storedUid}`, {
+        method: "GET",
+      });
+      const userData = await response.json();
+      if (userData.pendingRating && userData.pendingRating.status) {
+        setRatingModalVisible(true);
+      }
+    } catch (error) {
+      console.error("Error checking pending rating/notifications:", error);
+    }
+  };
+
+  useEffect(() => {
+    async function registerForPushNotifications() {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== "granted") {
@@ -103,12 +180,11 @@ export default function MenuScreen() {
         finalStatus = status;
       }
       if (finalStatus !== "granted") {
-        console.log("Failed to get push token for push notification!");
+        //console.log("Failed to get push token for notifications!");
         return;
       }
       const token = (await Notifications.getExpoPushTokenAsync()).data;
-      console.log("Expo Push Token:", token);
-      // Send token to your backend
+      //console.log("Expo Push Token:", token);
       await fetch(`${API_BASE}/register-push-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -120,81 +196,133 @@ export default function MenuScreen() {
     }
   }, [uid]);
 
-  // Initialize WebSocket connection
   useEffect(() => {
     const newSocket = io(API_BASE);
     setSocket(newSocket);
     return () => newSocket.disconnect();
   }, []);
 
-  // Listen for queue updates
   useEffect(() => {
     if (socket) {
       socket.on("queueUpdated", () => {
+        checkPendingRatingAndNotifications();
         fetchQueueData();
       });
     }
   }, [socket]);
-
-  const fetchQueueData = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/queue`);
-      const data = await response.json();
-      if (
-        data.queueLength !== queueLength ||
-        JSON.stringify(data.data) !== JSON.stringify(queueItems)
-      ) {
-        setQueueLength(data.queueLength);
-        setQueueItems(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching queue data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchQueueData();
+    const intervalId = setInterval(() => {
+      fetchQueueData();
+    }, 3000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
+ const fetchQueueData = async () => {
+  try {
+    const storedShopId = await AsyncStorage.getItem("pinnedShop");
+    if (!storedShopId) {
+      setChooseShopModalVisible(true);
+      return;
+    }
+    const response = await fetch(`${API_BASE}/queue?shopId=${storedShopId}`);
+    const data = await response.json();
+    
+    // Check for an error from the server (e.g., expired trial/subscription)
+    if (data.error) {
+      if (data.error.includes("Trial or subscription period has ended")) {
+        // Clear the stored shop ID and open the modal for choosing a shop
+        await AsyncStorage.removeItem("pinnedShop");
+        setChooseShopModalVisible(true);
+        return;
+      } else {
+        console.error("Error fetching queue data:", data.error);
+        return;
+      }
+    }
+    
+    // Update queue state if there are changes
+    if (
+      data.queueLength !== queueLength ||
+      JSON.stringify(data.data) !== JSON.stringify(queueItems)
+    ) {
+      setQueueLength(data.queueLength);
+      setQueueItems(data.data);
+
+      const storedUid = await AsyncStorage.getItem("uid");
+      const userResponse = await fetch(`${API_BASE}/profile?uid=${storedUid}`, {
+        method: "GET",
+      });
+      const userData = await userResponse.json();
+      
+      if (userData.notification && userData.notification.enabled) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: userData.notification.title,
+            body: userData.notification.body,
+            data: userData.notification.data,
+            sound: "default",
+            priority: Notifications.AndroidNotificationPriority.MAX,
+          },
+          trigger: null,
+        });
+        await fetch(`${API_BASE}/reset-notification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: userData._id }),
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching queue data:", error);
+  } finally {
+    setLoading(false);
+  }
+};
+
   const index = queueItems.findIndex((item) => item.uid === uid);
-  //Alert.alert("Index",`${index}`);
   const userPosition = index >= 0 ? index + 1 : null;
   const avgServiceTime = 10;
   const initialWaitTime = userPosition ? userPosition * avgServiceTime * 60 : null;
 
   useEffect(() => {
-    setRemainingTime(initialWaitTime);
-    if (initialWaitTime) {
-      const timer = setInterval(() => {
-        setRemainingTime((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
-      }, 1000);
-      return () => clearInterval(timer);
+    let timer;
+    const updateRemainingTime = async () => {
+     const joinTimeStr = await AsyncStorage.getItem("joinTimestamp");
+      if (joinTimeStr && userPosition) {
+        const joinTime = Number(joinTimeStr);
+        const elapsed = Math.floor((Date.now() - joinTime) / 1000); 
+        const expectedWaitTime = userPosition * avgServiceTime * 60; 
+        setRemainingTime(expectedWaitTime - elapsed > 0 ? expectedWaitTime - elapsed : 0);
+      }
+    };
+    if (userPosition) {
+     
+      updateRemainingTime();
+      timer = setInterval(updateRemainingTime, 1000);
     }
+    return () => clearInterval(timer);
   }, [userPosition]);
+
   const updateUserServices = async (selectedServices, totalCost) => {
     if (!selectedServices || selectedServices.length === 0) {
-      Alert.alert(
-        "No Service Selected",
-        "Please select at least one service before proceeding."
-      );
+      Alert.alert("No Service Selected", "Please select at least one service before proceeding.");
       return;
     }
     try {
+      const storedShopId = await AsyncStorage.getItem("pinnedShop");
       const response = await fetch(`${API_BASE}/update-services`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          uid, 
+          shopId: storedShopId,
+          uid,
           services: selectedServices,
-          totalCost: totalCost, 
+          totalCost: totalCost,
         }),
       });
-  
       if (response.ok) {
-        const data = await response.json();
-       // console.log("Services updated:", data);
+        fetchQueueData();
       } else {
         console.error("Failed to update services");
       }
@@ -202,59 +330,28 @@ export default function MenuScreen() {
       console.error("Error updating services:", error);
     }
   };
-  // When near the front, ask backend to send a push notification (for offline delivery)
   useEffect(() => {
-    if (userPosition !== null && userPosition <= 3 && !notified) {
-      fetch(`${API_BASE}/notify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid,
-          title: "Almost Your Turn!",
-          body: `You're number ${userPosition} in line. Please get ready for your service.`,
-        }),
-      }).catch((error) => console.error("Error notifying:", error));
-      setNotified(true);
-    } else if (userPosition === null || userPosition > 3) {
-      setNotified(false);
+    if (shopId) {
+      fetchRateList();
     }
-  }, [userPosition]);
-
-  const formatTime = (seconds) => {
-    if (seconds === null || seconds <= 0) return "Ready!";
-    const minutes = Math.floor(seconds / 60);
-    const sec = seconds % 60;
-    return `${minutes}m ${sec}s`;
-  };
-
+  }, [shopId]);
   const joinQueue = async () => {
-    // Get the list of selected services from your checklist
+   await fetchRateList()
     const selectedServices = checklist
-    .filter((item) => item.checked)
-    .map((item) => {
-     
-      return item.text;
-    });
-  
-
-    // Ensure at least one service is selected
+      .filter((item) => item.checked)
+      .map((item) => item.text);
     if (selectedServices.length === 0) {
-      Alert.alert(
-        "No Service Selected",
-        "Please select at least one service before proceeding."
-      );
+      Alert.alert("No Service Selected", "Please select at least one service before proceeding.");
       return;
     }
-
-    // Close the modal (from your modal component)
     setModalVisible(false);
-   Alert.alert("Join Queue",`${totalSelectedPrice}`);
     try {
-      // Send an API request to join the queue with the selected services
+      const storedShopId = await AsyncStorage.getItem("pinnedShop");
       const response = await fetch(`${API_BASE}/queue`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          shopId: storedShopId,
           name: userName,
           id: uid,
           services: selectedServices,
@@ -262,18 +359,14 @@ export default function MenuScreen() {
           totalCost: totalSelectedPrice,
         }),
       });
-
       if (response.ok) {
-        // Optionally, parse the response data
         const data = await response.json();
-
-        // Update the queue data (this function should update your state accordingly)
+        await AsyncStorage.setItem("joinTimestamp", String(Date.now()));
         fetchQueueData();
-
-        // Emit a socket event to notify the server that a new user has joined the queue,
-        // including the selected services for further processing
         if (socket) {
+          const currentShopId = await AsyncStorage.getItem("pinnedShop");
           socket.emit("joinQueue", {
+            shopId: currentShopId,
             id: uid,
             name: userName,
             code: combinedName,
@@ -281,6 +374,8 @@ export default function MenuScreen() {
             totalCost: totalSelectedPrice,
           });
         }
+        setChecklist(defaultChecklist.map((item) => ({ ...item, checked: false })));
+
       } else {
         Alert.alert("Error", "Failed to join the queue.");
       }
@@ -304,13 +399,15 @@ export default function MenuScreen() {
           text: "OK",
           onPress: async () => {
             try {
+              const storedShopId = await AsyncStorage.getItem("pinnedShop");
               const response = await fetch(
-                `${API_BASE}/queue?uid=${encodeURIComponent(uid)}`,
+                `${API_BASE}/queue?shopId=${storedShopId}&uid=${encodeURIComponent(uid)}`,
                 { method: "DELETE" }
               );
               if (response.ok) {
                 if (socket) {
-                  socket.emit("leaveQueue", { name: userName, id: uid });
+                  const currentShopId = await AsyncStorage.getItem("pinnedShop");
+                  socket.emit("leaveQueue", { shopId: currentShopId, name: userName, id: uid });
                 }
                 fetchQueueData();
               } else {
@@ -325,162 +422,220 @@ export default function MenuScreen() {
       ]
     );
   };
+
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        console.log("Notification response received:", response);
-        
-        const content = response.notification.request.content;
-        console.log("Notification content:", content);
-        
-        const { title, body ,data} = content;
-        console.log("Extracted title:", title);
-        console.log("Extracted body:", body);
-        
-        if (title === "Service Done") {
-          console.log("Saving flag for rating modal in AsyncStorage.");
-          (async () => {
-            try {
-              await AsyncStorage.setItem("shouldShowRatingModal", "true");
-              if (data && data.id) {
-                await AsyncStorage.setItem("id", data.id);
-                console.log("Barber id saved to AsyncStorage:", data.id);
-              }
-            } catch (error) {
-              console.error("Error saving rating modal flag:", error);
-            }
-          })();
-        } else {
-          console.log("Notification title does not match expected value. No action taken.");
-        }
+    if (queueItems.length > 0) {
+      const index = queueItems.findIndex((item) => item.uid === uid);
+      const userPosition = index >= 0 ? index + 1 : null;
+      if (userPosition !== null && userPosition <= 3 && !notified) {
+        fetch(`${API_BASE}/notify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uid,
+            title: "Almost Your Turn!",
+            body: `You're number ${userPosition} in line. Please get ready for your service.`,
+          }),
+        }).catch((error) => console.error("Error notifying:", error));
+        setNotified(true);
+      } else if (userPosition === null || userPosition > 3) {
+        setNotified(false);
       }
-    );
-  
-    return () => {
-      console.log("Removing notification response listener.");
-      subscription.remove();
-    };
-  }, []);
-  
-  useEffect(() => {
-    const checkRatingModalFlag = async () => {
-      try {
-        const flag = await AsyncStorage.getItem("shouldShowRatingModal");
-        console.log("Rating modal flag from storage:", flag);
-        if (flag === "true") {
-          setRatingModalVisible(true);
-          // Remove the flag once processed
-          await AsyncStorage.removeItem("shouldShowRatingModal");
-         
-          console.log("Flag removed from AsyncStorage, rating modal visible state set to true.");
-        }
-      } catch (error) {
-        console.error("Error checking rating modal flag:", error);
-      }
-    };
-  
-    // Check for the flag when the component mounts.
-    checkRatingModalFlag();
-  }, []);
-  
-  // Log whenever ratingModalVisible changes.
-  useEffect(() => {
-    console.log("Rating modal visible state changed:", ratingModalVisible);
-  }, [ratingModalVisible]);
-  
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
-  async function rateBarber( rating) {
-    const barberId=await AsyncStorage.getItem("id");
-    await AsyncStorage.removeItem("id");
-    console.log("Rating barber with id:", barberId, "and rating:", rating);
+    }
+  }, [queueItems]);
+
+const formatTime = (seconds) => {
+    if (seconds === null || seconds <= 0) return "Ready!";
+    const minutes = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return `${minutes}m ${sec}s`;
+};
+
+async function resetRatingModalFlag() {
     try {
-      const response = await fetch(`${API_BASE}/barber/rate`, {
+      const resetResponse = await fetch(`${API_BASE}/reset-pendingRating`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await AsyncStorage.getItem("userToken")}`,
         },
-        body: JSON.stringify({ barberId, rating })
+        body: JSON.stringify({ uid }),
       });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!resetResponse.ok) {
+        const errorData = await resetResponse.json();
+        console.error("Error resetting pending rating:", errorData);
+        return;
+      }
+    } catch (error) {
+      console.error("Error resetting pending rating:", error);
+    }
+}
+
+async function rateBarber(rating) {
+    await AsyncStorage.removeItem("id");
+    if (!rating) rating = 5;
+    try {
+      const storedShopId = await AsyncStorage.getItem("pinnedShop");
+      const ratingResponse = await fetch(`${API_BASE}/barber/rate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ shopId: storedShopId, rating, uid }),
+      });
+      if (!ratingResponse.ok) {
+        const errorData = await ratingResponse.json();
         console.error("Error rating barber:", errorData);
         return;
       }
-  
-      const data = await response.json();
-      console.log("Rating submitted successfully:", data);
-      // Optionally, update your UI with the average rating:
-      // updateAverageRating(data.averageRating);
+      resetRatingModalFlag();
+      const data = await ratingResponse.json();
+      //console.log("Rating submitted successfully:", data);
+      setRatingModalVisible(false);
     } catch (error) {
       console.error("Error rating barber:", error);
     }
-  }
-  
-  return (
-    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
-      <View style={styles.overlay} />
-      <View style={styles.container}>
-        <Text style={styles.userCode}>{combinedName}</Text>
-        {userPosition && (
-          <Text style={styles.waitTime}>
-            Estimated Wait: <Text style={styles.timer}>{formatTime(remainingTime)}</Text>
-          </Text>
-        )}
-        <Text style={styles.queue}>👤 {queueLength}</Text>
-        <Text style={styles.queueListTitle}>Queue List</Text>
-        <ScrollView
-          style={styles.namesContainer}
-          nestedScrollEnabled={true}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 10 }}
-        >
-       {queueItems.map((item, index) => (
-  <View key={item.uid} style={styles.queueCard}>
-    <Text style={styles.queueNumber}>{index + 1}.</Text>
-    <View>
-      <Text style={styles.queueName}>{item.name}</Text>
-      <Text style={styles.queueId}>ID: {item.code}</Text>
-    </View>
-  
-    {item.uid === uid && <Text style={styles.cost}>₹{item.totalCost}</Text>}
-    {item.uid === uid && (
-      <TouchableOpacity
-        onPress={() => {
-          // Initialize the checklist with the user's selected services
-          const updatedChecklist = checklist.map((service) => ({
-            ...service,
-            checked: item.services.includes(service.text),
-          }));
-          setInfoModalChecklist(updatedChecklist);
-          setTotalCostForInfo(item.totalCost);
-          setinfomodalVisible(true);
-        }}
-      >
-        <Icon name="info-circle" size={16} color="black" />
-      </TouchableOpacity>
-    )}
-  </View>
-))}
-        </ScrollView>
+}
 
-        <View style={styles.buttonContainer}>
-          {combinedName && queueItems.some((item) => item.uid === uid) ? (
-            <TouchableOpacity style={styles.leaveButton} onPress={leaveQueue}>
-              <Icon name="sign-out" size={24} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.joinButton} onPress={() => setModalVisible(true)}>
+if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+}
+
+async function getShopName(uid) {
+  try {
+    const response = await fetch(`http://10.0.2.2:5000/shop/profile?id=${uid}`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.name;
+    //setProfile(data);
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+  } 
+}
+
+return (
+  <ImageBackground
+    source={require("../image/bglogin.png")}
+    style={styles.backgroundImage}
+  >
+    <View style={styles.overlay} />
+
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.chooseShopButton}
+          onPress={() => setChooseShopModalVisible(true)}
+        >
+          <FontAwesome5 name="store" solid size={20.5} color="#fff" />
+        </TouchableOpacity>
+
+        {shopId && <Text style={styles.shopName}>{shopName}</Text>}
+
+        <Text style={styles.queue}>👤 {queueLength}</Text>
+      </View>
+
+      <Text style={styles.userCode}>{combinedName}</Text>
+     
+
+      <View
+        style={styles.namesContainer}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 10 }}
+      >
+        {queueItems.some(item => item.uid === uid) ? (
+          queueItems
+            .filter(item => item.uid === uid)
+            .map(item => {
+              const userPosition =
+                queueItems.findIndex(qItem => qItem.uid === uid) + 1;
+              return (
+                <View key={item.uid} style={styles.userCard}>
+                   
+      <View style={styles.timerDisplay}>
+        <Text style={styles.timerText}>{formatTime(remainingTime)}</Text>
+      </View>
+      <View style={styles.positionContainer}>
+                    <Text style={styles.userPosition}>{userPosition}</Text>
+                  </View>
+
+
+              
+                  <Text style={styles.servicesTitle}>Services:</Text>
+                  <View style={styles.servicesList}>
+                    {item.services.map(s => (
+                      <Text key={s} style={styles.serviceItem}>{s}</Text>
+                    ))}
+                  </View>
+
+                  <Text style={styles.totalCost}>Total: ₹{item.totalCost}</Text>
+
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={styles.modifyBtn}
+                      onPress={() => {
+                        const updated = defaultChecklist.map(i => ({
+                          ...i,
+                          checked: item.services.includes(i.text),
+                        }));
+                        setInfoModalChecklist(updated);
+                        setinfomodalVisible(true);
+                      }}
+                    >
+                      <Text style={styles.actionText}>Modify</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.leaveBtn}
+                      onPress={leaveQueue}
+                    >
+                      <Text style={styles.actionText}>Leave</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+        ) : (
+          <View style={styles.namesContainer}>
+           
+{!queueItems.some(item => item.uid === uid) && (
+  <>
+
+    <View style={styles.rateListContainer}>
+      <Text style={styles.servicesTitle}>Available Services:</Text>
+      <FlatList
+        data={defaultChecklist}
+        keyExtractor={item => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.rateItem}>
+            <Text style={styles.rateText}>{item.text}</Text>
+            <Text style={styles.ratePrice}>₹{item.price}</Text>
+          </View>
+        )}
+      />
+    </View>
+
+    <TouchableOpacity
+            style={styles.joinButton}
+            onPress={() => {
+              setChecklist(defaultChecklist.map(i => ({ ...i, checked: false })));
+              setModalVisible(true);
+            }}
+          >
+            <View style={styles.joinButtonContent}>
               <Svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="25"
-                height="25"
+                width={25}
+                height={25}
                 viewBox="0 0 16 16"
                 fill="white"
               >
@@ -489,423 +644,355 @@ export default function MenuScreen() {
                   d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
                 />
               </Svg>
-            </TouchableOpacity>
-          )}
-        </View>
-        <Modal visible={infomodalVisible} animationType="slide" transparent>
-  <View style={styles.modalContainer}>
-    <View style={styles.modalContent}>
-      <TouchableOpacity
-        onPress={() => setinfomodalVisible(false)}
-        style={styles.closeButton}
-      >
-        <Icon name="times-circle" size={20} color="black" />
-      </TouchableOpacity>
-      <Text style={styles.modalTitle}>Edit Selected Services</Text>
-      <FlatList
-        data={infoModalChecklist}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.checklistItem}
-            onPress={() =>
-              setInfoModalChecklist((prev) =>
-                prev.map((i) =>
-                  i.id === item.id ? { ...i, checked: !i.checked } : i
-                )
-              )
-            }
-          >
-            <View style={styles.checklistRow}>
-              <Text style={styles.checklistText}>{item.text}</Text>
-              <Text style={styles.checklistPrice}>
-                <Text style={{ color: 'green' }}>₹</Text>
-                {item.price}
-              </Text>
-              <Icon
-                name={item.checked ? "check-square" : "square-o"}
-                size={24}
-                color="green"
-              />
+              <Text style={styles.joinButtonText}>Join Queue</Text>
             </View>
           </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.id.toString()}
-      />
-      <Text style={styles.totalPrice}>
-        Total Price: {infoModalChecklist
-          .filter((item) => item.checked)
-          .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0)}
-      </Text>
-      <TouchableOpacity
-        style={styles.confirmButton}
-        onPress={() => {
-          const selectedServices = infoModalChecklist
-            .filter((item) => item.checked)
-            .map((item) => item.text);
-          const totalCost = infoModalChecklist
-            .filter((item) => item.checked)
-            .reduce((sum, item) => sum + parseInt(item.price.substring(1)), 0);
+    
+  </>
+)}
 
-          // Alert the new selected services
-        
-
-          // Update the backend with the new selected services
-          updateUserServices(selectedServices, totalCost);
-          setinfomodalVisible(false);
-        }}
-      >
-        <Text style={styles.buttonText}>Confirm</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
-        <Modal visible={modalVisible} animationType="slide" transparent>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              {/* Cross Button in Upper Right Corner */}
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
-                <Icon name="times-circle" size={20} color="black" />
-              </TouchableOpacity>
-
-              <Text style={styles.modalTitle}>Checklist Before Joining</Text>
-              
-              <FlatList
-                data={checklist}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.checklistItem}
-                    onPress={() =>
-                      setChecklist((prev) =>
-                        prev.map((i) =>
-                          i.id === item.id ? { ...i, checked: !i.checked } : i
-                        )
-                      )
-                    }
-                  >
-                    <View style={styles.checklistRow}>
-                      <Text style={styles.checklistText}>{item.text}</Text>
-                      <Text style={styles.checklistPrice}><Text style={{color: 'green'}}></Text>{item.price}</Text>
-                      <Icon
-                        name={item.checked ? "check-square" : "square-o"}
-                        size={24}
-                        color="green"
-                      />
-                    </View>
-                  </TouchableOpacity>
-                )}
-                keyExtractor={(item) => item.id.toString()}
-              />
-              
-              <Text style={styles.totalPrice}>Total Price: ₹{totalSelectedPrice}</Text>
-              
-              <TouchableOpacity style={styles.confirmButton} onPress={joinQueue}>
-                <Text style={styles.buttonText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
+          
           </View>
-        </Modal>
-
+        )}
       </View>
-      {/* Render the rating modal */}
-      <Modal
-  visible={ratingModalVisible}
-  transparent
-  animationType="slide"
-  onRequestClose={() => {
-    // Prevent the modal from closing automatically.
-    console.log("onRequestClose triggered: Ignoring hardware back button.");
-  }}
-  onShow={() => console.log("Rating modal is now visible.")}
->
-  <View style={styles.ratingModalContainer}>
-    <View style={styles.ratingModalContent}>
-      <Text style={styles.ratingModalTitle}>Rate Your Barber</Text>
-      <Rating
-        type="star"
-        ratingCount={5}
-        imageSize={40}
-        onFinishRating={(value) => {
-          console.log("User selected rating:", value);
-          setRating(value);
-        }}
-      />
-      <TouchableOpacity
-        style={styles.ratingSubmitButton}
-        onPress={() => {
-          console.log("Rating submitted:", rating);
-           rateBarber(rating);
-          setRatingModalVisible(false);
-        }}
-      >
-        <Text style={styles.ratingSubmitButtonText}>Submit</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.ratingCloseButton}
-        onPress={() => {
-          console.log("Rating modal closed without submitting.");
-          setRatingModalVisible(false);
-        }}
-      >
-        <Text style={styles.ratingCloseButtonText}>Close</Text>
-      </TouchableOpacity>
     </View>
-  </View>
-</Modal>
 
+    {/* Shop selector */}
+    <Modal
+      visible={chooseShopModalVisible}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setChooseShopModalVisible(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <ShopList
+            onSelect={refreshShop}
+            onClose={() => setChooseShopModalVisible(false)}
+          />
+        </View>
+      </View>
+    </Modal>
 
+    {/* Checklist Before Joining */}
+    <ChecklistModal
+      visible={modalVisible}
+      checklist={checklist}
+      totalPrice={totalSelectedPrice}
+      onToggleItem={id =>
+        setChecklist(prev =>
+          prev.map(i => (i.id === id ? { ...i, checked: !i.checked } : i))
+        )
+      }
+      onConfirm={joinQueueHandler}
+      onClose={() => setModalVisible(false)}
+      confirming={isConfirming}
+    />
 
-    </ImageBackground>
-  );
+    {/* Edit Selected Services */}
+    <InfoModal
+      visible={infomodalVisible}
+      checklist={infoModalChecklist}
+      onToggleItem={id =>
+        setInfoModalChecklist(prev =>
+          prev.map(i => (i.id === id ? { ...i, checked: !i.checked } : i))
+        )
+      }
+      onConfirm={() => {
+        const selected = infoModalChecklist
+          .filter(i => i.checked)
+          .map(i => i.text);
+        const cost = infoModalChecklist
+          .filter(i => i.checked)
+          .reduce((sum, i) => sum + i.price, 0);
+        updateUserServices(selected, cost);
+        setinfomodalVisible(false);
+      }}
+      onClose={() => setinfomodalVisible(false)}
+    />
+
+    {/* Rate Your Barber */}
+    <RatingModal
+      visible={ratingModalVisible}
+      rating={rating}
+      onFinishRating={value => setRating(value)}
+      onSubmit={() => {
+        rateBarber(rating);
+        setRatingModalVisible(false);
+      }}
+      onReset={resetRatingModalFlag}
+      onClose={() => setRatingModalVisible(false)}
+    />
+  </ImageBackground>
+);
 }
 
 const styles = StyleSheet.create({
-  ratingModalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  ratingModalContent: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 10,
-    width: "80%",
-    alignItems: "center",
-  },
-  ratingModalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+  // Rate list styles with white background
+  rateListContainer: {
+    width: '100%',
     marginBottom: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  ratingSubmitButton: {
-    backgroundColor: "#007bff",
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 20,
-    width: "100%",
-    alignItems: "center",
+  rateItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  ratingSubmitButtonText: {
-    color: "white",
+  rateText: {
     fontSize: 16,
-    fontWeight: "bold",
+    color: '#333',
   },
-  ratingCloseButton: {
-    marginTop: 10,
-    padding: 10,
-  },
-  ratingCloseButtonText: {
-    color: "#007bff",
+  ratePrice: {
     fontSize: 16,
+    fontWeight: '600',
+    color: 'green',
   },
-  closeButton: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    zIndex: 10, // Ensures it stays on top
-  },
+
   backgroundImage: {
     flex: 1,
-    resizeMode: "cover",
-    position: "absolute",
-    width: "100%",
-    height: "100%",
+    resizeMode: 'cover',
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(237, 236, 236, 0.77)",
+    backgroundColor: 'rgba(237, 236, 236, 0.77)',
+    zIndex: 1,
   },
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 15,
-    paddingRight: 15,
-    paddingLeft: 15,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    zIndex: 2,
   },
-  userCode: {
-    fontSize: 70,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "black",
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    zIndex: 2,
   },
-  waitTime: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "black",
+  chooseShopButton: {
+    padding: 10,
+    backgroundColor: 'blue',
+    borderRadius: 8,
+    height: 40,
+    width: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  timer: {
-    color: "red",
-    fontWeight: "bold",
+  shopName: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '600',
+    color: 'black',
+    marginHorizontal: 10,
   },
   queue: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "black",
+    fontSize: 16,
+    fontWeight: '600',
+    backgroundColor: '#28a745',
+    color: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  queueListTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 10,
-    marginBottom: 5,
-    color: "black",
+  userCode: {
+    marginTop: 20,
+    fontSize: 72,
+    fontWeight: '700',
+    color: '#333',
+    zIndex: 2,
+    textAlign: 'center',
+  },
+  positionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 8,
+  },
+  positionLabel: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#333',
+    marginRight: 8,
+  },
+  userPosition: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#ffffff',
+    borderWidth: 3,
+    borderColor: '#186ac8',
+    textAlign: 'center',
+    lineHeight: 70,
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#186ac8',
+  },
+  
+  waitTimeLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#555',
+    marginBottom: 8,
+  },
+  timerDisplay: {
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dee2e6',
+  },
+  timerText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FF5722',
   },
   namesContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    width: "100%",
-    padding: 10,
-    maxHeight: "72%",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 3 },
+    flex: 1,
+    width: '100%',
+    marginTop: 20,
+    alignItems: 'center',
   },
-  queueCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#F9F9F9",
-    padding: 20,
-    borderRadius: 10,
-    marginBottom: 10,
-    width: "100%",
-    elevation: 3,
-    shadowColor: "#000",
+  userCard: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  queueService: {
-    fontSize: 14,
-    color: "#555",
-    position: "absolute",
-    right: "8%",
+  userName: {
+    fontSize: 35,
+    fontWeight: '500',
+    color: '#222',
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  queueNumber: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
+  servicesTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 8,
+    marginBottom: 4,
+    color: '#333',
+    alignSelf: 'flex-start',
   },
-  cost: {
-    fontSize: 18,
-    fontWeight: "bold",
-   color: "rgb(16, 98, 13)",
-    marginLeft: "auto",
+  servicesList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+    alignSelf: 'stretch',
   },
-  queueName: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: "#777",
-    flex:"wrap",
-    maxWidth: "70%",
+  serviceItem: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    margin: 4,
+    fontSize: 16,
+    color: '#555',
   },
-  queueId: {
-    fontSize: 10,
-    color: "#555",
+  totalCost: {
+    fontSize: 25,
+    fontWeight: '600',
+    color: 'green',
+    marginVertical: 12,
+    textAlign: 'center',
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  modifyBtn: {
+    flex: 1,
+    marginRight: 10,
+    backgroundColor: 'rgb(24, 106, 200)',
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leaveBtn: {
+    flex: 1,
+    backgroundColor: '#dc3545',
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#fff',
   },
   joinButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: "rgb(48, 139, 36)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#28a745',
+    height: 60,
+    width: '100%',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 3,
   },
-  leaveButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: "rgb(212, 53, 53)",
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 3,
+  joinButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonContainer: {
-    position: "absolute",
-    bottom: 20,
-    right: 25,
-    flexDirection: "row",
-    gap: 10,
+  joinButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 10,
   },
   modalContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 2,
   },
   modalContent: {
-    backgroundColor: "white",
+    width: '85%',
+    maxHeight: '70%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
     padding: 20,
-    borderRadius: 10,
-    width: "80%",
-    alignItems: "center",
-    elevation: 10,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  checklistItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 10,
-    backgroundColor: "#f8f9fa",
-    borderRadius: 10,
-    marginVertical: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    width: "100%",
-  },
-  checklistRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  checklistText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    flex: 1,
-    marginLeft: "auto",
-  },
-  checklistPrice: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#555",
-    marginRight: "5%",
-  },
-  confirmButton: {
-    backgroundColor: "#007bff",
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 10,
-    alignItems: "center",
-    width: "100%",
-    elevation: 5,
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  totalPrice: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    textAlign: "center",
-    marginTop: 10,
+    zIndex: 3,
+    position: 'relative',
+    alignSelf: 'center',
   },
 });
+
+
+
+
+

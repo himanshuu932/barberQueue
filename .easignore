@@ -31,10 +31,8 @@ yarn-error.*
 
 # local env files
 .env*.local
-/server/.env
-ok.json
+
 # typescript
 *.tsbuildinfo
 app-example
 .env
-google-services.json

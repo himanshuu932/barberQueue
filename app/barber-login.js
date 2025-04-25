@@ -61,7 +61,7 @@ export default function BarberLoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
+ 
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
@@ -82,10 +82,11 @@ export default function BarberLoginScreen() {
       await AsyncStorage.setItem("userToken", data.token);
       await AsyncStorage.setItem("userName", data.barber.name);
       await AsyncStorage.setItem("uid", data.barber.id);
+      await AsyncStorage.setItem("shopId", data.shopId);
       console.log(data.barber.id);
       await AsyncStorage.setItem("userType", "barber");
 
-      Alert.alert("Success", `Logged in as Barber: ${email}`);
+   //   Alert.alert("Success", `Logged in as Barber: ${email}`);
 
       // Register push notifications for this user
       await registerForPushNotifications(data.barber.id);
