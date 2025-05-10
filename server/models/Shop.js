@@ -33,8 +33,6 @@ const QueueSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Shop Schema with trial tracking, queues, barbers, and the new address field
-// Shop Schema with trial tracking, queues, barbers, address, and rateList fields
 const ShopSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },

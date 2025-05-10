@@ -40,7 +40,7 @@ export default function TabProfileScreen() {
     address: { textData: "", y: 0, x: 0 },
   });
   const [shopId, setShopId] = useState(null);
-  const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
+  const API_BASE = "http://10.0.2.2:5000";
   // State to track location picked in map modal
   const [selectedLocation, setSelectedLocation] = useState(null);
 

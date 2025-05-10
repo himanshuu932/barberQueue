@@ -262,6 +262,7 @@ app.get("/barbers", async (req, res) => {
 // GET /barber/:uid?shopId=...
 app.get("/barber/:uid", async (req, res) => {
   try {
+    console.log("here")
     const { uid } = req.params;
     const { shopId } = req.query;
     if (!shopId) return res.status(400).json({ error: "shopId is required" });

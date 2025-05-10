@@ -1,176 +1,96 @@
-
 import React, { useState, useEffect } from "react";
 import {
-  TouchableOpacity,
-  Modal,
-  Alert,
   View,
   Text,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-  ImageBackground,
-  FlatList,
   TextInput,
-  Platform,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+  Switch,
+  Image,
   Dimensions,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
-import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
-import Svg, { Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
-import Constants from "expo-constants";
-import { io } from "socket.io-client";
-import { Rating } from "react-native-ratings";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+
+const screenWidth = Dimensions.get("window").width;
 
 export const ShopList = ({ onSelect, onClose }) => {
-  const [shops, setShops] = useState([]);
+  const [shopRatings, setShopRatings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [minRating, setMinRating] = useState(0);
+  const [nearbyOnly, setNearbyOnly] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchShops();
+    fetchShopsWithRatings();
   }, []);
 
-  const fetchShops = async () => {
+  const fetchShopsWithRatings = async () => {
     try {
-      const response = await fetch(
-        "http://10.0.2.2:5000/shop/shops"
+      const shopRes = await fetch("http://10.0.2.2:5000/shop/shops");
+      const shops = await shopRes.json();
+
+      const ratedShops = await Promise.all(
+        shops.map(async (shop) => {
+          const avg = await getAverageRating(shop._id);
+          return { shop, averageRating: avg };
+        })
       );
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-      const data = await response.json();
-      setShops(data);
+
+      setShopRatings(ratedShops);
     } catch (err) {
-      setError(err.message || "Error fetching shops");
+      setError(err.message || "Error loading shops");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectShop = async (shopId) => {
+  const getAverageRating = async (shopId) => {
     try {
-      await AsyncStorage.setItem("pinnedShop", shopId);
-      if (onSelect) {
-        onSelect();
-      }
-    } catch (error) {
-      console.error("Error saving pinned shop:", error);
-    }
-  };
+      const res = await fetch(`http://10.0.2.2:5000/barbers?shopId=${shopId}`);
+      const barbers = await res.json();
 
-  const filteredShops = shops.filter((shop) =>
-    shop.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  async function fetchBarbersAndCalculateAverage(shopId) {
-    try {
-      const response = await fetch(
-        `http://10.0.2.2:5000/barbers?shopId=${shopId}`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const barbers = await response.json();
-
-      let overallSum = 0;
-      barbers.forEach((barber) => {
-        let avgRating = 0;
-        if (barber.totalRatings > 0) {
-          avgRating = barber.totalStarsEarned / barber.totalRatings;
-        } else if (barber.ratings && barber.ratings.length > 0) {
-          const total = barber.ratings.reduce((sum, rating) => sum + rating, 0);
-          avgRating = total / barber.ratings.length;
+      let total = 0,
+        count = 0;
+      barbers.forEach((b) => {
+        if (b.totalRatings > 0) {
+          total += b.totalStarsEarned / b.totalRatings;
+          count++;
+        } else if (b.ratings?.length) {
+          const sum = b.ratings.reduce((s, r) => s + r, 0);
+          total += sum / b.ratings.length;
+          count++;
         }
-        overallSum += avgRating;
       });
-      const overallAverage = barbers.length > 0 ? overallSum / barbers.length : 0;
-      return { overallAverage };
-    } catch (error) {
-      console.error("Error fetching barbers and calculating average:", error);
-      return { overallAverage: 0 };
+
+      return count ? total / count : 0;
+    } catch {
+      return 0;
     }
-  }
-
-  // Inner component for each shop item.
-  const ShopItem = ({ item }) => {
-    const [averageRating, setAverageRating] = useState(null);
-
-    useEffect(() => {
-      async function getAverageRating() {
-        const { overallAverage } = await fetchBarbersAndCalculateAverage(item._id);
-        setAverageRating(overallAverage);
-      }
-      getAverageRating();
-    }, [item._id]);
-
-    return (
-      <TouchableOpacity
-        style={shopListStyles.shopContainer}
-        onPress={() => handleSelectShop(item._id)}
-      >
-        <View style={shopListStyles.itemHeader}>
-          <Text style={shopListStyles.shopName}>{item.name}</Text>
-          <Text style={shopListStyles.shopName}>{item.address.x}</Text>
-        </View>
-        {item.address && (
-          <View style={shopListStyles.addressContainer}>
-            <Text style={shopListStyles.addressText}>
-              {`Address: ${item.address.textData}`}
-            </Text>
-          </View>
-        )}
-        {averageRating !== null && (
-          <View style={shopListStyles.ratingContainer}>
-            <Text style={shopListStyles.ratingText}>
-              Rating : {averageRating.toFixed(1)}
-            </Text>
-            <Icon
-              name="star"
-              size={16}
-              color="#FFD700"
-              style={shopListStyles.starIcon}
-            />
-          </View>
-        )}
-      </TouchableOpacity>
-    );
   };
 
-  const renderShop = ({ item }) => <ShopItem item={item} />;
+  const handleSelectShop = async (shopId) => {
+    await AsyncStorage.setItem("pinnedShop", shopId);
+    onSelect?.();
+  };
 
-  const renderHeader = () => (
-    <View style={shopListStyles.headerContainer}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Text style={shopListStyles.heading}>Choose Shop</Text>
-        {onClose && (
-          <TouchableOpacity onPress={onClose}>
-            <Icon name="close" size={20} color="black" />
-          </TouchableOpacity>
-        )}
-      </View>
-      <TextInput
-        style={shopListStyles.searchInput}
-        placeholder="Search shops..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
-    </View>
-  );
+  const isNearby = (shop) => {
+    return shop.address?.x <= 100; // sample proximity logic
+  };
+
+  const filtered = shopRatings.filter(({ shop, averageRating }) => {
+    const matchesName = shop.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRating = averageRating >= minRating;
+    const matchesProximity = !nearbyOnly || isNearby(shop);
+    return matchesName && matchesRating && matchesProximity;
+  });
 
   if (loading) {
     return (
-      <View style={shopListStyles.centered}>
+      <View style={styles.center}>
         <ActivityIndicator size="large" color="#0000ff" />
       </View>
     );
@@ -178,122 +98,161 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   if (error) {
     return (
-      <View style={shopListStyles.centered}>
+      <View style={styles.center}>
         <Text>Error: {error}</Text>
       </View>
     );
   }
 
   return (
-    <FlatList
-      data={filteredShops}
-      keyExtractor={(item) => item._id}
-      renderItem={renderShop}
-      ListHeaderComponent={renderHeader}
-      stickyHeaderIndices={[0]}
-      contentContainerStyle={shopListStyles.listContainer}
-    />
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>Choose Shop</Text>
+          {onClose && (
+            <TouchableOpacity onPress={onClose}>
+              <Icon name="close" size={20} color="black" />
+            </TouchableOpacity>
+          )}
+        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Search shops..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <View style={styles.filterRow}>
+          <Text style={styles.filterLabel}>Min Rating:</Text>
+          <TextInput
+            style={styles.ratingInput}
+            keyboardType="numeric"
+            value={minRating.toString()}
+            onChangeText={(val) => setMinRating(Number(val) || 0)}
+          />
+          <Text style={styles.filterLabel}>Nearby:</Text>
+          <Switch
+            value={nearbyOnly}
+            onValueChange={(val) => setNearbyOnly(val)}
+            trackColor={{ false: "#ccc", true: "#4caf50" }}
+            thumbColor={nearbyOnly ? "#fff" : "#f4f3f4"}
+          />
+        </View>
+      </View>
+
+      <View style={styles.grid}>
+        {filtered.map(({ shop, averageRating }) => (
+          <TouchableOpacity
+            key={shop._id}
+            style={styles.tile}
+            onPress={() => handleSelectShop(shop._id)}
+          >
+           <Image
+  source={{ uri: `https://picsum.photos/200` }} 
+  style={styles.image}
+/>
+            <Text style={styles.shopName}>{shop.name}</Text>
+            <View style={styles.ratingRow}>
+              <Text style={styles.rating}>{averageRating.toFixed(1)}</Text>
+              <Icon name="star" size={16} color="#FFD700" />
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
   );
 };
 
-const shopListStyles = StyleSheet.create({
-  itemHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between"
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    padding: 20,
-  },
-  modalContent: {
-    width: "100%",
-    maxHeight: "85%",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  listContainer: {
-    paddingBottom: 16,
-    backgroundColor: "#fff",
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerContainer: {
-    display: "flex",
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    marginBottom: 8,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: "700",
-    // marginBottom: 8,
-    color: "#333",
-  },
-  searchInput: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
+const styles = StyleSheet.create({
+  container: {
+    paddingBottom: 30,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
+    backgroundColor: "#f9f9f9",
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  header: {
+    marginVertical: 10,
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  title: { fontSize: 26, fontWeight: "bold", color: "#333" },
+  input: {
     borderWidth: 1,
     borderColor: "#ddd",
-    marginVertical: 10,
-  },
-  shopContainer: {
-    backgroundColor: "#fff",
-    padding: 16,
-    marginBottom: 16,
+    padding: 10,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
+    marginTop: 10,
+    fontSize: 16,
   },
-  shopName: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 4,
-    color: "#333",
-  },
-  addressContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "flex-start",
-  },
-  addressText: {
-    flexBasis: "100%",
-    color: "#555",
-  },
-  ratingContainer: {
+  filterRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 10,
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
   },
-  ratingText: {
+  filterLabel: {
     fontSize: 16,
-    fontWeight: "500",
+    color: "#555",
+  },
+  ratingInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    width: 60,
+    fontSize: 16,
+    marginRight: 10,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  tile: {
+    backgroundColor: "#fff",
+    width: (screenWidth - 40) / 2.4, // 2 tiles with spacing
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 3,
+    borderColor: "#eee",
+    borderWidth: 1,
+    paddingBottom: 12,
+  },
+  image: {
+    width: "100%",
+    height: 150,
+    resizeMode: "cover",
+  },
+  shopName: {
+    fontSize: 18,
+    fontWeight: "600",
     color: "#333",
-    marginRight: 4,
+    paddingHorizontal: 10,
+    marginTop: 10,
   },
-  starIcon: {
-    marginTop: 2, // Adjust this value if needed to align vertically
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    marginTop: 6,
   },
-});  
+  rating: {
+    fontSize: 16,
+    marginRight: 5,
+    color: "#444",
+  },
+});
