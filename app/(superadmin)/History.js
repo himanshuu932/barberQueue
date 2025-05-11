@@ -46,7 +46,7 @@ const [isLoading, setIsLoading] = useState(false);
   // Add this function to fetch shop profile data
 const fetchShopProfile = async (shopId) => {
   try {
-    const response = await fetch(`http://10.0.2.2:5000/shop/profile?id=${shopId}`);
+    const response = await fetch(`https://servercheckbarber-2u89.onrender.com/shop/profile?id=${shopId}`);
     if (!response.ok) {
       throw new Error('Failed to fetch shop profile');
     }
@@ -269,7 +269,7 @@ const generatePdfContent = (transactions, shopData) => {
   const fetchAllData = async (uid) => {
     console.log(uid);
     try {
-      const barbersResponse = await fetch(`http://10.0.2.2:5000/barbers?shopId=${uid}`);
+      const barbersResponse = await fetch(`https://servercheckbarber-2u89.onrender.com/barbers?shopId=${uid}`);
       const barbersData = await barbersResponse.json();
       setBarbers(barbersData);
 

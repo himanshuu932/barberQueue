@@ -44,7 +44,7 @@ const Barber = () => {
 
   const fetchBarbers = async (uid) => {
     try {
-      const response = await fetch(`http://10.0.2.2:5000:5000:5000/barbers?shopId=${uid}`);
+      const response = await fetch(`https://servercheckbarber-2u89.onrender.com:5000:5000/barbers?shopId=${uid}`);
       const data = await response.json();
       if (response.ok) {
         setBarbers(data);
@@ -69,7 +69,7 @@ const Barber = () => {
     }
 
     try {
-      const response = await fetch("http://10.0.2.2:5000:5000:5000/barber/signup", {
+      const response = await fetch("https://servercheckbarber-2u89.onrender.com:5000:5000/barber/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...newEmployee, shopId })
@@ -102,7 +102,7 @@ const Barber = () => {
     }
 
     try {
-      const response = await fetch("http://10.0.2.2:5000:5000:5000/barber/profile", {
+      const response = await fetch("https://servercheckbarber-2u89.onrender.com:5000:5000/barber/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...updatedBarber, bid: selectedBarber._id, shopId })
@@ -129,7 +129,7 @@ const Barber = () => {
     }
 
     try {
-      const response = await fetch("http://10.0.2.2:5000:5000:5000/barber/profile", {
+      const response = await fetch("https://servercheckbarber-2u89.onrender.com:5000:5000/barber/profile", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bid: selectedBarber._id, shopId })
