@@ -9,8 +9,8 @@ const sanitizeHtml = require('sanitize-html'); // For sanitizing HTML inputs
 dotenv.config();
 
 const JWT_SECRET = process.env.SECRET || 'your-very-secure-default-secret-key';
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID ;
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET ;
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_Zm9BTiEL73IDFi';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'zGCijm6aZnCDtPWFayj6BWEQ';
 API_PUBLIC_URL='https://numbr-p7zc.onrender.com'; // IMPORTANT: Set this to your public backend URL
 
 // Initialize Razorpay
