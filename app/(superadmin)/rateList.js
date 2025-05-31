@@ -35,7 +35,7 @@ const RateList = () => {
   const fetchRateList = async (uid) => {
     try {
       // GET endpoint with shop id as query parameter
-      const response = await fetch(`http://10.0.2.2:5000/shop/rateList?id=${uid}`);
+      const response = await fetch(`https://servercheckbarber-2u89.onrender.com/shop/rateList?id=${uid}`);
       const data = await response.json();
       if (response.ok) {
         setRateList(data);
@@ -58,7 +58,7 @@ const RateList = () => {
       return;
     }
     try {
-      const response = await fetch("http://10.0.2.2:5000/shop/rateList/add", {
+      const response = await fetch("https://servercheckbarber-2u89.onrender.com/shop/rateList/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -92,7 +92,7 @@ const RateList = () => {
       return;
     }
     try {
-      const response = await fetch("http://10.0.2.2:5000/shop/rateList/update", {
+      const response = await fetch("https://servercheckbarber-2u89.onrender.com/shop/rateList/update", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -122,7 +122,7 @@ const RateList = () => {
       return;
     }
     try {
-      const response = await fetch("http://10.0.2.2:5000/shop/rateList/delete", {
+      const response = await fetch("https://servercheckbarber-2u89.onrender.com/shop/rateList/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

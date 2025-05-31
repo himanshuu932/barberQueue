@@ -276,7 +276,7 @@ exports.sendPushNotification = async (req, res) => {
   }
 };
 
-// New function to update the user's pinned shop
+
 exports.updatePinnedShop = async (req, res) => {
   try {
     const { uid, pinnedShop } = req.body;

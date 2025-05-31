@@ -1,65 +1,109 @@
+// models/Shop.js
+
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-// Barber History Schema
-const BarberHistorySchema = new mongoose.Schema({
-  services: { type: [String], required: true },
-  totalCost: { type: Number, required: true },
-  date: { type: Date, default: Date.now }
+const ShopSchema = new Schema({
+    name: {
+        type: String,
+        required: true
+    },
+    owner: { // Reference to the Owner of the shop
+        type: Schema.Types.ObjectId,
+        ref: 'Owner',
+        required: true
+    },
+    address: { // Embedded document for address details
+        fullDetails: {
+            type: String,
+            required: true
+        },
+        coordinates: { // GeoJSON for location (e.g., [longitude, latitude])
+            type: {
+                type: String,
+                enum: ['Point'],
+                default: 'Point'
+            },
+            coordinates: {
+                type: [Number], // [longitude, latitude]
+                required: true
+            }
+        }
+    },
+    photos: [{ // Array of URLs or references to image assets
+        type: String // Assuming URLs for now
+    }],
+    rating: { // Overall rating of the shop
+        type: Number,
+        min: 1,
+        max: 5,
+        default: 0
+    },
+    // Services offered by this shop, now including price specific to this shop
+    services: [{
+        service: { // Reference to the Service document
+            type: Schema.Types.ObjectId,
+            ref: 'Service',
+            required: true
+        },
+        price: { // Price for THIS specific service at THIS specific shop
+            type: Number,
+            required: true
+        }
+    }],
+    // Barbers working at this shop (references to Barber documents)
+    barbers: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Barber'
+    }],
+    subscription: { // Subscription details for the shop
+        status: { // current subscription status
+            type: String,
+            enum: ['active', 'trial', 'expired'],
+            default: 'trial', // New shops start on trial
+            required: true
+        },
+        lastPlanInfo: { // Details of the last subscribed plan (if not trial)
+            transactionId: {
+                type: String,
+                required: function() {
+                    return this.subscription.status !== 'trial';
+                }
+            },
+            plan: { // Reference to the Subscription plan document
+                type: Schema.Types.ObjectId,
+                ref: 'Subscription',
+                required: function() {
+                    return this.subscription.status !== 'trial';
+                }
+            },
+            startDate: {
+                type: Date,
+                required: function() {
+                    return this.subscription.status !== 'trial';
+                }
+            },
+            endDate: {
+                type: Date,
+                required: function() {
+                    return this.subscription.status !== 'trial';
+                }
+            }
+        },
+        trialEndDate: {
+            type: Date,
+            required: function() {
+                return this.subscription.status === 'trial';
+            }
+        }
+    }
+}, {
+    timestamps: true
 });
 
-// Barber Schema
-const BarberSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true },
-  phone: { type: String, required: true },
-  password: { type: String, required: true },
-  totalCustomersServed: { type: Number, default: 0 },
-  totalStarsEarned: { type: Number, default: 0 },
-  totalRatings: { type: Number, default: 0 },
-  ratings: { type: [Number], default: [] },
-  history: { type: [BarberHistorySchema], default: [] }
+
+ShopSchema.index({
+    'address.coordinates': '2dsphere'
 });
 
-// Queue Schema
-const QueueSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
-    order: { type: Number, required: true },
-    uid: { type: String },
-    services: [{ type: String }],
-    code: { type: String, required: true },
-    totalCost: { type: Number }
-  },
-  { timestamps: true }
-);
-
-const ShopSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  expoPushToken: { type: String },
-  address: {
-    textData: { type: String, default: "" },
-    x: { type: Number, default: 0 },
-    y: { type: Number, default: 0 }
-  },
-  // Existing fields...
-  trialStatus: { type: String, default: 'trial' }, // you can continue using this if needed
-  trialStartDate: { type: Date, default: Date.now },
-  trialEndDate: { type: Date }, // New field to store when the trial/subscription ends
-  queues: [QueueSchema],
-  barbers: [BarberSchema],
-  rateList: {
-    type: [
-      {
-        service: { type: String, required: true },
-        price: { type: Number, required: true }
-      }
-    ],
-    default: []
-  }
-});
-
-
-const Shop = mongoose.model("Shop", ShopSchema);
-module.exports = Shop;
+module.exports = mongoose.model('Shop', ShopSchema);

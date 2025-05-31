@@ -3,10 +3,8 @@ const router = express.Router();
 const auth = require('../middleware/authMiddleware');
 const { checkNotifications, resetNotification, resetPendingRating ,login,signup,history,updateDetails,fetchDetails,registerForPushNotifications,sendPushNotification,updatePinnedShop} = require('../controllers/userController');
 
-// Route to check notifications
 router.get('/check-notifications',  checkNotifications);
 
-// Route to reset notifications
 router.post('/reset-notification',  resetNotification);
 
 // Route to reset pending rating

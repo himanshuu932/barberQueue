@@ -51,7 +51,7 @@ export default function MenuScreen() {
   const [modalVisible, setModalVisible] = useState(false); // Checklist modal before joining
   const [infomodalVisible, setinfomodalVisible] = useState(false); // Infomodal for editing services
   const [chooseShopModalVisible, setChooseShopModalVisible] = useState(false); // Choose Shop modal
-  const API_BASE = "http://10.0.2.2:5000";
+  const API_BASE = "https://servercheckbarber-2u89.onrender.com";
   const [defaultChecklist, setDefaultChecklist] = useState([]);
   const initialChecklist = [
     { id: 1, text: "Haircut", price: 70, checked: false },
@@ -507,7 +507,7 @@ if (loading) {
 
 async function getShopName(uid) {
   try {
-    const response = await fetch(`http://10.0.2.2:5000/shop/profile?id=${uid}`, {
+    const response = await fetch(`https://servercheckbarber-2u89.onrender.com/shop/profile?id=${uid}`, {
       method: "GET",
     });
 

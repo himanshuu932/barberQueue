@@ -17,6 +17,8 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.11.0",
+    "razorpay": "^2.9.6",
+    "sanitize-html": "^2.17.0",
     "socket.io": "^4.8.1"
   }
 }
