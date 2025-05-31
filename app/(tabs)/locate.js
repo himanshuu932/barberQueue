@@ -85,7 +85,7 @@ export default function LocateScreen() {
       //console.log("Fetched pinnedShop from AsyncStorage:", shopId);
       if (shopId) {
         const response = await fetch(
-          `https://servercheckbarber-2u89.onrender.com/shop/coordinates?id=${shopId}`
+          `https://numbr-p7zc.onrender.com/shop/coordinates?id=${shopId}`
         );
         const data = await response.json();
         //console.log("Shop coordinates API response:", data);

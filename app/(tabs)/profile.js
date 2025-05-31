@@ -25,7 +25,7 @@ export default function TabProfileScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ name: "", email: "" });
   const [isUpdating, setIsUpdating] = useState(false);
-  const API_BASE = "https://servercheckbarber-2u89.onrender.com";
+  const API_BASE = "https://numbr-p7zc.onrender.com";
 
   // Fetch profile data and store user id
   const fetchProfile = async () => {

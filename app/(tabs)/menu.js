@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   TouchableOpacity,
-  Modal,
   Alert,
   View,
   Text,
@@ -23,7 +22,7 @@ import Constants from "expo-constants";
 import { io } from "socket.io-client";
 import { Rating } from "react-native-ratings";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import {ShopList} from "../../components/Shop";
+import { router } from 'expo-router'; // <--- Import expo-router's router
 import InfoModal from '../../components/InfoModal';
 import ChecklistModal from '../../components/Modal';
 import RatingModal from '../../components/RatingModal';
@@ -36,6 +35,7 @@ Notifications.setNotificationHandler({
   }),
 });
 const { width, height } = Dimensions.get("window");
+
 export default function MenuScreen() {
   const navigation = useNavigation();
   const [queueLength, setQueueLength] = useState(null);
@@ -49,8 +49,7 @@ export default function MenuScreen() {
   const [remainingTime, setRemainingTime] = useState(null);
   const [modalVisible, setModalVisible] = useState(false); // Checklist modal before joining
   const [infomodalVisible, setinfomodalVisible] = useState(false); // Infomodal for editing services
-  const [chooseShopModalVisible, setChooseShopModalVisible] = useState(false); // Choose Shop modal
-  const API_BASE = "https://servercheckbarber-2u89.onrender.com";
+  const API_BASE = "https://numbr-p7zc.onrender.com";
   const [defaultChecklist, setDefaultChecklist] = useState([]);
   const initialChecklist = [
     { id: 1, text: "Haircut", price: 70, checked: false },
@@ -68,43 +67,46 @@ export default function MenuScreen() {
   const [infoModalChecklist, setInfoModalChecklist] = useState([]);
   const [totalCostForInfo, setTotalCostForInfo] = useState(0);
   const [isConfirming, setIsConfirming] = useState(false);
+
   useEffect(() => {
     if (!modalVisible) {
       setIsConfirming(false);
     }
   }, [modalVisible]);
+
   const joinQueueHandler = async () => {
     if (isConfirming) return; // prevent duplicate clicks
 
     setIsConfirming(true);
     try {
-      // Assume joinQueue returns a promise.
       await joinQueue();
-      // Optionally, you might want to close the modal here:
-      // setModalVisible(false);
     } catch (error) {
       console.error(error);
     }
-    // Reset after the join process is done so the button can be clicked next time
     setIsConfirming(false);
   };
+
   const totalSelectedPrice = checklist
     .filter((item) => item.checked)
     .reduce((sum, item) => sum + item.price, 0);
   const [shopName, setShopName] = useState("");
   const combinedName =
     userName && uid ? `${userName.substring(0, 2)}${uid.substring(0, 4)}` : null;
-    useEffect(() => { 
-      if(shopId) 
-        {getShopName(shopId).then(name => setShopName(name));
 
-         } }, [shopId]);
+  useEffect(() => {
+    if (shopId) {
+      getShopName(shopId).then(name => setShopName(name));
+    }
+  }, [shopId]);
+
   // Load user data on mount
   useEffect(() => {
     const loadUserData = async () => {
       const ps = await AsyncStorage.getItem("pinnedShop");
-      if(!ps)
-        setChooseShopModalVisible(true);
+      if (!ps) {
+        // If no shop is pinned, navigate to ShopSelectionScreen using expo-router's router
+        router.navigate('/shop-selection', { onShopSelected: handleShopSelection }); // <--- Changed navigation method and path
+      }
       setShopId(ps);
       const storedUserName = await AsyncStorage.getItem("userName");
       const storedUid = await AsyncStorage.getItem("uid");
@@ -113,6 +115,15 @@ export default function MenuScreen() {
     };
     loadUserData();
   }, []);
+
+  // Callback function to handle shop selection from ShopSelectionScreen
+  const handleShopSelection = async (selectedShopId) => {
+    await AsyncStorage.setItem("pinnedShop", selectedShopId);
+    setShopId(selectedShopId);
+    // After selecting, fetch queue data for the new shop
+    fetchQueueData();
+    // The ShopSelectionScreen will handle navigating back itself via router.back()
+  };
 
   useEffect(() => {
     Notifications.requestPermissionsAsync();
@@ -123,8 +134,9 @@ export default function MenuScreen() {
     React.useCallback(() => {
       fetchQueueData();
       checkPendingRatingAndNotifications();
-    }, [])
+    }, [shopId])
   );
+
   const fetchRateList = async () => {
     try {
       const response = await fetch(`${API_BASE}/shop/rateList?id=${shopId}`);
@@ -145,19 +157,17 @@ export default function MenuScreen() {
       console.error("Error fetching rate list:", error);
     }
   };
-  
+
 
   const refreshShop = async () => {
     const storedShopId = await AsyncStorage.getItem("pinnedShop");
     setShopId(storedShopId);
-    setChooseShopModalVisible(false);
     await fetchQueueData();
   };
 
   const checkPendingRatingAndNotifications = async () => {
     try {
       const storedUid = await AsyncStorage.getItem("uid");
-      //console.log("Checking pending rating/notifications for UID:", storedUid);
       const response = await fetch(`${API_BASE}/profile?uid=${storedUid}`, {
         method: "GET",
       });
@@ -179,11 +189,9 @@ export default function MenuScreen() {
         finalStatus = status;
       }
       if (finalStatus !== "granted") {
-        //console.log("Failed to get push token for notifications!");
         return;
       }
       const token = (await Notifications.getExpoPushTokenAsync()).data;
-      //console.log("Expo Push Token:", token);
       await fetch(`${API_BASE}/register-push-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -209,6 +217,7 @@ export default function MenuScreen() {
       });
     }
   }, [socket]);
+
   useEffect(() => {
     const intervalId = setInterval(() => {
       fetchQueueData();
@@ -217,91 +226,89 @@ export default function MenuScreen() {
     return () => clearInterval(intervalId);
   }, []);
 
- const fetchQueueData = async () => {
-  try {
-    const storedShopId = await AsyncStorage.getItem("pinnedShop");
-    if (!storedShopId) {
-      setChooseShopModalVisible(true);
-      return;
-    }
-    const response = await fetch(`${API_BASE}/queue?shopId=${storedShopId}`);
-    const data = await response.json();
-    
-    // Check for an error from the server (e.g., expired trial/subscription)
-    if (data.error) {
-      if (data.error.includes("Trial or subscription period has ended")) {
-        // Clear the stored shop ID and open the modal for choosing a shop
-        await AsyncStorage.removeItem("pinnedShop");
-        setChooseShopModalVisible(true);
-        return;
-      } else {
-        console.error("Error fetching queue data:", data.error);
+  const fetchQueueData = async () => {
+    try {
+      const storedShopId = await AsyncStorage.getItem("pinnedShop");
+      if (!storedShopId) {
+        router.navigate('/shop-selection', { onShopSelected: handleShopSelection }); // <--- Changed navigation method and path
         return;
       }
-    }
-    
-    // Update queue state if there are changes
-    if (
-      data.queueLength !== queueLength ||
-      JSON.stringify(data.data) !== JSON.stringify(queueItems)
-    ) {
-      setQueueLength(data.queueLength);
-      setQueueItems(data.data);
+      const response = await fetch(`${API_BASE}/queue?shopId=${storedShopId}`);
+      const data = await response.json();
 
-      const storedUid = await AsyncStorage.getItem("uid");
-      const userResponse = await fetch(`${API_BASE}/profile?uid=${storedUid}`, {
-        method: "GET",
-      });
-      const userData = await userResponse.json();
-      
-      if (userData.notification && userData.notification.enabled) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: userData.notification.title,
-            body: userData.notification.body,
-            data: userData.notification.data,
-            sound: "default",
-            priority: Notifications.AndroidNotificationPriority.MAX,
-          },
-          trigger: null,
-        });
-        await fetch(`${API_BASE}/reset-notification`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid: userData._id }),
-        });
+      // Check for an error from the server (e.g., expired trial/subscription)
+      if (data.error) {
+        if (data.error.includes("Trial or subscription period has ended")) {
+          // Clear the stored shop ID and navigate for choosing a shop
+          await AsyncStorage.removeItem("pinnedShop");
+          router.navigate('/shop-selection', { onShopSelected: handleShopSelection }); // <--- Changed navigation method and path
+          return;
+        } else {
+          console.error("Error fetching queue data:", data.error);
+          return;
+        }
       }
+
+      // Update queue state if there are changes
+      if (
+        data.queueLength !== queueLength ||
+        JSON.stringify(data.data) !== JSON.stringify(queueItems)
+      ) {
+        setQueueLength(data.queueLength);
+        setQueueItems(data.data);
+
+        const storedUid = await AsyncStorage.getItem("uid");
+        const userResponse = await fetch(`${API_BASE}/profile?uid=${storedUid}`, {
+          method: "GET",
+        });
+        const userData = await userResponse.json();
+
+        if (userData.notification && userData.notification.enabled) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: userData.notification.title,
+              body: userData.notification.body,
+              data: userData.notification.data,
+              sound: "default",
+              priority: Notifications.AndroidNotificationPriority.MAX,
+            },
+            trigger: null,
+          });
+          await fetch(`${API_BASE}/reset-notification`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid: userData._id }),
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching queue data:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error fetching queue data:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const index = queueItems.findIndex((item) => item.uid === uid);
   const userPosition = index >= 0 ? index + 1 : null;
   const avgServiceTime = 10;
-  const initialWaitTime = userPosition ? userPosition * avgServiceTime * 60 : null;
 
   useEffect(() => {
     let timer;
     const updateRemainingTime = async () => {
-     const joinTimeStr = await AsyncStorage.getItem("joinTimestamp");
+      const joinTimeStr = await AsyncStorage.getItem("joinTimestamp");
       if (joinTimeStr && userPosition) {
         const joinTime = Number(joinTimeStr);
-        const elapsed = Math.floor((Date.now() - joinTime) / 1000); 
-        const expectedWaitTime = userPosition * avgServiceTime * 60; 
+        const elapsed = Math.floor((Date.now() - joinTime) / 1000);
+        const expectedWaitTime = userPosition * avgServiceTime * 60;
         setRemainingTime(expectedWaitTime - elapsed > 0 ? expectedWaitTime - elapsed : 0);
       }
     };
     if (userPosition) {
-     
       updateRemainingTime();
       timer = setInterval(updateRemainingTime, 1000);
     }
     return () => clearInterval(timer);
-  }, [userPosition]);
+  }, [userPosition, uid, avgServiceTime]); // Added dependencies
 
   const updateUserServices = async (selectedServices, totalCost) => {
     if (!selectedServices || selectedServices.length === 0) {
@@ -329,13 +336,15 @@ export default function MenuScreen() {
       console.error("Error updating services:", error);
     }
   };
+
   useEffect(() => {
     if (shopId) {
       fetchRateList();
     }
   }, [shopId]);
+
   const joinQueue = async () => {
-   await fetchRateList()
+    await fetchRateList();
     const selectedServices = checklist
       .filter((item) => item.checked)
       .map((item) => item.text);
@@ -359,7 +368,6 @@ export default function MenuScreen() {
         }),
       });
       if (response.ok) {
-        const data = await response.json();
         await AsyncStorage.setItem("joinTimestamp", String(Date.now()));
         fetchQueueData();
         if (socket) {
@@ -441,16 +449,16 @@ export default function MenuScreen() {
         setNotified(false);
       }
     }
-  }, [queueItems]);
+  }, [queueItems, uid, notified, API_BASE]);
 
-const formatTime = (seconds) => {
+  const formatTime = (seconds) => {
     if (seconds === null || seconds <= 0) return "Ready!";
     const minutes = Math.floor(seconds / 60);
     const sec = seconds % 60;
     return `${minutes}m ${sec}s`;
-};
+  };
 
-async function resetRatingModalFlag() {
+  async function resetRatingModalFlag() {
     try {
       const resetResponse = await fetch(`${API_BASE}/reset-pendingRating`, {
         method: "POST",
@@ -468,11 +476,11 @@ async function resetRatingModalFlag() {
     } catch (error) {
       console.error("Error resetting pending rating:", error);
     }
-}
+  }
 
-async function rateBarber(rating) {
+  async function rateBarber(ratingValue) {
     await AsyncStorage.removeItem("id");
-    if (!rating) rating = 5;
+    if (!ratingValue) ratingValue = 5;
     try {
       const storedShopId = await AsyncStorage.getItem("pinnedShop");
       const ratingResponse = await fetch(`${API_BASE}/barber/rate`, {
@@ -480,7 +488,7 @@ async function rateBarber(rating) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ shopId: storedShopId, rating, uid }),
+        body: JSON.stringify({ shopId: storedShopId, rating: ratingValue, uid }),
       });
       if (!ratingResponse.ok) {
         const errorData = await ratingResponse.json();
@@ -488,246 +496,404 @@ async function rateBarber(rating) {
         return;
       }
       resetRatingModalFlag();
-      const data = await ratingResponse.json();
-      //console.log("Rating submitted successfully:", data);
       setRatingModalVisible(false);
     } catch (error) {
       console.error("Error rating barber:", error);
     }
-}
+  }
 
-if (loading) {
+  if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#0000ff" />
       </View>
     );
-}
+  }
 
-async function getShopName(uid) {
-  try {
-    const response = await fetch(`https://servercheckbarber-2u89.onrender.com/shop/profile?id=${uid}`, {
-      method: "GET",
-    });
+  async function getShopName(shopUid) {
+    try {
+      const response = await fetch(`https://numbr-p7zc.onrender.com/shop/profile?id=${shopUid}`, {
+        method: "GET",
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.name;
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      return "Unknown Shop";
     }
+  }
 
-    const data = await response.json();
-    return data.name;
-    //setProfile(data);
-  } catch (error) {
-    console.error("Error fetching profile:", error);
-  } 
-}
-
-return (
-  <ImageBackground
-    source={require("../image/bglogin.png")}
-    style={styles.backgroundImage}
-  >
-    <View style={styles.overlay} />
-
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.chooseShopButton}
-          onPress={() => setChooseShopModalVisible(true)}
-        >
-          <FontAwesome5 name="store" solid size={20.5} color="#fff" />
-        </TouchableOpacity>
-
-        {shopId && <Text style={styles.shopName}>{shopName}</Text>}
-
-        <Text style={styles.queue}>👤 {queueLength}</Text>
-      </View>
-
-      <Text style={styles.userCode}>{combinedName}</Text>
-     
-
-      <View
-        style={styles.namesContainer}
-        nestedScrollEnabled
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 10 }}
-      >
-        {queueItems.some(item => item.uid === uid) ? (
-          queueItems
-            .filter(item => item.uid === uid)
-            .map(item => {
-              const userPosition =
-                queueItems.findIndex(qItem => qItem.uid === uid) + 1;
-              return (
-                <View key={item.uid} style={styles.userCard}>
-                   
-      <View style={styles.timerDisplay}>
-        <Text style={styles.timerText}>{formatTime(remainingTime)}</Text>
-      </View>
-      <View style={styles.positionContainer}>
-                    <Text style={styles.userPosition}>{userPosition}</Text>
-                  </View>
-
-
-              
-                  <Text style={styles.servicesTitle}>Services:</Text>
-                  <View style={styles.servicesList}>
-                    {item.services.map(s => (
-                      <Text key={s} style={styles.serviceItem}>{s}</Text>
-                    ))}
-                  </View>
-
-                  <Text style={styles.totalCost}>Total: ₹{item.totalCost}</Text>
-
-                  <View style={styles.actions}>
-                    <TouchableOpacity
-                      style={styles.modifyBtn}
-                      onPress={() => {
-                        const updated = defaultChecklist.map(i => ({
-                          ...i,
-                          checked: item.services.includes(i.text),
-                        }));
-                        setInfoModalChecklist(updated);
-                        setinfomodalVisible(true);
-                      }}
-                    >
-                      <Text style={styles.actionText}>Modify</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.leaveBtn}
-                      onPress={leaveQueue}
-                    >
-                      <Text style={styles.actionText}>Leave</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })
-        ) : (
-          <View style={styles.namesContainer}>
-           
-{!queueItems.some(item => item.uid === uid) && (
-  <>
-
-    <View style={styles.rateListContainer}>
-      <Text style={styles.servicesTitle}>Available Services:</Text>
-      <FlatList
-        data={defaultChecklist}
-        keyExtractor={item => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.rateItem}>
-            <Text style={styles.rateText}>{item.text}</Text>
-            <Text style={styles.ratePrice}>₹{item.price}</Text>
-          </View>
-        )}
-      />
-    </View>
-
-    <TouchableOpacity
-            style={styles.joinButton}
-            onPress={() => {
-              setChecklist(defaultChecklist.map(i => ({ ...i, checked: false })));
-              setModalVisible(true);
-            }}
-          >
-            <View style={styles.joinButtonContent}>
-              <Svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={25}
-                height={25}
-                viewBox="0 0 16 16"
-                fill="white"
-              >
-                <Path
-                  fillRule="evenodd"
-                  d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
-                />
-              </Svg>
-              <Text style={styles.joinButtonText}>Join Queue</Text>
-            </View>
-          </TouchableOpacity>
-    
-  </>
-)}
-
-          
-          </View>
-        )}
-      </View>
-    </View>
-
-    {/* Shop selector */}
-    <Modal
-      visible={chooseShopModalVisible}
-      animationType="slide"
-      transparent
-      onRequestClose={() => setChooseShopModalVisible(false)}
+  return (
+    <ImageBackground
+      source={require("../image/bglogin.png")}
+      style={styles.backgroundImage}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <ShopList
-            onSelect={refreshShop}
-            onClose={() => setChooseShopModalVisible(false)}
-          />
+      <View style={styles.overlay} />
+
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.chooseShopButton}
+            onPress={() => router.navigate('/shop-selection', { onShopSelected: handleShopSelection })} // <--- Changed navigation method and path
+          >
+            <FontAwesome5 name="store" solid size={20.5} color="#fff" />
+          </TouchableOpacity>
+
+          {shopId && <Text style={styles.shopName}>{shopName}</Text>}
+
+          <Text style={styles.queue}>👤 {queueLength}</Text>
+        </View>
+
+        <Text style={styles.userCode}>{combinedName}</Text>
+
+        <View style={styles.namesContainer}>
+          {queueItems.some(item => item.uid === uid) ? (
+            queueItems
+              .filter(item => item.uid === uid)
+              .map(item => {
+                const userPosition = queueItems.findIndex(qItem => qItem.uid === uid) + 1;
+                return (
+                  <View key={item.uid} style={styles.ticketContainer}>
+                    <View style={styles.ticketHeader}>
+                      <Text style={styles.ticketHeaderText}>QUEUE TICKET</Text>
+                    </View>
+
+                    <View style={styles.ticketBody}>
+                      <View style={styles.positionContainer}>
+                        <Text style={styles.positionLabel}>YOUR POSITION</Text>
+                        <Text style={styles.positionValue}>#{userPosition}</Text>
+                      </View>
+
+                      <View style={styles.waitTimeContainer}>
+                        <Text style={styles.waitTimeLabel}>ESTIMATED WAIT TIME</Text>
+                        <Text style={styles.waitTimeValue}>{formatTime(remainingTime)}</Text>
+                      </View>
+
+                      <View style={styles.servicesSection}>
+                        <Text style={styles.sectionTitle}>YOUR SERVICES</Text>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          style={styles.servicesScroll}
+                        >
+                          {item.services.map((service, index) => (
+                            <View key={index} style={styles.servicePill}>
+                              <Text style={styles.serviceName}>{service}</Text>
+                              <Text style={styles.servicePrice}>
+                                ₹{defaultChecklist.find(i => i.text === service)?.price || '--'}
+                              </Text>
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </View>
+
+                      <View style={styles.totalContainer}>
+                        <Text style={styles.totalLabel}>TOTAL</Text>
+                        <Text style={styles.totalPrice}>₹{item.totalCost}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.ticketFooter}>
+                      <Text style={styles.footerText}>Present this ticket when called</Text>
+                    </View>
+
+                    <View style={styles.actionButtons}>
+                      <TouchableOpacity
+                        style={[styles.button, styles.modifyButton]}
+                        onPress={() => {
+                          const updated = defaultChecklist.map(i => ({
+                            ...i,
+                            checked: item.services.includes(i.text),
+                          }));
+                          setInfoModalChecklist(updated);
+                          setinfomodalVisible(true);
+                        }}
+                      >
+                        <Text style={styles.buttonText}>MODIFY</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.button, styles.leaveButton]}
+                        onPress={leaveQueue}
+                      >
+                        <Text style={styles.buttonText}>LEAVE</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
+          ) : (
+            <View style={styles.namesContainer}>
+              {!queueItems.some(item => item.uid === uid) && (
+                <>
+                  <View style={styles.rateListContainer}>
+                    <Text style={styles.servicesTitle}>Available Services:</Text>
+                    <FlatList
+                      data={defaultChecklist}
+                      keyExtractor={item => item.id.toString()}
+                      renderItem={({ item }) => (
+                        <View style={styles.rateItem}>
+                          <Text style={styles.rateText}>{item.text}</Text>
+                          <Text style={styles.ratePrice}>₹{item.price}</Text>
+                        </View>
+                      )}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.joinButton}
+                    onPress={() => {
+                      setChecklist(defaultChecklist.map(i => ({ ...i, checked: false })));
+                      setModalVisible(true);
+                    }}
+                  >
+                    <View style={styles.joinButtonContent}>
+                      <Svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width={25}
+                        height={25}
+                        viewBox="0 0 16 16"
+                        fill="white"
+                      >
+                        <Path
+                          fillRule="evenodd"
+                          d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"
+                        />
+                      </Svg>
+                      <Text style={styles.joinButtonText}>Join Queue</Text>
+                    </View>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
         </View>
       </View>
-    </Modal>
+      <ChecklistModal
+        visible={modalVisible}
+        checklist={checklist}
+        totalPrice={totalSelectedPrice}
+        onToggleItem={id =>
+          setChecklist(prev =>
+            prev.map(i => (i.id === id ? { ...i, checked: !i.checked } : i))
+          )
+        }
+        onConfirm={joinQueueHandler}
+        onClose={() => setModalVisible(false)}
+        confirming={isConfirming}
+      />
 
-    {/* Checklist Before Joining */}
-    <ChecklistModal
-      visible={modalVisible}
-      checklist={checklist}
-      totalPrice={totalSelectedPrice}
-      onToggleItem={id =>
-        setChecklist(prev =>
-          prev.map(i => (i.id === id ? { ...i, checked: !i.checked } : i))
-        )
-      }
-      onConfirm={joinQueueHandler}
-      onClose={() => setModalVisible(false)}
-      confirming={isConfirming}
-    />
+      <InfoModal
+        visible={infomodalVisible}
+        checklist={infoModalChecklist}
+        onToggleItem={id =>
+          setInfoModalChecklist(prev =>
+            prev.map(i => (i.id === id ? { ...i, checked: !i.checked } : i))
+          )
+        }
+        onConfirm={() => {
+          const selected = infoModalChecklist
+            .filter(i => i.checked)
+            .map(i => i.text);
+          const cost = infoModalChecklist
+            .filter(i => i.checked)
+            .reduce((sum, i) => sum + i.price, 0);
+          updateUserServices(selected, cost);
+          setinfomodalVisible(false);
+        }}
+        onClose={() => setinfomodalVisible(false)}
+      />
 
-    {/* Edit Selected Services */}
-    <InfoModal
-      visible={infomodalVisible}
-      checklist={infoModalChecklist}
-      onToggleItem={id =>
-        setInfoModalChecklist(prev =>
-          prev.map(i => (i.id === id ? { ...i, checked: !i.checked } : i))
-        )
-      }
-      onConfirm={() => {
-        const selected = infoModalChecklist
-          .filter(i => i.checked)
-          .map(i => i.text);
-        const cost = infoModalChecklist
-          .filter(i => i.checked)
-          .reduce((sum, i) => sum + i.price, 0);
-        updateUserServices(selected, cost);
-        setinfomodalVisible(false);
-      }}
-      onClose={() => setinfomodalVisible(false)}
-    />
-
-    {/* Rate Your Barber */}
-    <RatingModal
-      visible={ratingModalVisible}
-      rating={rating}
-      onFinishRating={value => setRating(value)}
-      onSubmit={() => {
-        rateBarber(rating);
-        setRatingModalVisible(false);
-      }}
-      onReset={resetRatingModalFlag}
-      onClose={() => setRatingModalVisible(false)}
-    />
-  </ImageBackground>
-);
+      <RatingModal
+        visible={ratingModalVisible}
+        rating={rating}
+        onFinishRating={value => setRating(value)}
+        onSubmit={() => {
+          rateBarber(rating);
+          setRatingModalVisible(false);
+        }}
+        onReset={resetRatingModalFlag}
+        onClose={() => setRatingModalVisible(false)}
+      />
+    </ImageBackground>
+  );
 }
 
 const styles = StyleSheet.create({
-  // Rate list styles with white background
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  ticketContainer: {
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  ticketHeader: {
+    backgroundColor: '#000',
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  ticketHeaderText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  ticketBody: {
+    paddingHorizontal: 20,
+  },
+  ticketFooter: {
+    backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  footerText: {
+    color: '#666',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  positionContainer: {
+    alignItems: 'center',
+  },
+  positionLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  positionValue: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+  },
+  waitTimeContainer: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  waitTimeLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  waitTimeValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#d32f2f',
+  },
+  servicesSection: {
+    marginBottom: 5,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+    marginBottom: 5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  servicesScroll: {
+    flexGrow: 0,
+    marginBottom: 5,
+  },
+  servicePill: {
+    flexDirection: 'row',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  serviceName: {
+    fontSize: 14,
+    color: '#333',
+    marginRight: 6,
+  },
+  servicePrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+  },
+  totalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingVertical: 10,
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  totalPrice: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modifyButton: {
+    backgroundColor: '#333',
+    marginRight: 10,
+  },
+  leaveButton: {
+    backgroundColor: '#d32f2f',
+    marginLeft: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   rateListContainer: {
     width: '100%',
     marginBottom: 20,
@@ -756,7 +922,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'green',
   },
-
   backgroundImage: {
     flex: 1,
     resizeMode: 'cover',
@@ -847,7 +1012,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#186ac8',
   },
-  
   waitTimeLabel: {
     fontSize: 16,
     fontWeight: '500',
@@ -972,26 +1136,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 10,
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 2,
-  },
-  modalContent: {
-    width: '95%',
-    maxHeight: '90%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    zIndex: 3,
-    position: 'relative',
-    alignSelf: 'center',
-  },
+  // modalContainer: {
+  //   flex: 1,
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  //   backgroundColor: 'rgba(0,0,0,0.5)',
+  //   zIndex: 2,
+  // },
+  // modalContent: {
+  //   width: '95%',
+  //   maxHeight: '90%',
+  //   backgroundColor: '#fff',
+  //   borderRadius: 12,
+  //   padding: 20,
+  //   zIndex: 3,
+  //   position: 'relative',
+  //   alignSelf: 'center',
+  // },
 });
-
-
-
-
-

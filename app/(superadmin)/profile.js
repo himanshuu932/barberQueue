@@ -40,7 +40,7 @@ export default function TabProfileScreen() {
     address: { textData: "", y: 0, x: 0 },
   });
   const [shopId, setShopId] = useState(null);
-  const API_BASE = "https://servercheckbarber-2u89.onrender.com";
+  const API_BASE = "https://numbr-p7zc.onrender.com";
   // State to track location picked in map modal
   const [selectedLocation, setSelectedLocation] = useState(null);
 

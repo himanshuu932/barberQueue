@@ -57,7 +57,7 @@ export default function TabProfileScreen() {
         throw new Error("Shop ID not found");
       }
       // Fetch barber details from the backend using both UID and shopId
-      const response = await fetch(`https://servercheckbarber-2u89.onrender.com/barber/${uid}?shopId=${shopId}`);
+      const response = await fetch(`https://numbr-p7zc.onrender.com/barber/${uid}?shopId=${shopId}`);
       if (!response.ok) {
         throw new Error("Failed to fetch barber details");
       }
@@ -122,7 +122,7 @@ export default function TabProfileScreen() {
   const updateUserProfile = async () => {
     try {
       setUpdating(true);
-      const response = await fetch(`https://servercheckbarber-2u89.onrender.com/barber/profile`, {
+      const response = await fetch(`https://numbr-p7zc.onrender.com/barber/profile`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

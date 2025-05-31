@@ -66,7 +66,7 @@ async function registerForPushNotifications(uid) {
     }
 
     try {
-      const response = await fetch("https://servercheckbarber-2u89.onrender.com/register-push-token", {
+      const response = await fetch("https://numbr-p7zc.onrender.com/register-push-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uid, token }),
@@ -124,7 +124,7 @@ export default function LoginScreen() {
     setLoading(true);
     console.log("Logging in with email:", email, "and password:", password);
     try {
-      const response = await fetch("https://servercheckbarber-2u89.onrender.com/login", {
+      const response = await fetch("https://numbr-p7zc.onrender.com/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

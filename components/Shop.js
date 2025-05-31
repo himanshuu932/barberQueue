@@ -4,17 +4,19 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   ActivityIndicator,
   StyleSheet,
   Switch,
   Image,
   Dimensions,
+  StatusBar,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
+import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const screenWidth = Dimensions.get("window").width;
+const { width, height } = Dimensions.get("window");
 
 export const ShopList = ({ onSelect, onClose }) => {
   const [shopRatings, setShopRatings] = useState([]);
@@ -23,14 +25,27 @@ export const ShopList = ({ onSelect, onClose }) => {
   const [minRating, setMinRating] = useState(0);
   const [nearbyOnly, setNearbyOnly] = useState(false);
   const [error, setError] = useState("");
+  const [selectedShopId, setSelectedShopId] = useState(null);
 
   useEffect(() => {
     fetchShopsWithRatings();
+    loadCurrentShop();
   }, []);
+
+  const loadCurrentShop = async () => {
+    try {
+      const currentShopId = await AsyncStorage.getItem("pinnedShop");
+      if (currentShopId) {
+        setSelectedShopId(currentShopId);
+      }
+    } catch (err) {
+      console.error("Error loading current shop:", err);
+    }
+  };
 
   const fetchShopsWithRatings = async () => {
     try {
-      const shopRes = await fetch("https://servercheckbarber-2u89.onrender.com/shop/shops");
+      const shopRes = await fetch("https://numbr-p7zc.onrender.com/shop/shops");
       const shops = await shopRes.json();
 
       const ratedShops = await Promise.all(
@@ -50,7 +65,7 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   const getAverageRating = async (shopId) => {
     try {
-      const res = await fetch(`https://servercheckbarber-2u89.onrender.com/barbers?shopId=${shopId}`);
+      const res = await fetch(`https://numbr-p7zc.onrender.com/barbers?shopId=${shopId}`);
       const barbers = await res.json();
 
       let total = 0,
@@ -73,6 +88,7 @@ export const ShopList = ({ onSelect, onClose }) => {
   };
 
   const handleSelectShop = async (shopId) => {
+    setSelectedShopId(shopId);
     await AsyncStorage.setItem("pinnedShop", shopId);
     onSelect?.();
   };
@@ -88,171 +104,398 @@ export const ShopList = ({ onSelect, onClose }) => {
     return matchesName && matchesRating && matchesProximity;
   });
 
+  const renderShopItem = ({ item }) => {
+    const { shop, averageRating } = item;
+    const isSelected = shop._id === selectedShopId;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.shopCard,
+          isSelected && styles.selectedShopCard
+        ]}
+        onPress={() => handleSelectShop(shop._id)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.shopImageContainer}>
+          <Image
+            source={{ uri: `https://picsum.photos/300/300?random=${shop._id}` }}
+            style={styles.shopImage}
+          />
+          {isSelected && (
+            <View style={styles.selectedBadge}>
+              <FontAwesome5 name="check" size={12} color="#fff" />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.shopDetails}>
+          <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
+
+          <View style={styles.ratingContainer}>
+            <View style={styles.starsContainer}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Icon
+                  key={star}
+                  name="star"
+                  size={14}
+                  color={star <= Math.round(averageRating) ? "#FFD700" : "#E0E0E0"}
+                  style={{ marginRight: 2 }}
+                />
+              ))}
+            </View>
+            <Text style={styles.ratingText}>{averageRating.toFixed(1)}</Text>
+          </View>
+
+          <View style={styles.shopMeta}>
+            <View style={styles.metaItem}>
+              <FontAwesome5 name="map-marker-alt" size={12} color="#666" />
+              <Text style={styles.metaText}>2.3 km</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <FontAwesome5 name="clock" size={12} color="#666" />
+              <Text style={styles.metaText}>Open</Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#186ac8" />
+        <Text style={styles.loadingText}>Loading shops...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <Text>Error: {error}</Text>
+      <View style={styles.errorContainer}>
+        <FontAwesome5 name="exclamation-circle" size={40} color="#ff6b6b" />
+        <Text style={styles.errorText}>Error: {error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchShopsWithRatings}>
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#fff" barStyle="dark-content" />
+
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.title}>Choose Shop</Text>
+          <Text style={styles.title}>Choose Barber Shop</Text>
           {onClose && (
-            <TouchableOpacity onPress={onClose}>
-              <Icon name="close" size={20} color="black" />
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={onClose}
+              hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            >
+              <Icon name="times" size={20} color="#333" />
             </TouchableOpacity>
           )}
         </View>
-        <TextInput
-          style={styles.input}
-          placeholder="Search shops..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        <View style={styles.filterRow}>
-          <Text style={styles.filterLabel}>Min Rating:</Text>
+
+        <View style={styles.searchContainer}>
+          <Icon name="search" size={18} color="#888" style={styles.searchIcon} />
           <TextInput
-            style={styles.ratingInput}
-            keyboardType="numeric"
-            value={minRating.toString()}
-            onChangeText={(val) => setMinRating(Number(val) || 0)}
+            style={styles.searchInput}
+            placeholder="Search shops by name..."
+            placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
-          <Text style={styles.filterLabel}>Nearby:</Text>
-          <Switch
-            value={nearbyOnly}
-            onValueChange={(val) => setNearbyOnly(val)}
-            trackColor={{ false: "#ccc", true: "#4caf50" }}
-            thumbColor={nearbyOnly ? "#fff" : "#f4f3f4"}
-          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            >
+              <Icon name="times-circle" size={18} color="#888" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.filterSection}>
+          <View style={styles.filterRow}>
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>Min Rating:</Text>
+              <View style={styles.ratingSelector}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setMinRating(star)}
+                  >
+                    <Icon
+                      name="star"
+                      size={18}
+                      color={star <= minRating ? "#FFD700" : "#E0E0E0"}
+                      style={{ marginHorizontal: 1 }}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>Nearby Only:</Text>
+              <Switch
+                value={nearbyOnly}
+                onValueChange={(val) => setNearbyOnly(val)}
+                trackColor={{ false: "#ccc", true: "#186ac8" }}
+                thumbColor={nearbyOnly ? "#fff" : "#f4f3f4"}
+                ios_backgroundColor="#ccc"
+                style={styles.switch}
+              />
+            </View>
+          </View>
+
+          <View style={styles.filterStats}>
+            <Text style={styles.resultsText}>
+              {filtered.length} {filtered.length === 1 ? "shop" : "shops"} found
+            </Text>
+          </View>
         </View>
       </View>
 
-      <View style={styles.grid}>
-        {filtered.map(({ shop, averageRating }) => (
-          <TouchableOpacity
-            key={shop._id}
-            style={styles.tile}
-            onPress={() => handleSelectShop(shop._id)}
-          >
-           <Image
-  source={{ uri: `https://picsum.photos/200` }} 
-  style={styles.image}
-/>
-            <Text style={styles.shopName}>{shop.name}</Text>
-            <View style={styles.ratingRow}>
-              <Text style={styles.rating}>{averageRating.toFixed(1)}</Text>
-              <Icon name="star" size={16} color="#FFD700" />
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
+      <FlatList
+        data={filtered}
+        renderItem={renderShopItem}
+        keyExtractor={(item) => item.shop._id}
+        contentContainerStyle={styles.shopList}
+        showsVerticalScrollIndicator={false}
+        numColumns={2}
+        columnWrapperStyle={styles.shopRow}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <FontAwesome5 name="search" size={50} color="#ccc" />
+            <Text style={styles.emptyText}>No shops found matching your criteria</Text>
+          </View>
+        }
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: 30,
-    paddingHorizontal: 12,
-    backgroundColor: "#f9f9f9",
+    flex: 1,
+    backgroundColor: "#f8f9fa",
   },
-  center: {
+  loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#555",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 15,
+    fontSize: 16,
+    color: "#555",
+    textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "#186ac8",
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   header: {
-    marginVertical: 10,
     backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 12,
-    elevation: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    paddingTop: 15,
+    paddingBottom: 10,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 10,
   },
-  title: { fontSize: 26, fontWeight: "bold", color: "#333" },
-  input: {
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#333",
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 10,
+    borderColor: "#eee",
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
     fontSize: 16,
+    color: "#333",
+  },
+  filterSection: {
+    // paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
   },
   filterRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    flexWrap: "wrap",
-    gap: 10,
     justifyContent: "space-between",
+    alignItems: "center",
+    // marginBottom: 10,
+    gap: 12
+  },
+  filterItem: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   filterLabel: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#555",
+    // marginRight: 8,
   },
-  ratingInput: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    width: 60,
-    fontSize: 16,
-    marginRight: 10,
-  },
-  grid: {
+  ratingSelector: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    alignItems: "center",
   },
-  tile: {
+  switch: {
+    transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
+  },
+  filterStats: {
+    marginVertical: 8,
+  },
+  resultsText: {
+    fontSize: 14,
+    color: "#777",
+  },
+  shopList: {
+    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingBottom: 20,
+  },
+  shopRow: {
+    justifyContent: "space-evenly",
+  },
+  shopCard: {
     backgroundColor: "#fff",
-    width: (screenWidth - 40) / 2.4, // 2 tiles with spacing
+    width: (width - 70) / 2,
     marginBottom: 16,
     borderRadius: 12,
     overflow: "hidden",
     elevation: 3,
-    borderColor: "#eee",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     borderWidth: 1,
-    paddingBottom: 12,
+    borderColor: "#eee",
   },
-  image: {
+  selectedShopCard: {
+    borderColor: "#186ac8",
+    borderWidth: 2,
+    transform: [{ scale: 1.02 }],
+  },
+  shopImageContainer: {
+    position: "relative",
     width: "100%",
-    height: 150,
+    height: 100,
+  },
+  shopImage: {
+    width: "100%",
+    height: "100%",
     resizeMode: "cover",
   },
+  selectedBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#186ac8",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  shopDetails: {
+    padding: 12,
+  },
   shopName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: "#333",
-    paddingHorizontal: 10,
-    marginTop: 10,
+    marginBottom: 6,
   },
-  ratingRow: {
+  ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    marginTop: 6,
+    justifyContent: "space-between",
+    marginBottom: 8,
   },
-  rating: {
+  starsContainer: {
+    flexDirection: "row",
+  },
+  ratingText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#555",
+  },
+  shopMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  metaText: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 4,
+  },
+  emptyContainer: {
+    padding: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    marginTop: 15,
     fontSize: 16,
-    marginRight: 5,
-    color: "#444",
+    color: "#888",
+    textAlign: "center",
   },
 });
