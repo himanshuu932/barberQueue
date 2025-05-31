@@ -1,74 +1,34 @@
+// routes/shopRoutes.js
 const express = require('express');
 const router = express.Router();
+const shopController = require('../controllers/shopController');
+const { protect, authorize, checkShopSubscription } = require('../middleware/authMiddleware');
 
-// Import controllers
-const {
-  // Auth
-  signup,
-  login,
-  // Profile
-  getProfile,
-  updateProfile,
-  // Address & Coordinates
-  updateAddress, // Can be merged into updateProfile or kept separate
-  getCoordinates,
-  // Push Notifications
-  registerForPushNotifications,
-  // Shop Listing
-  getAllShops,
-  // Rate List
-  getRateList,
-  addRateListItem,
-  updateRateListItem,
-  deleteRateListItem,
-  // History (Placeholders)
-  getHistoryByDate,
-  getAllHistory,
-  // Payment
-  serveRazorpayCheckoutPage,
-  createPaymentOrder,
-  verifyPaymentAndUpdateTrial,
-  handleWebViewCallbackSuccess,
-  handleWebViewCallbackFailure
-} = require('../controllers/shopControllers'); // Adjust path if necessary
+// Public routes for shop information
+router.get('/', shopController.getAllShops); // Get all shops (for discovery)
+router.get('/:id', shopController.getShopById); // Get specific shop details
+router.get('/:id/rate-list', shopController.getShopRateList); // Get shop's services and prices
 
-// --- Authentication Routes ---
-router.post('/signup', signup);
-router.post('/login', login);
+// Private routes for shop management (Owner only, with subscription check)
+router.post('/', protect(['owner']), authorize('owner'), shopController.createShop); // Create new shop
+router.put('/:id', protect(['owner']), authorize('owner'), shopController.updateShopDetails);
+router.delete('/:id', protect(['owner']), authorize('owner'), shopController.deleteShop);
 
-// --- Profile Routes ---
-// Note: For routes like /profile, /profile/update, consider using a middleware
-// to extract shopId from JWT token (req.user.id) instead of passing shopId in query/body.
-// For now, assuming shopId is passed as needed.
-router.get('/profile', getProfile); // e.g., /shop/profile?id=xxxx
-router.patch('/profile/update', updateProfile); // PATCH for partial updates
+// Shop Services management (Owner only, with subscription check)
+router.post('/:id/services', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.addServiceToShop);
+router.put('/:id/services/:serviceItemId', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.updateShopServicePrice);
+router.delete('/:id/services/:serviceItemId', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.removeServiceFromShop);
 
-// --- Address & Coordinates ---
-router.post('/update-address', updateAddress); // Could be PATCH /profile with address data
-router.get('/coordinates', getCoordinates); // e.g., /shop/coordinates?id=xxxx
+// Shop Subscription status (Owner/Admin only)
+router.get('/:id/subscription-status', protect(['owner', 'admin']), shopController.getShopSubscriptionStatus);
 
-// --- Push Notification Token ---
-router.post('/register-push-token', registerForPushNotifications);
+// Razorpay Payment Routes for Shops (Owner only)
+router.post('/payment/create-order', protect(['owner']), authorize('owner'), shopController.createShopPaymentOrder);
+router.post('/payment/verify', protect(['owner']), authorize('owner'), shopController.verifyShopPaymentAndUpdateSubscription);
 
-// --- Shop Listing ---
-router.get('/shops', getAllShops); // Public or admin-only listing
+// Webview callback endpoints (Razorpay redirects here)
+router.get('/payment/webview-callback/success', shopController.handleWebViewCallbackSuccessShop);
+router.get('/payment/webview-callback/failure', shopController.handleWebViewCallbackFailureShop);
+router.get('/payment/checkout-page', protect(['owner']), shopController.serveRazorpayCheckoutPageShop); // Protected as it uses req.user data
 
-// --- Rate List CRUD Routes ---
-// These routes might be better as /shops/:shopId/ratelist if shopId isn't from JWT
-router.get('/rateList', getRateList);            // Query: ?id=shopId
-router.post('/rateList/add', addRateListItem);    // Body: { shopId, service, price }
-router.put('/rateList/update', updateRateListItem); // Body: { shopId, rateItemId, service, price }
-// For DELETE, params are often preferred: router.delete('/rateList/:shopId/:rateItemId', deleteRateListItem);
-router.delete('/rateList/delete', deleteRateListItem); // Body: { shopId, rateItemId }
-
-// --- History Routes (Placeholders) ---
-router.get('/history/:date', getHistoryByDate); // Query: ?id=shopId, Param: date
-router.get('/history', getAllHistory);          // Query: ?id=shopId
-
-
-router.post('/payment/create-order', createPaymentOrder);
-router.post('/payment/verify', verifyPaymentAndUpdateTrial);
-router.get('/payment/checkout-page', serveRazorpayCheckoutPage); // New
-router.get('/payment/webview-callback/success', handleWebViewCallbackSuccess); // New
-router.get('/payment/webview-callback/failure', handleWebViewCallbackFailure); // New
 module.exports = router;
