@@ -1,22 +1,32 @@
+// routes/userRoutes.js
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/authMiddleware');
-const { checkNotifications, resetNotification, resetPendingRating ,login,signup,history,updateDetails,fetchDetails,registerForPushNotifications,sendPushNotification,updatePinnedShop} = require('../controllers/userController');
+const userController = require('../controllers/userController');
+const { protect, checkUserSubscription } = require('../middleware/authMiddleware');
 
-router.get('/check-notifications',  checkNotifications);
+// Public routes for user authentication
+router.post('/register', userController.registerUser);
+router.post('/login', userController.loginUser);
 
-router.post('/reset-notification',  resetNotification);
+// Private routes for authenticated users
+router.get('/profile', protect(['user']), userController.getUserProfile);
+router.put('/profile', protect(['user']), userController.updateUserProfile);
+router.delete('/me', protect(['user']), userController.deleteUserAccount); // Delete own account
 
-// Route to reset pending rating
-router.post('/reset-pendingRating',  resetPendingRating);
-router.post("/signup",signup );
-router.post("/login", login);
-router.post("/update-pinnedShop", updatePinnedShop);
-router.post("/history",  history);
-router.patch("/profile", updateDetails);
-router.get("/profile",  fetchDetails);
-router.post("/register-push-token", registerForPushNotifications);
-router.post("/notify",sendPushNotification );
- 
+// Pinned Shop functionality
+router.put('/pin-shop/:shopId', protect(['user']), userController.pinShop);
+router.put('/unpin-shop', protect(['user']), userController.unpinShop);
+
+// User Subscription status (checked by middleware on relevant routes)
+router.get('/subscription-status', protect(['user']), checkUserSubscription, userController.getUserSubscriptionStatus);
+
+// Razorpay Payment Routes for Users
+router.post('/payment/create-order', protect(['user']), userController.createUserPaymentOrder);
+router.post('/payment/verify', protect(['user']), userController.verifyUserPaymentAndUpdateSubscription);
+
+// Webview callback endpoints (Razorpay redirects here)
+router.get('/payment/webview-callback/success', userController.handleWebViewCallbackSuccessUser);
+router.get('/payment/webview-callback/failure', userController.handleWebViewCallbackFailureUser);
+router.get('/payment/checkout-page', protect(['user']), userController.serveRazorpayCheckoutPageUser); // Protected as it uses req.user data
 
 module.exports = router;

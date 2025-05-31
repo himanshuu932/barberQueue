@@ -1,0 +1,51 @@
+
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const HistorySchema = new Schema({
+    user: { // User who received the service (required, as it's a history of a completed service)
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    barber: { // Barber who provided the service
+        type: Schema.Types.ObjectId,
+        ref: 'Barber',
+        required: true
+    },
+    shop: { // Shop where the service was provided
+        type: Schema.Types.ObjectId,
+        ref: 'Shop',
+        required: true
+    },
+    services: [{ // Now an array of services, each with a reference and quantity
+        service: { // The specific service performed
+            type: Schema.Types.ObjectId,
+            ref: 'Service',
+            required: true
+        },
+        quantity: { // Quantity of this service (e.g., 2 haircuts)
+            type: Number,
+            default: 1
+        }
+    }],
+    date: { // Date and time when the service was completed
+        type: Date,
+        default: Date.now,
+        required: true
+    },
+    totalCost: { // The total cost of this service instance
+        type: Number,
+        required: true
+    },
+    rating: { // User's rating for this specific service instance (optional)
+        type: Number,
+        min: 1,
+        max: 5,
+        required: false
+    }
+}, {
+    timestamps: true
+});
+
+module.exports = mongoose.model('History', HistorySchema);
