@@ -13,6 +13,7 @@ const bcrypt = require('bcryptjs');
 
 // Define functions internally
 const registerAdmin = asyncHandler(async (req, res) => {
+    console.log("this is from admin register request: "+req.body.pass);
     const { name, email, pass, role } = req.body;
 
     const adminExists = await Admin.findOne({ email });

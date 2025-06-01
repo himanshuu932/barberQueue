@@ -43,6 +43,27 @@ export default function Layout() {
           />
        
           <Tabs.Screen
+            name="rateList"
+            options={{
+              title: "Rate",
+              tabBarIcon: ({ color, size }) => (
+                <Text
+                  style={{
+                    fontSize: size,
+                    color,
+                    transform: [{ translateY: -2 }],
+                  }}
+                >
+                  {'\u20B9'}
+                </Text>
+              ),
+            }}
+          />
+          
+          {/* The original 'shops' tab, now named 'shops' in Expo Router */}
+          {/* Note: This screen will now expect a 'shopId' param to display content */}
+       
+          <Tabs.Screen
             name="profile"
             options={{
               title: "Profile",

@@ -15,7 +15,7 @@ router.put('/:id', protect(['owner']), authorize('owner'), shopController.update
 router.delete('/:id', protect(['owner']), authorize('owner'), shopController.deleteShop);
 
 // Shop Services management (Owner only, with subscription check)
-router.post('/:id/services', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.addServiceToShop);
+router.post('/:id/services', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.addService);
 router.put('/:id/services/:serviceItemId', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.updateShopServicePrice);
 router.delete('/:id/services/:serviceItemId', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.removeServiceFromShop);
 
