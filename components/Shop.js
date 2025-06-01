@@ -26,6 +26,7 @@ export const ShopList = ({ onSelect, onClose }) => {
   const [nearbyOnly, setNearbyOnly] = useState(false);
   const [error, setError] = useState("");
   const [selectedShopId, setSelectedShopId] = useState(null);
+  const [showFilters, setShowFilters] = useState(false); // State for filter visibility
 
   useEffect(() => {
     fetchShopsWithRatings();
@@ -98,11 +99,28 @@ export const ShopList = ({ onSelect, onClose }) => {
   };
 
   const filtered = shopRatings.filter(({ shop, averageRating }) => {
-    const matchesName = shop.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesName = searchQuery ? shop.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
     const matchesRating = averageRating >= minRating;
     const matchesProximity = !nearbyOnly || isNearby(shop);
     return matchesName && matchesRating && matchesProximity;
   });
+
+  // Function to generate active filter summary string
+  const getActiveFilterSummary = () => {
+    const filters = [];
+    if (searchQuery) {
+      filters.push(`"${searchQuery}"`);
+    }
+    if (minRating > 0) {
+      filters.push(`Rating: ${minRating}+`);
+    }
+    if (nearbyOnly) {
+      filters.push("Nearby");
+    }
+    return filters.length > 0 ? ` (${filters.join(", ")})` : "";
+  };
+
+  const filterSummary = getActiveFilterSummary();
 
   const renderShopItem = ({ item }) => {
     const { shop, averageRating } = item;
@@ -185,20 +203,27 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   return (
     <View style={styles.container}>
+      {/* App Name Header */}
+      <View style={styles.headerApp}>
+        <Text style={styles.titleApp}>Numbr</Text>
+      </View>
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
 
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.title}>Choose Barber Shop</Text>
-          {onClose && (
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={onClose}
-              hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-            >
-              <Icon name="times" size={20} color="#333" />
-            </TouchableOpacity>
-          )}
+          <View style={styles.headerActions}>
+            {/* Close Button (if needed, or can be handled by navigation.goBack in parent screen) */}
+            {onClose && (
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={onClose}
+                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+              >
+                <Icon name="times" size={20} color="#333" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <View style={styles.searchContainer}>
@@ -219,7 +244,29 @@ export const ShopList = ({ onSelect, onClose }) => {
             </TouchableOpacity>
           )}
         </View>
+      </View>
 
+      {/* Filter Toggle and Section */}
+      <View style={styles.filterToggleContainer}>
+        <TouchableOpacity
+          style={styles.filterToggleButton}
+          onPress={() => setShowFilters(!showFilters)}
+        >
+          <FontAwesome5 name="filter" size={18} color="#333" />
+          <Text style={styles.filterToggleButtonText}>Filter</Text>
+          <Icon
+            name={showFilters ? "chevron-up" : "chevron-down"}
+            size={16}
+            color="#333"
+            style={styles.filterToggleIcon}
+          />
+        </TouchableOpacity>
+        {filterSummary ? (
+          <Text style={styles.filterSummaryText}>{filterSummary}</Text>
+        ) : null}
+      </View>
+
+      {showFilters && (
         <View style={styles.filterSection}>
           <View style={styles.filterRow}>
             <View style={styles.filterItem}>
@@ -260,7 +307,7 @@ export const ShopList = ({ onSelect, onClose }) => {
             </Text>
           </View>
         </View>
-      </View>
+      )}
 
       <FlatList
         data={filtered}
@@ -268,8 +315,6 @@ export const ShopList = ({ onSelect, onClose }) => {
         keyExtractor={(item) => item.shop._id}
         contentContainerStyle={styles.shopList}
         showsVerticalScrollIndicator={false}
-        numColumns={2}
-        columnWrapperStyle={styles.shopRow}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <FontAwesome5 name="search" size={50} color="#ccc" />
@@ -282,6 +327,19 @@ export const ShopList = ({ onSelect, onClose }) => {
 };
 
 const styles = StyleSheet.create({
+  headerApp: {
+    height: 60,
+    backgroundColor: "black",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 15,
+    width: '100%',
+  },
+  titleApp: {
+    color: "#fff",
+    fontSize: 20,
+    marginLeft: 15,
+  },
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
@@ -330,8 +388,6 @@ const styles = StyleSheet.create({
     paddingTop: 15,
     paddingBottom: 10,
     paddingHorizontal: 16,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
   },
   headerTop: {
     flexDirection: "row",
@@ -343,6 +399,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: "#333",
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   closeButton: {
     padding: 8,
@@ -368,17 +429,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
   },
+  filterToggleContainer: {
+    flexDirection: 'row', // Arrange children horizontally
+    justifyContent: 'flex-end', // Align to the right
+    alignItems: 'center', // Vertically center items
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    gap: 10, // Space between button and summary text
+  },
+  filterToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  filterToggleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 5,
+  },
+  filterToggleIcon: {
+    marginLeft: 8,
+  },
+  filterSummaryText: {
+    fontSize: 14,
+    color: '#666',
+    flexShrink: 1, // Allow text to wrap
+  },
   filterSection: {
-    // paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 10,
   },
   filterRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    // marginBottom: 10,
-    gap: 12
+    gap: 12,
+    marginBottom: 10,
   },
   filterItem: {
     flexDirection: "row",
@@ -387,7 +484,6 @@ const styles = StyleSheet.create({
   filterLabel: {
     fontSize: 15,
     color: "#555",
-    // marginRight: 8,
   },
   ratingSelector: {
     flexDirection: "row",
@@ -404,16 +500,14 @@ const styles = StyleSheet.create({
     color: "#777",
   },
   shopList: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 20,
   },
-  shopRow: {
-    justifyContent: "space-evenly",
-  },
   shopCard: {
     backgroundColor: "#fff",
-    width: (width - 70) / 2,
+    width: width - 32,
+    height: 200,
     marginBottom: 16,
     borderRadius: 12,
     overflow: "hidden",
@@ -424,16 +518,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     borderWidth: 1,
     borderColor: "#eee",
+    flexDirection: 'column',
   },
   selectedShopCard: {
     borderColor: "#186ac8",
     borderWidth: 2,
-    transform: [{ scale: 1.02 }],
+    transform: [{ scale: 1.00 }],
   },
   shopImageContainer: {
     position: "relative",
     width: "100%",
-    height: 100,
+    height: "50%",
   },
   shopImage: {
     width: "100%",
@@ -453,37 +548,40 @@ const styles = StyleSheet.create({
   },
   shopDetails: {
     padding: 12,
+    height: "50%",
+    justifyContent: 'space-between',
   },
   shopName: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#333",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   starsContainer: {
     flexDirection: "row",
   },
   ratingText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
     color: "#555",
   },
   shopMeta: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 8,
   },
   metaItem: {
     flexDirection: "row",
     alignItems: "center",
   },
   metaText: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#666",
     marginLeft: 4,
   },
