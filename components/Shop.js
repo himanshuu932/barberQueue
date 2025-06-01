@@ -52,7 +52,7 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   const fetchShops = async () => {
     try {
-      const shopRes = await fetch("https://numbr-p7zc.onrender.com/api/shops");
+      const shopRes = await fetch("http://10.0.2.2:5000/api/shops");
       const shopsData = await shopRes.json();
       const shops = shopsData.data;
 
@@ -76,6 +76,7 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   const handleSelectShop = async (shopId) => {
     setSelectedShopId(shopId);
+    console.log("Selected shop ID:", shopId);
     await AsyncStorage.setItem("pinnedShop", shopId);
     onSelect?.();
   };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect,useCallback } from "react";
+import {  useFocusEffect } from "expo-router";
 import {
   TouchableOpacity,
   Alert,
@@ -49,7 +50,7 @@ export default function MenuScreen() {
   const [remainingTime, setRemainingTime] = useState(null);
   const [modalVisible, setModalVisible] = useState(false); // Checklist modal before joining
   const [infomodalVisible, setinfomodalVisible] = useState(false); // Infomodal for editing services
-  const API_BASE = "https://numbr-p7zc.onrender.com";
+  const API_BASE = "http://10.0.2.2:5000/api";
   const [defaultChecklist, setDefaultChecklist] = useState([]);
   const initialChecklist = [
     { id: 1, text: "Haircut", price: 70, checked: false },
@@ -137,26 +138,42 @@ export default function MenuScreen() {
     }, [shopId])
   );
 
-  const fetchRateList = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/shop/rateList?id=${shopId}`);
-      if (!response.ok) {
-        console.error("Failed to fetch rate list");
-        return;
-      }
-      const data = await response.json();
-      const fetchedChecklist = data.map((item, index) => ({
-        id: index + 1,
-        text: item.service,
+// In MenuScreen.js
+
+const fetchRateList = async () => {
+  console.log("Fetching rate list for shopId:", shopId);
+  if (!shopId) return; 
+  try {
+    const response = await fetch(`${API_BASE}/shops/${shopId}/rate-list`);
+    if (!response.ok) {
+      console.error("Failed to fetch rate list, status:", response.status);
+      setDefaultChecklist([]); 
+      setChecklist([]);
+      return;
+    }
+    const data = await response.json(); // Expects { success: true, data: [{ name, price, _id }, ...] }
+    
+    if (data && data.success && Array.isArray(data.data)) {
+      const fetchedChecklistItems = data.data.map((item) => ({
+        // item is { name: "Haircut", price: 70, _id: "mongoSubDocIdFromShopServices" }
+        id: item._id.toString(), // Use the unique _id of the service subdocument in the shop
+        text: item.name,         // Corrected: use item.name (not item.service)
         price: item.price,
         checked: false,
       }));
-      setDefaultChecklist(fetchedChecklist);
-      setChecklist(fetchedChecklist);
-    } catch (error) {
-      console.error("Error fetching rate list:", error);
+      setDefaultChecklist(fetchedChecklistItems);
+      setChecklist(fetchedChecklistItems.map(i => ({ ...i, checked: false })));
+    } else {
+      console.error("Fetched rate list data is not in expected format:", data);
+      setDefaultChecklist([]);
+      setChecklist([]);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching rate list:", error);
+    setDefaultChecklist([]); 
+    setChecklist([]);
+  }
+};
 
 
   const refreshShop = async () => {
@@ -512,7 +529,7 @@ export default function MenuScreen() {
 
   async function getShopName(shopUid) {
     try {
-      const response = await fetch(`https://numbr-p7zc.onrender.com/shop/profile?id=${shopUid}`, {
+      const response = await fetch(`${API_BASE}/shops/${shopUid}`, {
         method: "GET",
       });
 
@@ -521,7 +538,8 @@ export default function MenuScreen() {
       }
 
       const data = await response.json();
-      return data.name;
+      console.log("Fetched shop data:", data);
+      return data.data.name;
     } catch (error) {
       console.error("Error fetching profile:", error);
       return "Unknown Shop";
