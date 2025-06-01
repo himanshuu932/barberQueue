@@ -2,66 +2,27 @@
 const Queue = require('../models/Queue');
 const Shop = require('../models/Shop');
 const Barber = require('../models/Barber');
-const User = require('../models/User'); // Ensure User model is imported
-const Service = require('../models/Service');
+const User = require('../models/User');
 const History = require('../models/History');
 const { asyncHandler, ApiError } = require('../utils/errorHandler');
-const generateUniqueCode = require('../utils/generateCode');
+const generateUniqueCode = require('../utils/generateCode'); // Ensure this utility exists and works
+const { Expo } = require('expo-server-sdk');
 
-const { Expo } = require('expo-server-sdk'); // Import Expo SDK
-
-// This function will now accept the io instance
 module.exports = (io) => {
-
-    // Create a new Expo SDK client
     const expo = new Expo();
 
-    // Helper to calculate total cost
-    const calculateTotalCost = async (shopId, requestedServices) => {
-        const shop = await Shop.findById(shopId).populate('services.service');
-        if (!shop) {
-            throw new ApiError('Shop not found', 404);
-        }
-
-        let total = 0;
-        for (const reqService of requestedServices) {
-            const shopService = shop.services.find(
-                s => s.service._id.toString() === reqService.service.toString()
-            );
-            if (!shopService) {
-                const genericService = await Service.findById(reqService.service);
-                const serviceName = genericService ? genericService.name : 'Unknown Service';
-                throw new ApiError(`Service "${serviceName}" is not offered by this shop.`, 400);
-            }
-            total += shopService.price * (reqService.quantity || 1);
-        }
-        return total;
-    };
-
-    // Helper to emit queue updates for a given shop
-    const emitQueueUpdate = async (shopId) => {
-        const updatedQueue = await Queue.find({ shop: shopId, status: { $in: ['pending', 'in-progress'] } })
-                                        .populate('barber', 'name')
-                                        .populate('userId', 'name')
-                                        .populate('services.service', 'name')
-                                        .sort({ orderOrQueueNumber: 1 });
-        io.to(shopId.toString()).emit('queue:updated', updatedQueue);
-        console.log(`Emitted queue:updated for shop ${shopId}`);
-    };
-
-    // @desc    Internal function to send push notification to a user
-    //          Removed user.notification update as per request.
+    // --- Internal Helper: Send Push Notification ---
     const sendPushNotification = async (userID, title, body, data = {}) => {
         try {
             const user = await User.findById(userID);
             if (!user || !user.expopushtoken) {
                 console.log(`Notification skipped for user ${userID}: Not found or no push token.`);
-                return; // User not found or no push token, just return
+                return;
             }
 
             if (!Expo.isExpoPushToken(user.expopushtoken)) {
                 console.warn(`Invalid Expo push token for user ${userID}: ${user.expopushtoken}`);
-                return; // Invalid token, just return
+                return;
             }
 
             const message = {
@@ -69,274 +30,398 @@ module.exports = (io) => {
                 sound: "default",
                 title: title,
                 body: body,
-                channelId: "default",
+                channelId: "default", // Ensure this channel exists on the client
                 priority: "high",
-                _displayInForeground: true,
                 data: data,
             };
 
-            let chunks = expo.chunkPushNotifications([message]);
-            let tickets = [];
-            for (let chunk of chunks) {
-                let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-                tickets.push(...ticketChunk);
-            }
-            console.log(`Notification sent to user ${userID}. Tickets:`, tickets);
-            // In a real app, you'd store tickets and check receipts later.
+            // Expo SDK handles chunking and sending
+            await expo.sendPushNotificationsAsync([message]);
+            console.log(`Notification sent to user ${userID}. Title: ${title}`);
         } catch (error) {
             console.error(`Error sending push notification to user ${userID}:`, error);
         }
     };
 
+    // --- Internal Helper: Emit Queue Updates via Socket.IO ---
+    const emitQueueUpdate = async (shopId) => {
+        if (!shopId) return;
+        try {
+            const updatedQueue = await Queue.find({ shop: shopId, status: { $in: ['pending', 'in-progress'] } })
+                                            .populate('barber', 'name')
+                                            .populate('userId', 'name') // Populates name if userId is present
+                                            .sort({ orderOrQueueNumber: 1 });
+            io.to(shopId.toString()).emit('queue:updated', {
+                shopId: shopId,
+                queue: updatedQueue,
+                count: updatedQueue.length
+            });
+            console.log(`Emitted queue:updated for shop ${shopId} with ${updatedQueue.length} items.`);
+        } catch (error) {
+            console.error(`Error emitting queue update for shop ${shopId}:`, error);
+        }
+    };
 
     // @desc    Add customer to queue
     // @route   POST /api/queue
-    // @access  Public (can be by user or guest)
-    const addToQueue = asyncHandler(async (req, res) => {
-        const { shopId, barberId, services, customerName, customerPhone } = req.body;
+    // @access  Public
+const addToQueue = asyncHandler(async (req, res) => {
+  const {
+    shopId,
+    services: requestedServicesInput,
+    userIdFromFrontend,
+    customerName: nameFromRequest
+  } = req.body;
 
-        const shop = await Shop.findById(shopId);
-        if (!shop) {
-            throw new ApiError('Shop not found', 404);
-        }
+  // Barber and phone are always null in this flow
+  const barberId = null;
+  const customerPhone = null;
 
-        let barber = null;
-        if (barberId) {
-            barber = await Barber.findById(barberId);
-            if (!barber || barber.shopId.toString() !== shopId) {
-                throw new ApiError('Barber not found in this shop', 404);
-            }
-            if (!barber.activeTaking) {
-                throw new ApiError('Barber is currently not taking new customers', 400);
-            }
-        }
+  console.log('Incoming payload:', JSON.stringify(req.body));
 
-        let userId = null;
-        let userName = customerName; // Default for guest
-        if (req.user && req.userType === 'User') {
-            userId = req.user._id;
-            userName = req.user.name; // Use authenticated user's name
-        } else if (!customerName || !customerPhone) {
-            throw new ApiError('Customer name and phone are required for guest users.', 400);
-        }
+  // 1. Find the shop (no populate, since services are embedded)
+  const shop = await Shop.findById(shopId);
+  if (!shop) {
+    console.error(`Shop not found (ID: ${shopId})`);
+    throw new ApiError('Shop not found', 404);
+  }
 
-        const totalCost = await calculateTotalCost(shopId, services);
+  // 2. Barber is always null here
+  let barber = null;
 
-        const lastQueueEntry = await Queue.findOne({ shop: shopId, barber: barberId || null })
-                                         .sort({ orderOrQueueNumber: -1 })
-                                         .limit(1);
-        const nextQueueNumber = lastQueueEntry ? lastQueueEntry.orderOrQueueNumber + 1 : 1;
+  // 3. Determine user (JWT first, then frontend ID, then guest name)
+  let userIdToSave = null;
+  let actualCustomerName = nameFromRequest;
+  let userToNotify = null;
 
-        let uniqueCode;
-        let codeExists = true;
-        while(codeExists) {
-            uniqueCode = generateUniqueCode();
-            const existingCode = await Queue.findOne({ uniqueCode });
-            codeExists = !!existingCode;
-        }
+  if (req.user && req.userType === 'User') {
+    userIdToSave = req.user._id;
+    actualCustomerName = req.user.name;
+    userToNotify = req.user._id;
+  } else if (userIdFromFrontend) {
+    const userExists = await User.findById(userIdFromFrontend);
+    if (userExists) {
+      userIdToSave = userExists._id;
+      actualCustomerName = userExists.name;
+      userToNotify = userExists._id;
+    } else {
+      if (!nameFromRequest) {
+        console.error(
+          `Invalid userIdFromFrontend (${userIdFromFrontend}) and no customerName provided`
+        );
+        throw new ApiError('Customer name is required for guest users.', 400);
+      }
+      // actualCustomerName remains nameFromRequest
+    }
+  } else if (!nameFromRequest) {
+    console.error('Pure guest request without customerName');
+    throw new ApiError('Customer name is required.', 400);
+  }
+  // If pure guest, actualCustomerName is already nameFromRequest
 
-        const queueEntry = await Queue.create({
-            shop: shopId,
-            barber: barberId,
-            userId: userId,
-            customerName: userId ? undefined : customerName,
-            customerPhone: userId ? undefined : customerPhone,
-            services: services,
-            orderOrQueueNumber: nextQueueNumber,
-            uniqueCode: uniqueCode,
-            totalCost: totalCost,
-            status: 'pending',
-        });
+  // 4. Validate services array
+  if (
+    !requestedServicesInput ||
+    !Array.isArray(requestedServicesInput) ||
+    requestedServicesInput.length === 0
+  ) {
+    console.error('No services array or empty services passed');
+    throw new ApiError('At least one service must be selected.', 400);
+  }
 
-        // --- Send Notification: User Added to Queue ---
-        if (userId) { // Only send if it's a registered user
-            const shopName = shop.name;
-            const barberName = barber ? barber.name : 'Any Barber';
-            const title = `You're in line at ${shopName}!`;
-            const body = `Your queue number for ${barberName} is #${queueEntry.orderOrQueueNumber}. Unique code: ${queueEntry.uniqueCode}.`;
-            const notificationData = {
-                type: 'queue_add',
-                queueId: queueEntry._id.toString(),
-                shopId: shopId.toString(),
-                barberId: barberId ? barberId.toString() : null,
-                queueNumber: queueEntry.orderOrQueueNumber,
-                uniqueCode: queueEntry.uniqueCode
-            };
-            await sendPushNotification(userId, title, body, notificationData);
-        }
-        // --- End Send Notification ---
+  // 5. Build `servicesForQueueSchema` from embedded shop.services
+  let totalCost = 0;
+  const servicesForQueueSchema = [];
 
-        await emitQueueUpdate(shopId);
+  for (const reqService of requestedServicesInput) {
+    // reqService = { service: "<subdocId>", quantity: X }
+    const shopServiceEntry = shop.services.find(
+      (s) => s._id.toString() === reqService.service.toString()
+    );
 
-        res.status(201).json({
-            success: true,
-            message: 'Successfully added to queue',
-            data: {
-                _id: queueEntry._id,
-                shop: shop.name,
-                barber: barber ? barber.name : 'Any Barber',
-                customer: userName,
-                queueNumber: queueEntry.orderOrQueueNumber,
-                uniqueCode: queueEntry.uniqueCode,
-                totalCost: queueEntry.totalCost,
-                expectedWaitTime: 'Calculation needed (based on active barbers, service duration, etc.)',
-            },
-        });
+    if (!shopServiceEntry) {
+      console.error(
+        `Service with ID "${reqService.service}" not found in shop ${shopId}`
+      );
+      throw new ApiError(
+        `Service with ID "${reqService.service}" is not offered or is invalid.`,
+        400
+      );
+    }
+
+    const priceForThisService = shopServiceEntry.price;
+    const nameForThisService = shopServiceEntry.name;
+    const quantity = Math.max(1, parseInt(reqService.quantity, 10) || 1);
+
+    for (let i = 0; i < quantity; i++) {
+      servicesForQueueSchema.push({
+        name: nameForThisService,
+        price: priceForThisService
+      });
+    }
+    totalCost += priceForThisService * quantity;
+  }
+
+  // 6. Determine next queue number
+  const lastQueueEntry = await Queue.findOne({
+    shop: shop._id,
+    barber: null,
+    status: { $in: ['pending', 'in-progress'] }
+  }).sort({ orderOrQueueNumber: -1 });
+
+  const nextQueueNumber = lastQueueEntry
+    ? lastQueueEntry.orderOrQueueNumber + 1
+    : 1;
+
+  // 7. Generate a truly unique code
+  let uniqueCode;
+  do {
+    uniqueCode = generateUniqueCode();
+  } while (await Queue.findOne({ uniqueCode }));
+
+  // 8. Create the queue entry
+  const queueEntry = await Queue.create({
+    shop: shop._id,
+    barber: null,
+    userId: userIdToSave,
+    customerName: userIdToSave ? undefined : actualCustomerName,
+    customerPhone: userIdToSave ? undefined : customerPhone,
+    services: servicesForQueueSchema,
+    orderOrQueueNumber: nextQueueNumber,
+    uniqueCode: uniqueCode,
+    totalCost: totalCost,
+    status: 'pending'
+  });
+
+  // 9. Optional push notification
+  if (userToNotify) {
+    const title = `You're in line at ${shop.name}!`;
+    const body = `Your queue number is #${queueEntry.orderOrQueueNumber}. Code: ${queueEntry.uniqueCode}.`;
+    await sendPushNotification(userToNotify, title, body, {
+      type: 'queue_add',
+      queueId: queueEntry._id.toString()
     });
+  }
 
-    // @desc    Remove customer from queue (e.g., cancelled by user/barber)
+  // 10. Emit socket update
+  await emitQueueUpdate(shop._id.toString());
+
+  // 11. Send JSON response
+  res.status(201).json({
+    success: true,
+    message: 'Successfully added to queue.',
+    data: {
+      _id: queueEntry._id,
+      shop: { _id: shop._id, name: shop.name },
+      barber: null,
+      user: userIdToSave
+        ? { _id: userIdToSave, name: actualCustomerName }
+        : null,
+      customerName: queueEntry.customerName,
+      orderOrQueueNumber: queueEntry.orderOrQueueNumber,
+      uniqueCode: queueEntry.uniqueCode,
+      totalCost: queueEntry.totalCost,
+      services: queueEntry.services,
+      status: queueEntry.status,
+      createdAt: queueEntry.createdAt
+    }
+  });
+});
+
+
+
+    // @desc    Remove/Cancel customer from queue
     // @route   PUT /api/queue/:id/cancel
-    // @access  Private (User, Barber, Owner, Admin)
-    const removeFromQueue = asyncHandler(async (req, res) => {
-        const { id } = req.params;
+    // @access  Private (User, Barber, Owner, Admin - adjust protect() middleware accordingly)
+const removeFromQueue = asyncHandler(async (req, res, next) => {
+  try {
+    // 1. Log the incoming queue ID
+    const { id } = req.params;
+    console.log(`removeFromQueue called with id: ${id}`);
 
-        const queueEntry = await Queue.findById(id);
+    // 2. Find the queue entry (populate shop name for notifications)
+    const queueEntry = await Queue.findById(id).populate('shop', '_id name');
+    if (!queueEntry) {
+      console.error(`Queue entry not found (ID: ${id})`);
+      throw new ApiError('Queue entry not found', 404);
+    }
 
-        if (!queueEntry) {
-            throw new ApiError('Queue entry not found', 404);
-        }
+    console.log(
+      `Found queueEntry: shop=${queueEntry.shop.name}, status=${queueEntry.status}, userId=${queueEntry.userId}`
+    );
 
-        if (req.userType === 'User' && queueEntry.userId && queueEntry.userId.toString() !== req.user._id.toString()) {
-            throw new ApiError('Not authorized to cancel this queue entry.', 403);
-        }
-        if (req.userType === 'Barber' && queueEntry.barber && queueEntry.barber.toString() !== req.user._id.toString()) {
-            throw new ApiError('Not authorized to cancel this queue entry (not your queue).', 403);
-        }
-        if (req.userType === 'Owner') {
-            const shop = await Shop.findById(queueEntry.shop);
-            if (!shop || shop.owner.toString() !== req.user._id.toString()) {
-                throw new ApiError('Not authorized to cancel this queue entry (not your shop).', 403);
-            }
-        }
+    // 3. (Optional) Authorization logic placeholder
+    // Example:
+    // if (req.userType === 'User' && queueEntry.userId.toString() !== req.user._id.toString()) {
+    //   console.error(`User ${req.user._id} unauthorized to cancel queue ${id}`);
+    //   throw new ApiError('Not authorized to cancel this queue entry', 403);
+    // }
+    // if (req.userType === 'Barber' && queueEntry.barber && queueEntry.barber.toString() !== req.user._id.toString()) {
+    //   console.error(`Barber ${req.user._id} unauthorized to cancel queue ${id}`);
+    //   throw new ApiError('Not authorized to cancel this queue entry', 403);
+    // }
 
-        queueEntry.status = 'cancelled';
-        await queueEntry.save();
+    // 4. Check current status
+    if (queueEntry.status === 'completed' || queueEntry.status === 'cancelled') {
+      console.error(
+        `Queue entry ${id} already in status=${queueEntry.status}, cannot cancel`
+      );
+      throw new ApiError(`Queue entry is already ${queueEntry.status}.`, 400);
+    }
 
-        // --- Send Notification: User Removed from Queue ---
-        if (queueEntry.userId) { // Only send if it's a registered user
-            const shop = await Shop.findById(queueEntry.shop); // Re-fetch shop for name
-            const title = `Queue Update at ${shop ? shop.name : 'a shop'}`;
-            const body = `Your queue entry #${queueEntry.orderOrQueueNumber} (Code: ${queueEntry.uniqueCode}) has been cancelled.`;
-            const notificationData = {
-                type: 'queue_cancelled',
-                queueId: queueEntry._id.toString(),
-                shopId: queueEntry.shop.toString(),
-                uniqueCode: queueEntry.uniqueCode
-            };
-            await sendPushNotification(queueEntry.userId, title, body, notificationData);
-        }
-        // --- End Send Notification ---
+    // 5. Update status to 'cancelled'
+    console.log(`Cancelling queue entry ${id} (prev status=${queueEntry.status})`);
+    queueEntry.status = 'cancelled';
+    await queueEntry.save();
+    console.log(`Queue entry ${id} status updated to 'cancelled'`);
 
-        await emitQueueUpdate(queueEntry.shop);
+    // 6. Send push notification if there's an associated user
+    if (queueEntry.userId) {
+      const title = `Queue Update at ${queueEntry.shop.name}`;
+      const body = `Your queue entry #${queueEntry.orderOrQueueNumber} (Code: ${queueEntry.uniqueCode}) has been cancelled.`;
+      console.log(
+        `Sending push notification to user ${queueEntry.userId} for cancellation of queue ${id}`
+      );
+      await sendPushNotification(queueEntry.userId, title, body, {
+        type: 'queue_cancelled',
+        queueId: id
+      });
+    } else {
+      console.log(`No userId to notify for queue entry ${id}`);
+    }
 
-        res.json({
-            success: true,
-            message: 'Queue entry cancelled successfully',
-            data: queueEntry,
-        });
+    // 7. Emit real-time update for shop listeners
+    console.log(`Emitting queue update for shop ${queueEntry.shop._id}`);
+    await emitQueueUpdate(queueEntry.shop._id.toString());
+
+    // 8. Return JSON response
+    res.json({
+      success: true,
+      message: 'Queue entry cancelled successfully',
+      data: queueEntry
     });
+    console.log(`removeFromQueue completed for id: ${id}`);
+  } catch (err) {
+    // 9. Log the error stack/message
+    console.error('Error in removeFromQueue:', err);
+    // Rethrow so asyncHandler/Express error middleware handles it
+    throw err;
+  }
+});
+
 
     // @desc    Update queue entry status (e.g., in-progress, completed)
     // @route   PUT /api/queue/:id/status
     // @access  Private (Barber, Owner, Admin)
     const updateQueueStatus = asyncHandler(async (req, res) => {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status } = req.body; // Expect "in-progress" or "completed"
 
         if (!['in-progress', 'completed'].includes(status)) {
-            throw new ApiError('Invalid status provided. Must be "in-progress" or "completed".', 400);
+            throw new ApiError('Invalid status. Must be "in-progress" or "completed".', 400);
         }
 
-        const queueEntry = await Queue.findById(id)
-                                      .populate('shop', 'owner')
-                                      .populate('barber', 'shopId');
+        const queueEntry = await Queue.findById(id).populate('shop', '_id name owner').populate('barber', '_id name shopId');
 
         if (!queueEntry) {
             throw new ApiError('Queue entry not found', 404);
         }
+        // Add authorization logic here (e.g., check if req.user is owner of shop or assigned barber)
 
-        if (req.userType === 'Barber' && queueEntry.barber && queueEntry.barber.toString() !== req.user._id.toString()) {
-            throw new ApiError('Not authorized to update this queue entry (not your queue).', 403);
-        }
-        if (req.userType === 'Owner' && queueEntry.shop && queueEntry.shop.owner.toString() !== req.user._id.toString()) {
-            throw new ApiError('Not authorized to update this queue entry (not your shop).', 403);
-        }
-
+        const oldStatus = queueEntry.status;
         queueEntry.status = status;
-        await queueEntry.save();
 
-        if (status === 'completed') {
-            const historyRecord = await History.create({
+        if (status === 'completed' && oldStatus !== 'completed') {
+            await History.create({
                 user: queueEntry.userId,
-                barber: queueEntry.barber,
+                barber: queueEntry.barber ? queueEntry.barber._id : null,
                 shop: queueEntry.shop._id,
                 services: queueEntry.services,
                 totalCost: queueEntry.totalCost,
                 date: new Date(),
+                uniqueCode: queueEntry.uniqueCode,
+                orderOrQueueNumber: queueEntry.orderOrQueueNumber
             });
 
             if (queueEntry.barber) {
-                const barber = await Barber.findById(queueEntry.barber);
-                if (barber) {
-                    barber.customersServed += 1;
-                    await barber.save();
-                }
+                await Barber.findByIdAndUpdate(queueEntry.barber._id, { $inc: { customersServed: 1 } });
             }
+             // Update shop's total customers served or revenue if tracked
+        }
+        await queueEntry.save();
 
-            // --- Send Notification: Service Completed ---
-            if (queueEntry.userId) { // Only send if it's a registered user
-                const shop = await Shop.findById(queueEntry.shop._id);
-                const barber = await Barber.findById(queueEntry.barber._id);
-                const title = `Service Completed at ${shop ? shop.name : 'a shop'}!`;
-                const body = `Your service with ${barber ? barber.name : 'a barber'} (Code: ${queueEntry.uniqueCode}) has been completed.`;
-                const notificationData = {
-                    type: 'service_completed',
-                    queueId: queueEntry._id.toString(),
-                    shopId: queueEntry.shop._id.toString(),
-                    barberId: queueEntry.barber._id.toString(),
-                    uniqueCode: queueEntry.uniqueCode
-                };
-                await sendPushNotification(queueEntry.userId, title, body, notificationData);
-            }
-            // --- End Send Notification ---
+        if (queueEntry.userId) {
+            const shopName = queueEntry.shop.name;
+            const barberName = queueEntry.barber ? queueEntry.barber.name : 'The barber';
+            let title = '';
+            let body = '';
 
-            res.json({
-                success: true,
-                message: 'Queue entry status updated to completed and history recorded.',
-                data: { queueEntry, historyRecord },
-            });
-        } else if (status === 'in-progress') {
-             // --- Send Notification: Service In Progress ---
-            if (queueEntry.userId) { // Only send if it's a registered user
-                const shop = await Shop.findById(queueEntry.shop._id);
-                const barber = await Barber.findById(queueEntry.barber._id);
-                const title = `You're up next at ${shop ? shop.name : 'a shop'}!`;
-                const body = `${barber ? barber.name : 'Your barber'} is now ready for your service (Code: ${queueEntry.uniqueCode}).`;
-                const notificationData = {
-                    type: 'service_in_progress',
-                    queueId: queueEntry._id.toString(),
-                    shopId: queueEntry.shop._id.toString(),
-                    barberId: queueEntry.barber._id.toString(),
-                    uniqueCode: queueEntry.uniqueCode
-                };
-                await sendPushNotification(queueEntry.userId, title, body, notificationData);
+            if (status === 'in-progress') {
+                title = `You're up next at ${shopName}!`;
+                body = `${barberName} is now ready for you (Code: ${queueEntry.uniqueCode}).`;
+            } else if (status === 'completed') {
+                title = `Service Completed at ${shopName}!`;
+                body = `Your service with ${barberName} (Code: ${queueEntry.uniqueCode}) is complete. Thank you!`;
+                // TODO: Trigger rating prompt? -> client-side logic post-completion
             }
-            // --- End Send Notification ---
-            res.json({
-                success: true,
-                message: `Queue entry status updated to ${status}.`,
-                data: queueEntry,
-            });
+            if (title) {
+                 await sendPushNotification(queueEntry.userId, title, body, { type: `service_${status.replace('-', '_')}`, queueId: id });
+            }
         }
 
-
-        await emitQueueUpdate(queueEntry.shop._id);
+        await emitQueueUpdate(queueEntry.shop._id.toString());
+        res.json({ success: true, message: `Queue entry status updated to ${status}.`, data: queueEntry });
     });
 
-    // @desc    Move a person down in queue by 1 position
-    // @route   PUT /api/queue/:id/move-down
-    // @access  Private (Barber, Owner, Admin)
-    const movePersonDownInQueue = asyncHandler(async (req, res) => {
+    // @desc    Get queue for a specific shop
+    // @route   GET /api/queue/shop/:shopId
+    // @access  Public
+    const getShopQueue = asyncHandler(async (req, res) => {
+        const { shopId } = req.params;
+        if (!shopId.match(/^[0-9a-fA-F]{24}$/)) { // Validate if shopId is a valid ObjectId
+            throw new ApiError('Invalid Shop ID format', 400);
+        }
+        const shopExists = await Shop.findById(shopId);
+        if (!shopExists) {
+            throw new ApiError('Shop not found', 404);
+        }
+
+        const queue = await Queue.find({ shop: shopId, status: { $in: ['pending', 'in-progress'] } })
+                                 .populate('barber', 'name')
+                                 .populate('userId', 'name email') // Send more user details if needed by client
+                                 .sort({ orderOrQueueNumber: 1 });
+        res.json({
+            success: true,
+            count: queue.length,
+            data: queue,
+        });
+    });
+
+    // @desc    Get queue for a specific barber
+    // @route   GET /api/queue/barber/:barberId
+    // @access  Public (or Private if only barber can see their own)
+     const getBarberQueue = asyncHandler(async (req, res) => {
+        const { barberId } = req.params;
+        if (!barberId.match(/^[0-9a-fA-F]{24}$/)) {
+            throw new ApiError('Invalid Barber ID format', 400);
+        }
+        const barber = await Barber.findById(barberId);
+        if (!barber) {
+            throw new ApiError('Barber not found', 404);
+        }
+
+        const queue = await Queue.find({ barber: barberId, status: { $in: ['pending', 'in-progress'] } })
+                                 .populate('shop', 'name')
+                                 .populate('userId', 'name')
+                                 .sort({ orderOrQueueNumber: 1 });
+        res.json({ success: true, count: queue.length, data: queue });
+    });
+
+    // --- TODO: Implement other queue management functions as needed ---
+    // - movePersonDownInQueue
+    // - updateServicesInQueue (if a user wants to change services while waiting)
+    //   This would be a PATCH /api/queue/:id/services
+const movePersonDownInQueue = asyncHandler(async (req, res) => {
         const { id } = req.params;
 
         const currentEntry = await Queue.findById(id);
@@ -414,61 +499,12 @@ module.exports = (io) => {
             },
         });
     });
-
-
-    // @desc    Get queue for a specific shop
-    // @route   GET /api/shops/:shopId/queue
-    // @access  Public (for display), Private (for management by Owner/Barber)
-    const getShopQueue = asyncHandler(async (req, res) => {
-        const { shopId } = req.params;
-
-        const shop = await Shop.findById(shopId);
-        if (!shop) {
-            throw new ApiError('Shop not found', 404);
-        }
-
-        const queue = await Queue.find({ shop: shopId, status: { $in: ['pending', 'in-progress'] } })
-                                 .populate('barber', 'name')
-                                 .populate('userId', 'name')
-                                 .populate('services.service', 'name')
-                                 .sort({ orderOrQueueNumber: 1 });
-
-        res.json({
-            success: true,
-            data: queue,
-        });
-    });
-
-    // @desc    Get queue for a specific barber
-    // @route   GET /api/barbers/:barberId/queue
-    // @access  Public (for display), Private (for management by Barber/Owner)
-    const getBarberQueue = asyncHandler(async (req, res) => {
-        const { barberId } = req.params;
-
-        const barber = await Barber.findById(barberId);
-        if (!barber) {
-            throw new ApiError('Barber not found', 404);
-        }
-
-        const queue = await Queue.find({ barber: barberId, status: { $in: ['pending', 'in-progress'] } })
-                                 .populate('shop', 'name')
-                                 .populate('userId', 'name')
-                                 .populate('services.service', 'name')
-                                 .sort({ orderOrQueueNumber: 1 });
-
-        res.json({
-            success: true,
-            data: queue,
-        });
-    });
-
     return {
         addToQueue,
         removeFromQueue,
         updateQueueStatus,
-        movePersonDownInQueue,
         getShopQueue,
         getBarberQueue,
-        // sendPushNotification is now an internal helper, not exported via API
+         movePersonDownInQueue,
     };
 };

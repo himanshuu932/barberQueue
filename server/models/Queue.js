@@ -32,14 +32,14 @@ const QueueSchema = new Schema({
         }
     },
     services: [{ // Array of services the customer is getting
-        service: {
-            type: Schema.Types.ObjectId,
-            ref: 'Service',
-            required: true
+      name: {
+            type: String,
+            required: false
         },
-        quantity: { // If a service can be taken multiple times (e.g., 2 haircuts)
+        price: {
             type: Number,
-            default: 1
+            required: false,
+            min: 0
         }
     }],
     orderOrQueueNumber: { // Position in the queue
@@ -57,7 +57,7 @@ const QueueSchema = new Schema({
         type: Number,
         required: true
     },
-    status: { // e.g., 'pending', 'in-progress', 'completed', 'cancelled'
+    status: { 
         type: String,
         enum: ['pending', 'in-progress', 'completed', 'cancelled'],
         default: 'pending'
