@@ -71,7 +71,7 @@ async function registerForPushNotifications(uid) {
     // Step 3: Send token to your custom backend
     try {
       const response = await fetch(
-        "https://servercheckbarber-2u89.onrender.com/shop/register-push-token",
+        "https://numbr-p7zc.onrender.com/shop/register-push-token",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -132,7 +132,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const response = await fetch(
-        "https://servercheckbarber-2u89.onrender.com/shop/login",
+        "https://numbr-p7zc.onrender.com/shop/login",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

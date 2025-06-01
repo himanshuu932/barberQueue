@@ -37,7 +37,7 @@ async function registerForPushNotifications(uid) {
   console.log("Expo Push Token generated:", token);
   // Send token to your backend so it can be stored in the user record
   try {
-    const response = await fetch("https://servercheckbarber-2u89.onrender.com/register-push-token", {
+    const response = await fetch("https://numbr-p7zc.onrender.com/register-push-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ uid, token }),
@@ -68,7 +68,7 @@ export default function BarberLoginScreen() {
       return;
     }
     try {
-      const response = await fetch("https://servercheckbarber-2u89.onrender.com/barber/login", {
+      const response = await fetch("https://numbr-p7zc.onrender.com/barber/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

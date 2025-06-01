@@ -50,7 +50,7 @@ const Menu = () => {
 
   const fetchTodayStats = async (uid) => {
     try {
-      const barbersResponse = await fetch(`https://servercheckbarber-2u89.onrender.com/barbers?shopId=${uid}`);
+      const barbersResponse = await fetch(`https://numbr-p7zc.onrender.com/barbers?shopId=${uid}`);
       const barbersData = await barbersResponse.json();
 
       const now = new Date();

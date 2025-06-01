@@ -5,19 +5,19 @@ import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 export default function Layout() {
   return (
     <>
-      {/* Custom Header */}
+     
       <View style={styles.header}>
       
         <Text style={styles.title}>Numbr</Text>
       </View>
 
-      {/* Existing Tabs Component */}
+      
       <Tabs
         screenOptions={{
-          tabBarStyle: { backgroundColor: "black", height: 60 },
+          tabBarStyle: { backgroundColor: "black", height: 90 },
           tabBarActiveTintColor: "#007bff",
           tabBarInactiveTintColor: "#ddd",
-          headerShown: false, // We keep this false since we are using our own header
+          headerShown: false, 
         }}
       >
         <Tabs.Screen
@@ -48,13 +48,14 @@ export default function Layout() {
           }}
         />
       </Tabs>
+      
     </>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
-    height: 60,
+    height: 70,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center",
@@ -64,5 +65,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 20,
     marginLeft: 15,
+    marginTop: 15,
   },
 });

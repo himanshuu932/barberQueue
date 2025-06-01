@@ -30,7 +30,7 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   const fetchShopsWithRatings = async () => {
     try {
-      const shopRes = await fetch("https://servercheckbarber-2u89.onrender.com/shop/shops");
+      const shopRes = await fetch("https://numbr-p7zc.onrender.com/shop/shops");
       const shops = await shopRes.json();
 
       const ratedShops = await Promise.all(
@@ -50,7 +50,7 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   const getAverageRating = async (shopId) => {
     try {
-      const res = await fetch(`https://servercheckbarber-2u89.onrender.com/barbers?shopId=${shopId}`);
+      const res = await fetch(`https://numbr-p7zc.onrender.com/barbers?shopId=${shopId}`);
       const barbers = await res.json();
 
       let total = 0,
