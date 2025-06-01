@@ -23,7 +23,7 @@ import { FontAwesome5 } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 
 // Import the ShopsList component (which will now be used as a modal content)
-import ShopsList from "./shops"; // Ensure this path is correct
+import ShopsList from "../../components/owner/shops"; // Ensure this path is correct
 
 const { width } = Dimensions.get("window");
 

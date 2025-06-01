@@ -21,15 +21,7 @@ export default function Layout() {
           }}
         >
           {/* New Shop Selection Tab */}
-          <Tabs.Screen
-            name="shop-selection" // This maps to app/shop-selection.js
-            options={{
-              title: "Shops", // Title displayed on the tab bar
-              tabBarIcon: ({ color, size }) => (
-                <FontAwesome5 name="store" solid size={size} color={color} />
-              ),
-            }}
-          />
+       
 
           <Tabs.Screen
             name="menu"
@@ -40,15 +32,16 @@ export default function Layout() {
               ),
             }}
           />
-          <Tabs.Screen
-            name="barber"
+             <Tabs.Screen
+            name="shopselection" // This maps to app/shop-selection.js
             options={{
-              title: "Barber",
+              title: "Shops", // Title displayed on the tab bar
               tabBarIcon: ({ color, size }) => (
-                <ScissorsIcon color={color} size={size} />
+                <FontAwesome5 name="store" solid size={size} color={color} />
               ),
             }}
           />
+       
           <Tabs.Screen
             name="rateList"
             options={{
@@ -66,27 +59,10 @@ export default function Layout() {
               ),
             }}
           />
-          <Tabs.Screen
-            name="history"
-            options={{
-              title: "History",
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="book-outline" size={size} color={color} />
-              ),
-            }}
-          />
+          
           {/* The original 'shops' tab, now named 'shops' in Expo Router */}
           {/* Note: This screen will now expect a 'shopId' param to display content */}
-          <Tabs.Screen
-            name="shops" // This maps to app/shops.js
-            options={{
-              title: "Current Shop", // Changed title to reflect its new purpose
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="eye-outline" size={size} color={color} /> // Changed icon
-              ),
-              href: null, // Hide this tab from the tab bar but keep it as a route
-            }}
-          />
+       
           <Tabs.Screen
             name="profile"
             options={{

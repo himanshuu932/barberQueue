@@ -35,20 +35,20 @@ const ShopSchema = new Schema({
     }],
     rating: { // Overall rating of the shop
         type: Number,
-        min: 1,
+        min: 0,
         max: 5,
         default: 0
     },
     // Services offered by this shop, now including price specific to this shop
-    services: [{
-        service: { // Reference to the Service document
-            type: Schema.Types.ObjectId,
-            ref: 'Service',
-            required: true
+     services: [{
+        name: {
+            type: String,
+            required: false
         },
-        price: { // Price for THIS specific service at THIS specific shop
+        price: {
             type: Number,
-            required: true
+            required: false,
+            min: 0
         }
     }],
     // Barbers working at this shop (references to Barber documents)

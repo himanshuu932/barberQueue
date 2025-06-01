@@ -39,7 +39,7 @@ export default function Index() {
         isLoggedIn
           ? userType === "barber"
             ? "/(admin)/menu"
-            : userType === "superadmin"
+            : userType === "owner"
             ? "/(superadmin)/menu"
             : "/(tabs)/menu"
           : "/pre-login"

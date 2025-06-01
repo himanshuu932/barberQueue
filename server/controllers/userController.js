@@ -12,7 +12,9 @@ require('dotenv').config();
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
-const API_PUBLIC_URL = process.env.API_PUBLIC_URL; // IMPORTANT: Set this to your public backend URL
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL; 
+
+
 
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({
