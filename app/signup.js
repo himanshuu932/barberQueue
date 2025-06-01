@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  Alert, 
-  TouchableOpacity, 
-  ImageBackground, 
-  StyleSheet, 
-  ActivityIndicator 
+import {
+  View,
+  Text,
+  TextInput,
+  Alert,
+  TouchableOpacity,
+  ImageBackground,
+  StyleSheet,
+  ActivityIndicator
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
@@ -17,50 +17,57 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 export default function SignupScreen() {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState(""); // Changed from email to phone
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
 
-  const API_BASE = "https://barberqueue-24143206157.us-central1.run.app";
+  // Updated API_BASE URL
+  const API_BASE = "http://10.0.2.2:5000";
 
-  // Simple email validation
-  const isValidEmail = (email) => {
-    const re = /\S+@\S+\.\S+/;
-    return re.test(email);
+  // Simple phone number validation (basic check for digits)
+  const isValidPhone = (phone) => {
+    // You might want a more robust regex for specific country codes etc.
+    return /^\d{10}$/.test(phone); // Assumes 10-digit phone number
   };
 
   const handleSignup = async () => {
-    if (!name || !email || !password) {
+    if (!name || !phone || !password) { // Changed from email to phone
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
-    if (!isValidEmail(email)) {
-      Alert.alert("Error", "Please enter a valid email address.");
+    if (!isValidPhone(phone)) { // Changed from isValidEmail to isValidPhone
+      Alert.alert("Error", "Please enter a valid 10-digit phone number.");
       return;
     }
     if (password.length < 6) {
       Alert.alert("Error", "Password should be at least 6 characters.");
       return;
     }
-    
+
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/signup`, {
+      const response = await fetch(`${API_BASE}/api/users/register`, { // Updated endpoint
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, phone, pass: password }), // Changed email to phone, password to pass
       });
-      const data = await response.json();
+      const responseData = await response.json(); // Renamed data to responseData for clarity
+
       if (!response.ok) {
-        Alert.alert("Error", data.error || "Signup failed");
+        Alert.alert("Error", responseData.error || "Signup failed"); // Accessing responseData.error
         setLoading(false);
         return;
       }
-      await AsyncStorage.setItem("userToken", data.token);
-      await AsyncStorage.setItem("userName", data.user.name);
-      Alert.alert("Success", `Signed up as: ${data.user.email}`);
-      router.replace("/login");
+
+      // Backend returns data in `responseData.data`
+      await AsyncStorage.setItem("userToken", responseData.data.token);
+      await AsyncStorage.setItem("userName", responseData.data.name);
+      await AsyncStorage.setItem("uid", responseData.data._id); // Store user ID
+      await AsyncStorage.setItem("userType", "user"); // Explicitly set user type
+
+      Alert.alert("Success", `Signed up as: ${responseData.data.phone}`); // Display phone
+      router.replace("/login"); // Navigate to login after successful signup
     } catch (error) {
       console.error("Signup error:", error);
       Alert.alert("Error", "Something went wrong during signup.");
@@ -86,12 +93,12 @@ export default function SignupScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Phone Number" // Changed placeholder
             placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="email-address"
+            keyboardType="phone-pad" // Changed keyboardType
             autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+            value={phone} // Changed from email to phone
+            onChangeText={setPhone} // Changed from setEmail to setPhone
           />
 
           <View style={styles.passwordContainer}>
@@ -103,7 +110,7 @@ export default function SignupScreen() {
               value={password}
               onChangeText={setPassword}
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.eyeButton}
               onPress={() => setPasswordVisible(!passwordVisible)}
             >
@@ -111,9 +118,9 @@ export default function SignupScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity 
-            style={styles.buttonContainer} 
-            onPress={handleSignup} 
+          <TouchableOpacity
+            style={styles.buttonContainer}
+            onPress={handleSignup}
             disabled={loading}
           >
             <LinearGradient

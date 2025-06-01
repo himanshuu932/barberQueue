@@ -25,8 +25,11 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Updated API_BASE URL
+const API_BASE = "http://10.0.2.2:5000";
+
 // Function to register push notifications
-async function registerForPushNotifications(uid) {
+async function registerForPushNotifications(uid, token) {
   console.log("Registering for push notifications for uid:", uid);
 
   try {
@@ -49,9 +52,9 @@ async function registerForPushNotifications(uid) {
       return;
     }
 
-    let token;
+    let expoPushToken;
     try {
-      token = (
+      expoPushToken = (
         await Notifications.getExpoPushTokenAsync({
           projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
         })
@@ -65,11 +68,22 @@ async function registerForPushNotifications(uid) {
       return;
     }
 
+    // Get the user's token from AsyncStorage
+    const userToken = await AsyncStorage.getItem("userToken");
+    if (!userToken) {
+        console.error("No user token found for push notification registration.");
+        return;
+    }
+
     try {
-      const response = await fetch("https://servercheckbarber-2u89.onrender.com/register-push-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, token }),
+      // Send the expoPushToken to your backend's user profile update endpoint
+      const response = await fetch(`${API_BASE}/api/users/profile`, { // Updated endpoint
+        method: "PUT", // Use PUT for updating profile
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${userToken}` // Send JWT token for authentication
+        },
+        body: JSON.stringify({ expopushtoken: expoPushToken }), // Send expoPushToken
       });
 
       if (!response.ok) {
@@ -111,43 +125,45 @@ async function registerForPushNotifications(uid) {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState(""); // Changed from email to phone
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password.");
+    if (!phone || !password) { // Changed from email to phone
+      Alert.alert("Error", "Please enter both phone number and password.");
       return;
     }
     setLoading(true);
-    console.log("Logging in with email:", email, "and password:", password);
+    console.log("Logging in with phone:", phone, "and password:", password); // Changed from email to phone
     try {
-      const response = await fetch("https://servercheckbarber-2u89.onrender.com/login", {
+      const response = await fetch(`${API_BASE}/api/users/login`, { // Updated endpoint
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ phone, pass: password }), // Changed email to phone, password to pass
       });
 
-      const data = await response.json();
+      const responseData = await response.json(); // Renamed data to responseData
       if (!response.ok) {
-        Alert.alert("Error", data.error || "Login failed");
+        Alert.alert("Error", responseData.error || "Login failed"); // Accessing responseData.error
         setLoading(false);
         return;
       }
-      console.log(data);
-      // Store token and user data
-      await AsyncStorage.setItem("userToken", data.token);
-      await AsyncStorage.setItem("userName", data.user.name);
-      await AsyncStorage.setItem("uid", data.user.id);
-      let userType = "user";
-      await AsyncStorage.setItem("userType", userType);
-      // Register push notifications
-      await registerForPushNotifications(data.user.id);
+      console.log(responseData);
 
-      if (data.user.pinnedShop) {
-        await AsyncStorage.setItem("pinnedShop", data.user.pinnedShop);
+      // Store token and user data from responseData.data
+      await AsyncStorage.setItem("userToken", responseData.data.token);
+      await AsyncStorage.setItem("userName", responseData.data.name);
+      await AsyncStorage.setItem("uid", responseData.data._id); // Store user ID
+      await AsyncStorage.setItem("userType", "user"); // Explicitly set user type
+
+      // Register push notifications
+      // Pass the obtained token from login to registerForPushNotifications if needed
+      await registerForPushNotifications(responseData.data._id);
+
+      if (responseData.data.pinnedShop) { // Access pinnedShop from responseData.data
+        await AsyncStorage.setItem("pinnedShop", responseData.data.pinnedShop);
       }
       // Replace the screen so user can't navigate back to login
       router.replace("/(tabs)/menu");
@@ -166,12 +182,12 @@ export default function LoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Phone Number" // Changed placeholder
             placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="email-address"
+            keyboardType="phone-pad" // Changed keyboardType
             autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+            value={phone} // Changed from email to phone
+            onChangeText={setPhone} // Changed from setEmail to setPhone
           />
 
           <View style={styles.passwordContainer}>

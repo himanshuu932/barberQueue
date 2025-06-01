@@ -27,8 +27,9 @@ Notifications.setNotificationHandler({
 });
 
 // Function to register push notifications
-async function registerForPushNotifications(uid) {
-  console.log("Registering for push notifications for uid:", uid);
+async function registerForPushNotifications(ownerId, token) {
+  console.log("Registering for push notifications for ownerId:", ownerId);
+  console.log("Expo Push Token:", token);
 
   try {
     // Step 1: Check and request permissions
@@ -51,46 +52,39 @@ async function registerForPushNotifications(uid) {
       return;
     }
 
-    // Step 2: Generate Expo Push Token
-    let token;
+    // Step 2: Send token to your custom backend to update owner profile
     try {
-      token = (
-        await Notifications.getExpoPushTokenAsync({
-          projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
-        })
-      ).data;
-    } catch (error) {
-      console.error("Error generating Expo Push Token:", error);
-      Alert.alert(
-        "Error Generating Push Token",
-        `An error occurred while generating the push token: ${error.message}`
-      );
-      return;
-    }
+      // Retrieve the user token from AsyncStorage for authentication
+      const userToken = await AsyncStorage.getItem("userToken");
+      if (!userToken) {
+        console.error("No user token found for push notification registration.");
+        return;
+      }
 
-    // Step 3: Send token to your custom backend
-    try {
       const response = await fetch(
-        "https://servercheckbarber-2u89.onrender.com/shop/register-push-token",
+        "http://10.0.2.2:5000/api/owners/profile", // Correct route for updating owner profile
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid, token }),
+          method: "PUT", // Use PUT for updating profile
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${userToken}`, // Send the user token
+          },
+          body: JSON.stringify({ expopushtoken: token }), // Send the push token
         }
       );
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Backend error:", errorData);
+        console.error("Backend error updating push token:", errorData);
         Alert.alert(
           "Backend Error",
-          `Failed to register push token: ${errorData.error || "Unknown error"}`
+          `Failed to register push token: ${errorData.message || "Unknown error"}`
         );
         return;
       }
 
       const resData = await response.json();
-      console.log("Backend response for push token registration:", resData);
+      console.log("Backend response for push token update:", resData);
     } catch (error) {
       console.error("Error sending push token to backend:", error);
       Alert.alert(
@@ -99,7 +93,7 @@ async function registerForPushNotifications(uid) {
       );
     }
 
-    // Step 4: Configure Android notification channel
+    // Step 3: Configure Android notification channel
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "default",
@@ -119,45 +113,59 @@ async function registerForPushNotifications(uid) {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState(""); // Changed from email to phone
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password.");
+    if (!phone || !password) { // Changed from email to phone
+      Alert.alert("Error", "Please enter both phone number and password.");
       return;
     }
     setLoading(true);
     try {
       const response = await fetch(
-        "https://servercheckbarber-2u89.onrender.com/shop/login",
+        "http://10.0.2.2:5000/api/owners/login", // Corrected endpoint
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ phone, pass: password }), // Corrected fields
         }
       );
 
       const data = await response.json();
       if (!response.ok) {
-        Alert.alert("Error", data.error || "Login failed");
+        Alert.alert("Error", data.message || "Login failed"); // Use data.message
         setLoading(false);
         return;
       }
-      console.log(data.shop.id);
-      // Store token and user data
-      await AsyncStorage.setItem("userToken", data.token);
-      await AsyncStorage.setItem("userName", data.shop.name);
-      await AsyncStorage.setItem("uid", data.shop.id);
-      let userType = "superadmin";
+      console.log("Login successful:", data);
+      console.log("Owner ID:", data.data._id); // Access _id from data.data
+
+      // Store token and owner data
+      await AsyncStorage.setItem("userToken", data.data.token);
+      await AsyncStorage.setItem("userName", data.data.name);
+      await AsyncStorage.setItem("uid", data.data._id); // Store owner ID
+      let userType = "owner"; 
       await AsyncStorage.setItem("userType", userType);
 
-      await registerForPushNotifications(data.shop.id);
+      // Get Expo Push Token and then register it with the backend
+      let expoPushToken;
+      try {
+        expoPushToken = (
+          await Notifications.getExpoPushTokenAsync({
+            projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
+          })
+        ).data;
+        await registerForPushNotifications(data.data._id, expoPushToken); // Pass owner ID and token
+      } catch (error) {
+        console.error("Error getting Expo Push Token or registering:", error);
+      }
+
 
       // Navigate immediately and remove this screen from the stack
-      router.replace("/(superadmin)/menu");
+      router.replace("/(superadmin)/menu"); // Assuming the owner's menu path is /owner/menu
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
@@ -173,12 +181,12 @@ export default function LoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Phone Number" // Changed placeholder
             placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="email-address"
+            keyboardType="phone-pad" // Changed keyboardType
             autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+            value={phone}
+            onChangeText={setPhone} // Changed setter
           />
 
           <View style={styles.passwordContainer}>
