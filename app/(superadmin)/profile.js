@@ -290,7 +290,7 @@ export default function TabProfileScreen() {
       </View>
     </ImageBackground>
   );
-}
+} 
 
 const styles = StyleSheet.create({
   backgroundImage: {

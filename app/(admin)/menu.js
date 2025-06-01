@@ -649,6 +649,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     color: "#333",
+    marginRight:0,  // Adds spacing between number and text
+  },
+  nameContainer: {
+    flexShrink: 1,  // Ensures text does not overflow
+    maxWidth: "70%", // Prevents excessive width
   },
   queueName: {
     fontSize: 20,
@@ -679,8 +684,8 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   doneButton: {
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: "rgb(48, 139, 36)",
     justifyContent: "center",
@@ -689,8 +694,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   downButton: {
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: "rgb(7, 55, 229)",
     justifyContent: "center",
