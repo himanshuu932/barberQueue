@@ -118,14 +118,10 @@ exports.updateOwnerProfile = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Get all shops owned by the logged-in owner
-// @route   GET /api/owners/me/shops
-// @access  Private (Owner)
+
 exports.getOwnerShops = asyncHandler(async (req, res) => {
     // req.user contains the owner's data from the protect middleware
-    const shops = await Shop.find({ owner: req.user._id })
-                             .populate('services.service', 'name') // Populate service details
-                             .populate('barbers', 'name phone'); // Populate barber details
+    const shops = await Shop.find({ owner: req.user._id }); // Populate barber details
 
     res.json({
         success: true,

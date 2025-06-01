@@ -39,7 +39,7 @@ const ShopSchema = new Schema({
         max: 5,
         default: 0
     },
-    // Services offered by this shop, now including price specific to this shop
+    
      services: [{
         name: {
             type: String,
@@ -96,7 +96,11 @@ const ShopSchema = new Schema({
                 return this.subscription.status === 'trial';
             }
         }
-    }
+    },
+      openingTime: { type: String, required: true, default: '09:00' },
+      closingTime: { type: String, required: true, default: '18:00' },
+      isManuallyOverridden: { type: Boolean, default: false },
+      isOpen: { type: Boolean, default: false },
 }, {
     timestamps: true
 });

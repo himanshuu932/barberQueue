@@ -19,6 +19,7 @@ router.post('/:id/services', protect(['owner']), authorize('owner'), checkShopSu
 router.put('/:id/services/:serviceItemId', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.updateShopServicePrice);
 router.delete('/:id/services/:serviceItemId', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.removeServiceFromShop);
 
+
 // Shop Subscription status (Owner/Admin only)
 router.get('/:id/subscription-status', protect(['owner', 'admin']), shopController.getShopSubscriptionStatus);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   Image,
   TouchableOpacity,
   Modal,
-  TextInput,
+  TextInput, 
   Switch,
   Alert,
   ImageBackground,
@@ -15,92 +15,22 @@ import {
   Dimensions,
   Platform,
   ActionSheetIOS, // For iOS ActionSheet
+  ActivityIndicator, // For loading indicator
 } from "react-native";
-// Removed useRouter and useLocalSearchParams as navigation is handled by modal state
-// import { useRouter, useLocalSearchParams } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
 import Icon from "react-native-vector-icons/FontAwesome";
 import { FontAwesome5 } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker'; 
 
-// Import the ShopsList component (which will now be used as a modal content)
-import ShopsList from "../../components/owner/shops"; // Ensure this path is correct
+import ShopsList from "../../components/owner/shops"; 
 
 const { width } = Dimensions.get("window");
 
-// --- Sample Static Data for Shops (Source of truth for THIS component) ---
-// This data will be passed down to ShopsList and updated from there.
-const initialStaticShopsData = [
-  {
-    id: 'shop1',
-    name: 'The Classic Barber',
-    address: '123 Main St, Anytown, USA',
-    isOpen: true, // Manual override status
-    isManuallyOverridden: false, // New: false means status is time-based by default
-    openingTime: '09:00', // HH:MM format
-    closingTime: '18:00', // HH:MM format
-    carouselImages: [
-      'https://picsum.photos/id/10/600/400',
-      'https://picsum.photos/id/20/600/400',
-      'https://picsum.photos/id/30/600/400',
-    ],
-    shopRating: { average: 4.5, count: 120 },
-    todayStats: { earnings: 1500, customers: 15, popularService: 'Haircut', topEmployee: 'John Doe' },
-    barbers: [
-      { _id: 'b1', name: 'John Doe', email: 'john@example.com', phone: '111-222-3333', totalCustomersServed: 500, totalStarsEarned: 2200, totalRatings: 500 },
-      { _id: 'b2', name: 'Jane Smith', email: 'jane@example.com', phone: '444-555-6666', totalCustomersServed: 450, totalStarsEarned: 1900, totalRatings: 450 },
-    ],
-  },
-  {
-    id: 'shop2',
-    name: 'Modern Cuts & Styles',
-    address: '456 Oak Ave, Othercity, USA',
-    isOpen: false, // Manual override status
-    isManuallyOverridden: false,
-    openingTime: '10:00',
-    closingTime: '20:00',
-    carouselImages: [
-      'https://picsum.photos/id/40/600/400',
-      'https://picsum.photos/id/50/600/400',
-      'https://picsum.photos/id/60/600/400',
-      'https://picsum.photos/id/75/600/400',
-      'https://picsum.photos/id/85/600/400',
-      'https://picsum.photos/id/95/600/400',
-      'https://picsum.photos/id/105/600/400',
-    ],
-    shopRating: { average: 4.2, count: 80 },
-    todayStats: { earnings: 800, customers: 8, popularService: 'Beard Trim', topEmployee: 'Mike Johnson' },
-    barbers: [
-      { _id: 'b3', name: 'Mike Johnson', email: 'mike@example.com', phone: '777-888-9999', totalCustomersServed: 300, totalStarsEarned: 1200, totalRatings: 300 },
-      { _id: 'b4', name: 'Emily White', email: 'emily@example.com', phone: '123-456-7890', totalCustomersServed: 280, totalStarsEarned: 1100, totalRatings: 280 },
-    ],
-  },
-  {
-    id: 'shop3',
-    name: 'The Barbershop Co.',
-    address: '789 Pine Ln, Anyville, USA',
-    isOpen: true, // Manual override status
-    isManuallyOverridden: false,
-    openingTime: '08:30',
-    closingTime: '19:30',
-    carouselImages: [
-      'https://picsum.photos/id/70/600/400',
-      'https://picsum.photos/id/80/600/400',
-      'https://picsum.photos/id/90/600/400',
-      'https://picsum.photos/id/100/600/400',
-      'https://picsum.photos/id/110/600/400',
-      'https://picsum.photos/id/120/600/400',
-      'https://picsum.photos/id/130/600/400',
-      'https://picsum.photos/id/140/600/400',
-    ],
-    shopRating: { average: 4.8, count: 200 },
-    todayStats: { earnings: 2000, customers: 20, popularService: 'Shave', topEmployee: 'Chris Green' },
-    barbers: [
-      { _id: 'b5', name: 'Chris Green', email: 'chris@example.com', phone: '098-765-4321', totalCustomersServed: 700, totalStarsEarned: 3400, totalRatings: 700 },
-    ],
-  },
-];
+// IMPORTANT: Replace with your actual backend API URL
+const API_BASE_URL = 'http://10.0.2.2:5000/api'; 
 
-// Helper function to check if a shop is open based on current time
+
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
   try {
     const now = new Date();
@@ -128,24 +58,123 @@ const isShopCurrentlyOpen = (openingTime, closingTime) => {
 };
 
 const ShopSelection = () => {
-  const [shops, setShops] = useState(initialStaticShopsData);
+  const [shops, setShops] = useState([]); // Initialize as empty, will be fetched dynamically
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [newShopData, setNewShopData] = useState({
     name: '',
-    address: '',
+    address: '', // This will be fullDetails
     openingTime: '',
     closingTime: '',
     carouselImages: [],
   });
+  const [userToken, setUserToken] = useState(null);
+  const [loading, setLoading] = useState(true); // Loading state for fetching shops
+  const [error, setError] = useState(null); // Error state for API calls
 
   // State for controlling the ShopsList modal
   const [isShopsListModalVisible, setIsShopsListModalVisible] = useState(false);
   const [selectedShopIdForDetails, setSelectedShopIdForDetails] = useState(null);
 
+  // State for time pickers
+  const [showOpeningTimePicker, setShowOpeningTimePicker] = useState(false);
+  const [showClosingTimePicker, setShowClosingTimePicker] = useState(false);
+  const [tempOpeningTime, setTempOpeningTime] = useState(new Date()); // Temporary Date object for picker
+  const [tempClosingTime, setTempClosingTime] = useState(new Date()); // Temporary Date object for picker
 
-  // Effect to periodically update shop status based on time if not manually overridden
+
+  // Function to format Date object to HH:MM string
+  const formatTime = (date) => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  // Handler for opening time picker
+  const onOpeningTimeChange = (event, selectedDate) => {
+    const currentDate = selectedDate || tempOpeningTime;
+    setShowOpeningTimePicker(Platform.OS === 'ios'); // Keep picker open on iOS until done button is pressed
+    setTempOpeningTime(currentDate);
+    setNewShopData({ ...newShopData, openingTime: formatTime(currentDate) });
+  };
+
+  // Handler for closing time picker
+  const onClosingTimeChange = (event, selectedDate) => {
+    const currentDate = selectedDate || tempClosingTime;
+    setShowClosingTimePicker(Platform.OS === 'ios'); // Keep picker open on iOS until done button is pressed
+    setTempClosingTime(currentDate);
+    setNewShopData({ ...newShopData, closingTime: formatTime(currentDate) });
+  };
+
+  // Function to fetch owner's shops from the backend
+  const fetchOwnerShops = useCallback(async (token) => {
+    if (!token) {
+      setError('Authentication token not found. Please log in.');
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE_URL}/owners/me/shops`, {
+        headers: {
+        
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to fetch shops.');
+      }
+
+      const data = await response.json();
+      console.log('Fetched owner shops:', data);
+      // Map the fetched data to match the structure expected by ShopCard
+      const formattedShops = data.data.map(shop => ({
+        _id: shop._id, // Use _id from MongoDB
+        name: shop.name,
+        address: shop.address.fullDetails, // Use fullDetails for display
+        isOpen: shop.isManuallyOverridden ? shop.isOpen : isShopCurrentlyOpen(shop.openingTime, shop.closingTime), // Use isManuallyOverridden if true, else calculate
+        isManuallyOverridden: shop.isManuallyOverridden,
+        openingTime: shop.openingTime,
+        closingTime: shop.closingTime,
+        carouselImages: shop.photos || [], // Use 'photos' from schema
+        shopRating: shop.rating ? { average: shop.rating, count: 0 } : { average: 0, count: 0 }, // Adjust if backend sends full rating object or count
+        todayStats: { earnings: 0, customers: 0, popularService: 'N/A', topEmployee: 'N/A' }, // Placeholder, not from schema
+        barbers: shop.barbers || [], // Populate barbers if needed
+      }));
+      setShops(formattedShops);
+    } catch (err) {
+      console.error('Error fetching owner shops:', err);
+      setError(err.message || 'Failed to fetch shops.');
+    } finally {
+      setLoading(false);
+    }
+  }, []); // Empty dependency array as fetchOwnerShops doesn't depend on any state/props that change during its lifecycle
+
+  // Effect to fetch token and shops on component mount
   useEffect(() => {
-    const updateShopOpenStatus = () => {
+    const init = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken'); // Retrieve token
+        if (token) {
+          setUserToken(token);
+          await fetchOwnerShops(token);
+        } else {
+          console.warn('No user token found. User might not be logged in.');
+          // Optionally, navigate to login screen if no token
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error initializing data:', err);
+        setError('Failed to load initial data.');
+        setLoading(false);
+      }
+    };
+    init();
+
+    // Set up interval to periodically update shop status based on time if not manually overridden
+    const intervalId = setInterval(() => {
       setShops(prevShops =>
         prevShops.map(shop => {
           if (!shop.isManuallyOverridden) {
@@ -157,22 +186,16 @@ const ShopSelection = () => {
           return shop;
         })
       );
-    };
-
-    // Initial check on mount
-    updateShopOpenStatus();
-
-    // Set up interval to check every minute
-    const intervalId = setInterval(updateShopOpenStatus, 60 * 1000); // Every minute
+    }, 60 * 1000); // Every minute
 
     // Cleanup interval on component unmount
     return () => clearInterval(intervalId);
-  }, []); // Empty dependency array means this effect runs once on mount and cleans up on unmount
-
+  }, [fetchOwnerShops]); // Dependency on fetchOwnerShops to ensure it's the latest version
 
   // Function to handle clicking on a shop card to view its details (opens modal)
-  const handleShopPress = (shopId) => {
-    setSelectedShopIdForDetails(shopId);
+  const handleShopPress = (_id) => { // Use _id here
+    console.log('Selected shop ID for details:', _id);
+    setSelectedShopIdForDetails(_id);
     setIsShopsListModalVisible(true);
   };
 
@@ -180,35 +203,76 @@ const ShopSelection = () => {
   const handleCloseShopsListModal = () => {
     setIsShopsListModalVisible(false);
     setSelectedShopIdForDetails(null); // Clear selected shop ID
+    // Re-fetch shops to ensure latest data after modal actions (update/delete)
+    if (userToken) {
+      fetchOwnerShops(userToken);
+    }
   };
 
-  // Function to update a shop from ShopsList modal
+  // Function to update a shop from ShopsList modal (client-side update for immediate feedback)
   const handleUpdateShopFromModal = (updatedShop) => {
     setShops(prevShops =>
       prevShops.map(shop =>
-        shop.id === updatedShop.id ? updatedShop : shop
+        shop._id === updatedShop._id ? updatedShop : shop // Use _id
       )
     );
   };
 
-  // Function to delete a shop from ShopsList modal
+  // Function to delete a shop from ShopsList modal (client-side update for immediate feedback)
   const handleDeleteShopFromModal = (deletedShopId) => {
     setShops(prevShops =>
-      prevShops.filter(shop => shop.id !== deletedShopId)
+      prevShops.filter(shop => shop._id !== deletedShopId) // Use _id
     );
     handleCloseShopsListModal(); // Close modal after deletion
   };
 
 
-  // Function to toggle a shop's manual open/closed status
-  const handleToggleShopStatus = (shopId) => {
-    setShops((prevShops) =>
-      prevShops.map((shop) =>
-        shop.id === shopId
-          ? { ...shop, isOpen: !shop.isOpen, isManuallyOverridden: true } // Mark as manually overridden
-          : shop
-      )
-    );
+  // Function to toggle a shop's manual open/closed status (and update backend)
+  const handleToggleShopStatus = async (shopId) => {
+    if (!userToken) {
+      Alert.alert("Error", "Authentication token not found. Please log in again.");
+      return;
+    }
+
+    const shopToUpdate = shops.find(s => s._id === shopId);
+    if (!shopToUpdate) {
+      Alert.alert("Error", "Shop not found.");
+      return;
+    }
+
+    const newIsOpenStatus = !shopToUpdate.isOpen; 
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/shops/${shopId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({
+          isManuallyOverridden: true, // Always set to true when manually toggled
+          isOpen: newIsOpenStatus // Send the new desired open status (though backend calculates this from isManuallyOverridden)
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to update shop status.');
+      }
+
+      // Update local state immediately for responsiveness
+      setShops((prevShops) =>
+        prevShops.map((shop) =>
+          shop._id === shopId
+            ? { ...shop, isOpen: newIsOpenStatus, isManuallyOverridden: true }
+            : shop
+        )
+      );
+      Alert.alert("Success", "Shop status updated successfully!");
+    } catch (err) {
+      console.error('Error toggling shop status:', err);
+      Alert.alert("Error", err.message || "Failed to toggle shop status. Please try again.");
+    }
   };
 
   // Function to handle adding a new image to carousel (via ImagePicker) - Only for Add Shop Modal here
@@ -288,25 +352,61 @@ const ShopSelection = () => {
     }));
   };
 
-  // Function to handle adding a new shop
-  const handleAddNewShop = () => {
+  // Function to handle adding a new shop (API call)
+  const handleAddNewShop = async () => {
     if (!newShopData.name || !newShopData.address || !newShopData.openingTime || !newShopData.closingTime) {
       Alert.alert("Error", "Please fill in all required fields (Name, Address, Opening/Closing Times).");
       return;
     }
-    const newShop = {
-      id: `shop${shops.length + 1}`, // Simple ID generation
-      isOpen: isShopCurrentlyOpen(newShopData.openingTime, newShopData.closingTime), // Initial status based on time
-      isManuallyOverridden: false, // New shops are not manually overridden initially
-      ...newShopData,
-      shopRating: { average: 0, count: 0 }, // Default rating for new shops
-      todayStats: { earnings: 0, customers: 0, popularService: 'N/A', topEmployee: 'N/A' },
-      barbers: [], // New shops start with no barbers
-    };
-    setShops((prevShops) => [...prevShops, newShop]);
-    setNewShopData({ name: '', address: '', openingTime: '', closingTime: '', carouselImages: [] }); // Reset form
-    setIsAddModalVisible(false);
-    Alert.alert("Success", "New shop added successfully!");
+    if (!userToken) {
+      Alert.alert("Error", "Authentication token not found. Please log in again.");
+      return;
+    }
+
+    try {
+      // For a real app, you'd integrate a geo-coding API (e.g., Google Maps Geocoding API)
+      // to convert `newShopData.address` string into `coordinates: [longitude, latitude]`.
+      // For this example, we'll use dummy coordinates.
+      const dummyCoordinates = [-74.0060, 40.7128]; // Example: New York City (longitude, latitude)
+
+      const shopToCreate = {
+        name: newShopData.name,
+        address: {
+          fullDetails: newShopData.address,
+          coordinates: {
+            type: 'Point',
+            coordinates: dummyCoordinates,
+          },
+        },
+        photos: newShopData.carouselImages,
+        openingTime: newShopData.openingTime,
+        closingTime: newShopData.closingTime,
+        // isManuallyOverridden defaults to false on the backend as per schema
+      };
+
+      const response = await fetch(`${API_BASE_URL}/shops`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`,
+        },
+        body: JSON.stringify(shopToCreate),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to add new shop.');
+      }
+
+      const data = await response.json();
+      Alert.alert("Success", data.message || "New shop added successfully!");
+      setIsAddModalVisible(false);
+      setNewShopData({ name: '', address: '', openingTime: '', closingTime: '', carouselImages: [] }); // Reset form
+      await fetchOwnerShops(userToken); // Re-fetch shops to update the list
+    } catch (err) {
+      console.error('Error adding new shop:', err);
+      Alert.alert("Error", err.message || "Failed to add new shop. Please try again.");
+    }
   };
 
 
@@ -319,12 +419,13 @@ const ShopSelection = () => {
     return (
       <TouchableOpacity
         style={styles.shopCard}
-        onPress={() => handleShopPress(shop.id)}
+        onPress={() => handleShopPress(shop._id)} // Pass shop._id
         activeOpacity={0.7}
       >
         <View style={styles.shopImageContainer}>
+          {/* Use actual shop photos if available, otherwise a placeholder */}
           <Image
-            source={{ uri: `https://picsum.photos/300/300?random=${shop.id}` }}
+            source={{ uri: shop.carouselImages && shop.carouselImages.length > 0 ? shop.carouselImages[0] : `https://placehold.co/300x300/E0E0E0/555555?text=${shop.name.charAt(0)}` }}
             style={styles.shopImage}
           />
           {/* Moved Status Toggle to top right */}
@@ -332,7 +433,7 @@ const ShopSelection = () => {
             trackColor={{ false: "#a30000", true: "#006400" }} // Darker Red for off, Darker Green for on
             thumbColor={displayIsOpen ? "#f5dd4b" : "#f4f3f4"} // Yellow for on, grey for off
             ios_backgroundColor="#3e3e3e"
-            onValueChange={() => handleToggleShopStatus(shop.id)}
+            onValueChange={() => handleToggleShopStatus(shop._id)} // Pass shop._id
             value={displayIsOpen}
             style={styles.statusToggleMoved} // New style for moved toggle
           />
@@ -367,6 +468,26 @@ const ShopSelection = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text style={styles.loadingText}>Loading shops...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => fetchOwnerShops(userToken)}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <ImageBackground
       source={require("../image/bglogin.png")} // Make sure this path is correct
@@ -378,21 +499,38 @@ const ShopSelection = () => {
         contentContainerStyle={styles.contentContainer}
       >
         <Text style={styles.pageTitle}>Your Shops</Text>
-        <FlatList
-          data={shops}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ShopCard shop={item} />}
-          scrollEnabled={false} // Since it's inside a ScrollView, FlatList doesn't need to scroll itself
-          contentContainerStyle={styles.shopsList}
-          numColumns={2}
-          columnWrapperStyle={styles.shopRow}
-        />
+        {shops.length === 0 ? (
+          <View style={styles.noShopsContainer}>
+            <Text style={styles.noShopsText}>No shops found. Add your first shop!</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={shops}
+            keyExtractor={(item) => item._id} // Use item._id for key
+            renderItem={({ item }) => <ShopCard shop={item} />}
+            scrollEnabled={false} // Since it's inside a ScrollView, FlatList doesn't need to scroll itself
+            contentContainerStyle={styles.shopsList}
+            numColumns={2}
+            columnWrapperStyle={styles.shopRow}
+          />
+        )}
       </ScrollView>
 
       {/* Add Shop Button */}
       <TouchableOpacity
         style={styles.addShopFAB}
-        onPress={() => setIsAddModalVisible(true)}
+        onPress={() => {
+          setIsAddModalVisible(true);
+          // Initialize temp times to current time when modal opens
+          setTempOpeningTime(new Date());
+          setTempClosingTime(new Date());
+          // Also set the formatted string in newShopData if you want default values
+          setNewShopData(prev => ({
+            ...prev,
+            openingTime: formatTime(new Date()),
+            closingTime: formatTime(new Date()),
+          }));
+        }}
       >
         <Icon name="plus" size={24} color="#fff" />
         <Text style={styles.addShopFABText}>Add Shop</Text>
@@ -422,26 +560,50 @@ const ShopSelection = () => {
                 setNewShopData({ ...newShopData, address: text })
               }
             />
-            <Text style={styles.inputLabel}>Opening Time (HH:MM):</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., 09:00"
-              value={newShopData.openingTime}
-              onChangeText={(text) =>
-                setNewShopData({ ...newShopData, openingTime: text })
-              }
-              keyboardType="numeric" // Use numeric for time input
-            />
-            <Text style={styles.inputLabel}>Closing Time (HH:MM):</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., 18:00"
-              value={newShopData.closingTime}
-              onChangeText={(text) =>
-                setNewShopData({ ...newShopData, closingTime: text })
-              }
-              keyboardType="numeric" // Use numeric for time input
-            />
+            
+            {/* Opening Time Input with Time Picker */}
+            <Text style={styles.inputLabel}>Opening Time:</Text>
+            <TouchableOpacity onPress={() => setShowOpeningTimePicker(true)} style={styles.timeInputTouchable}>
+              <TextInput
+                style={styles.input}
+                placeholder="Select opening time"
+                value={newShopData.openingTime}
+                editable={false} // Make it read-only
+              />
+              <Icon name="clock-o" size={20} color="#666" style={styles.timeInputIcon} />
+            </TouchableOpacity>
+            {showOpeningTimePicker && (
+              <DateTimePicker
+                testID="openingTimePicker"
+                value={tempOpeningTime}
+                mode="time"
+                is24Hour={true}
+                display="default"
+                onChange={onOpeningTimeChange}
+              />
+            )}
+
+            {/* Closing Time Input with Time Picker */}
+            <Text style={styles.inputLabel}>Closing Time:</Text>
+            <TouchableOpacity onPress={() => setShowClosingTimePicker(true)} style={styles.timeInputTouchable}>
+              <TextInput
+                style={styles.input}
+                placeholder="Select closing time"
+                value={newShopData.closingTime}
+                editable={false} // Make it read-only
+              />
+              <Icon name="clock-o" size={20} color="#666" style={styles.timeInputIcon} />
+            </TouchableOpacity>
+            {showClosingTimePicker && (
+              <DateTimePicker
+                testID="closingTimePicker"
+                value={tempClosingTime}
+                mode="time"
+                is24Hour={true}
+                display="default"
+                onChange={onClosingTimeChange}
+              />
+            )}
 
             <Text style={styles.carouselImagesTitle}>Carousel Images:</Text>
             <ScrollView style={styles.carouselEditScrollVertical}>
@@ -496,6 +658,8 @@ const ShopSelection = () => {
           setShops={setShops} // Pass the setShops function to allow updates
           onDeleteShop={handleDeleteShopFromModal} // Pass delete handler
           onUpdateShop={handleUpdateShopFromModal} // Pass update handler
+          userToken={userToken} // Pass the token
+          fetchOwnerShops={fetchOwnerShops} // Pass the fetch function to re-fetch after changes
         />
       </Modal>
     </ImageBackground>
@@ -710,6 +874,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "#f9f9f9",
   },
+  // Styles for the time input and icon
+  timeInputTouchable: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  timeInputIcon: {
+    position: 'absolute',
+    right: 15,
+    top: 12, // Adjust to vertically center
+  },
   carouselImagesTitle: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -802,6 +978,61 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: "#6c757d",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f2f5',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 18,
+    color: '#555',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f2f5',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#dc3545',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  retryButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  noShopsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 50,
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  noShopsText: {
+    fontSize: 18,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });
 

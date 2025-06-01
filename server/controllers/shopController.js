@@ -1,7 +1,7 @@
 // controllers/shopController.js
 const Shop = require('../models/Shop');
 const Owner = require('../models/Owner'); // To link shop to owner
-const Service = require('../models/Service'); // For shop services
+const Service = require('../models/Service'); // For shop services (if used as a separate model for reference)
 const Barber = require('../models/Barber'); // For shop barbers
 const Subscription = require('../models/Subscription'); // For shop subscriptions
 const { asyncHandler, ApiError } = require('../utils/errorHandler');
@@ -49,12 +49,19 @@ exports.createShop = asyncHandler(async (req, res) => {
 
     console.log("Incoming shop creation body:", req.body);
 
-    const { name, address, photos } = req.body; // Owner ID comes from req.user._id
+    const { name, address, photos, openingTime, closingTime } = req.body; // Owner ID comes from req.user._id
 
-    // Basic validation
- if ( !name ||!address || !address.fullDetails || !address.coordinates || address.coordinates.type !== 'Point' ||!Array.isArray(address.coordinates.coordinates) ||address.coordinates.coordinates.length !== 2) {
-  throw new ApiError('Missing required shop details (name, full address, coordinates).', 400);
-}
+  // console.log("Parsed shop creation details:", { name, address, photos, openingTime, closingTime });
+    if (!name || !address || !address.fullDetails || !address.coordinates || address.coordinates.type !== 'Point' || !Array.isArray(address.coordinates.coordinates) || address.coordinates.coordinates.length !== 2) {
+        throw new ApiError('Missing required shop details (name, full address, coordinates).', 400);
+    }
+   
+    if (openingTime && !/^\d{2}:\d{2}$/.test(openingTime)) {
+        throw new ApiError('Invalid opening time format. Use HH:MM.', 400);
+    }
+    if (closingTime && !/^\d{2}:\d{2}$/.test(closingTime)) {
+        throw new ApiError('Invalid closing time format. Use HH:MM.', 400);
+    }
 
 
     const owner = await Owner.findById(req.user._id);
@@ -66,19 +73,30 @@ exports.createShop = asyncHandler(async (req, res) => {
     const trialStartDate = new Date();
     const trialEndDate = calculateEndDate(trialStartDate, trialPeriodInDays, 'days');
 
-    const newShop = await Shop.create({
+    const newShopData = {
         name,
         owner: owner._id,
         address: {
             fullDetails: address.fullDetails,
             coordinates: address.coordinates, // [longitude, latitude]
         },
-        photos: photos || [],
+        // Photos are optional and handled here. If not provided, it will be an empty array or undefined,
+        // which the schema handles.
+        photos: photos || [], 
         subscription: {
             status: 'trial',
             trialEndDate: trialEndDate,
-        }
-    });
+        },
+        services: [], // Initialize services array
+        barbers: [], // Initialize barbers array
+        // isManuallyOverridden defaults to false as per schema. No need to set explicitly here unless true is desired.
+    };
+
+    if (openingTime) newShopData.openingTime = openingTime;
+    if (closingTime) newShopData.closingTime = closingTime;
+
+
+    const newShop = await Shop.create(newShopData);
 
     // Add shop to owner's shops array
     owner.shops.push(newShop._id);
@@ -91,6 +109,8 @@ exports.createShop = asyncHandler(async (req, res) => {
             _id: newShop._id,
             name: newShop.name,
             address: newShop.address,
+            openingTime: newShop.openingTime,
+            closingTime: newShop.closingTime,
             subscription: newShop.subscription,
         },
     });
@@ -102,7 +122,7 @@ exports.createShop = asyncHandler(async (req, res) => {
 exports.getShopById = asyncHandler(async (req, res) => {
     const shop = await Shop.findById(req.params.id)
                            .populate('owner', 'name phone')
-                           .populate('services.service', 'name') // Populate generic service name
+                           // .populate('services.service', 'name') // Removed: 'services.service' path is likely not a ref. Service 'name' is already in the subdocument.
                            .populate('barbers', 'name phone activeTaking');
 
     if (!shop) {
@@ -128,7 +148,7 @@ exports.getShopById = asyncHandler(async (req, res) => {
 
     res.json({
         success: true,
-        data: shop,
+        data: shop, // The 'services' field in shop will contain the array of {name, price} objects directly.
     });
 });
 
@@ -138,7 +158,7 @@ exports.getShopById = asyncHandler(async (req, res) => {
 exports.getAllShops = asyncHandler(async (req, res) => {
     // You can add query parameters for pagination, filtering (e.g., by location, service, rating)
     const shops = await Shop.find({ "subscription.status": { $ne: 'expired' } }) // Only show non-expired shops
-                            .select('name address rating photos subscription.status') // Select relevant fields for listing
+                            .select('name address rating photos subscription.status openingTime closingTime') // Select relevant fields for listing
                             .populate('owner', 'name'); // Optionally populate owner name
 
     res.json({
@@ -152,7 +172,7 @@ exports.getAllShops = asyncHandler(async (req, res) => {
 // @access  Private (Owner)
 exports.updateShopDetails = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, address, photos } = req.body;
+    const { name, address, photos, openingTime, closingTime, isManuallyOverridden, isOpen } = req.body; // Added isOpen
 
     const shop = await Shop.findById(id);
 
@@ -168,9 +188,22 @@ exports.updateShopDetails = asyncHandler(async (req, res) => {
     shop.name = name || shop.name;
     if (address) {
         shop.address.fullDetails = address.fullDetails || shop.address.fullDetails;
-        shop.address.coordinates = address.coordinates || shop.address.coordinates;
+        if (address.coordinates && address.coordinates.coordinates && address.coordinates.coordinates.length === 2) {
+             shop.address.coordinates = address.coordinates;
+        }
     }
     shop.photos = photos || shop.photos;
+    shop.openingTime = openingTime || shop.openingTime;
+    shop.closingTime = closingTime || shop.closingTime;
+
+    if (typeof isManuallyOverridden === 'boolean') {
+        shop.isManuallyOverridden = isManuallyOverridden;
+    }
+    
+    // NEW: Update isOpen field if provided and is a boolean
+    if (typeof isOpen === 'boolean') {
+        shop.isOpen = isOpen;
+    }
 
     const updatedShop = await shop.save();
 
@@ -180,8 +213,7 @@ exports.updateShopDetails = asyncHandler(async (req, res) => {
         data: updatedShop,
     });
 });
-
-// @desc    Delete a shop (by Owner)
+// @desc    Delete a shop (by Owner)add
 // @route   DELETE /api/shops/:id
 // @access  Private (Owner)
 exports.deleteShop = asyncHandler(async (req, res) => {
@@ -207,7 +239,7 @@ exports.deleteShop = asyncHandler(async (req, res) => {
 
     // Consider deleting associated barbers, queue entries, and history records
     // For simplicity, we'll just delete the shop document here.
-    await shop.deleteOne();
+    await shop.deleteOne(); // Mongoose v6+ uses deleteOne() on a document
 
     res.json({
         success: true,
@@ -219,17 +251,17 @@ exports.deleteShop = asyncHandler(async (req, res) => {
 // @route   POST /api/shops/:id/services
 // @access  Private (Owner)
 exports.addService = asyncHandler(async (req, res) => {
-    const { name, price } = req.body;
+    const { name, price } = req.body; // name and price are directly provided
 
     // Validate input
-    if (!name || !price) {
-        throw new ApiError('Name and price are required', 400);
+    if (!name || typeof price !== 'number' || price < 0) {
+        throw new ApiError('Service name and a valid non-negative price are required', 400);
     }
 
     // Find shop and verify ownership
     const shop = await Shop.findOne({
         _id: req.params.id,
-        owner: req.user.id
+        owner: req.user.id // Assuming req.user.id is the owner's ObjectId
     });
 
     if (!shop) {
@@ -245,14 +277,14 @@ exports.addService = asyncHandler(async (req, res) => {
         throw new ApiError('This service already exists in your shop', 400);
     }
 
-    // Add the new service
+    // Add the new service directly as an object
     shop.services.push({ name, price });
     await shop.save();
 
     res.status(201).json({
         success: true,
         message: 'Service added successfully',
-        data: shop.services[shop.services.length - 1]
+        data: shop.services[shop.services.length - 1] // Return the newly added service subdocument
     });
 });
 
@@ -262,7 +294,7 @@ exports.addService = asyncHandler(async (req, res) => {
 // @access  Private (Owner)
 exports.updateShopServicePrice = asyncHandler(async (req, res) => {
     const { id, serviceItemId } = req.params;
-    const { name, price } = req.body;
+    const { name, price } = req.body; // Allow updating name as well
 
     const shop = await Shop.findById(id);
     if (!shop) {
@@ -274,14 +306,29 @@ exports.updateShopServicePrice = asyncHandler(async (req, res) => {
         throw new ApiError('Not authorized to modify this shop.', 403);
     }
 
-    const serviceItem = shop.services.id(serviceItemId);
+    const serviceItem = shop.services.id(serviceItemId); // Mongoose subdocument find by _id
     if (!serviceItem) {
         throw new ApiError('Service item not found in this shop\'s offerings.', 404);
     }
 
-    // Update both name and price if provided
-    if (name) serviceItem.name = name;
-    if (price) serviceItem.price = price;
+    // Update name if provided and valid
+    if (name && typeof name === 'string' && name.trim() !== '') {
+        // Optional: Check for duplicate names if changing, excluding the current item
+        const otherServiceExists = shop.services.some(
+            s => s._id.toString() !== serviceItemId && s.name.toLowerCase() === name.toLowerCase()
+        );
+        if (otherServiceExists) {
+            throw new ApiError('Another service with this name already exists in your shop', 400);
+        }
+        serviceItem.name = name.trim();
+    }
+
+    // Update price if provided and valid
+    if (typeof price === 'number' && price >= 0) {
+        serviceItem.price = price;
+    } else if (price !== undefined) { // If price is provided but not valid
+        throw new ApiError('Invalid price provided. Must be a non-negative number.', 400);
+    }
     
     await shop.save();
 
@@ -307,21 +354,23 @@ exports.removeServiceFromShop = asyncHandler(async (req, res) => {
         throw new ApiError('Not authorized to modify this shop.', 403);
     }
 
-    // Use $pull to remove the subdocument by its _id
-    const updatedShop = await Shop.findByIdAndUpdate(
-        id,
-        { $pull: { services: { _id: serviceItemId } } },
-        { new: true } // Return the updated document
-    );
-
-    if (!updatedShop) { // This case might mean shop not found initially, or item not found after pull
-        throw new ApiError('Failed to remove service or service item not found.', 400);
+    const serviceItem = shop.services.id(serviceItemId);
+    if (!serviceItem) {
+        throw new ApiError('Service item not found in this shop.', 404);
     }
+    
+    // Mongoose < v8 way to remove subdocument
+    // serviceItem.remove(); 
+    // Mongoose v8+ or general way using pull:
+    shop.services.pull({ _id: serviceItemId });
+
+
+    await shop.save();
 
     res.json({
         success: true,
         message: 'Service removed from shop successfully',
-        data: updatedShop.services,
+        data: { remainingServices: shop.services }, // Send back remaining services or just a success message
     });
 });
 
@@ -331,7 +380,7 @@ exports.removeServiceFromShop = asyncHandler(async (req, res) => {
 exports.getShopRateList = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    const shop = await Shop.findById(id);
+    const shop = await Shop.findById(id).select('services'); // Only select services
 
     if (!shop) {
         throw new ApiError('Shop not found.', 404);
@@ -339,7 +388,7 @@ exports.getShopRateList = asyncHandler(async (req, res) => {
 
     res.json({
         success: true,
-        data: shop.services,
+        data: shop.services, // This will be an array of {name, price, _id} objects
     });
 });
 
@@ -356,17 +405,36 @@ exports.getShopSubscriptionStatus = asyncHandler(async (req, res) => {
     }
 
     // Authorization: Only owner of the shop or Admin can view
-    if (req.userType === 'Owner' && shop.owner.toString() !== req.user._id.toString()) {
+    // Assuming req.userType is set by your auth middleware
+    if (req.user.role === 'owner' && shop.owner.toString() !== req.user._id.toString()) {
         throw new ApiError('Not authorized to view this shop\'s subscription status', 403);
     }
-    // Admin user has implicit access
+    // Admin user has implicit access if req.user.role === 'admin' (adjust as per your role system)
 
-    // The checkShopSubscription middleware would have already updated the status if needed.
+    // The checkShopSubscription middleware (if you have one) would have already updated the status.
+    // Or, you can re-check/update status here if needed, similar to getShopById.
+    const now = new Date();
+    let statusUpdated = false;
+    if (shop.subscription.status === 'trial' && shop.subscription.trialEndDate && shop.subscription.trialEndDate < now) {
+        shop.subscription.status = 'expired';
+        shop.subscription.trialEndDate = undefined; // Clear trial end date
+        statusUpdated = true;
+    } else if (shop.subscription.status === 'active' && shop.subscription.lastPlanInfo && shop.subscription.lastPlanInfo.endDate && shop.subscription.lastPlanInfo.endDate < now) {
+        shop.subscription.status = 'expired';
+        statusUpdated = true;
+    }
+
+    if (statusUpdated) {
+        await shop.save(); // Save if status was updated
+    }
+
+
     res.json({
         success: true,
         data: shop.subscription,
     });
 });
+
 
 
 // --- Razorpay Payment Integration for Shops ---
@@ -527,6 +595,7 @@ exports.createShopPaymentOrder = asyncHandler(async (req, res) => {
             shopId: shopId,
             planId: planId,
             description: "Shop Subscription Payment"
+        
         }
     };
 
@@ -554,7 +623,12 @@ exports.verifyShopPaymentAndUpdateSubscription = asyncHandler(async (req, res) =
     }
 
     const body_string = razorpay_order_id + '|' + razorpay_payment_id;
-    const isValidSignature = validateWebhookSignature(body_string, RAZORPAY_KEY_SECRET);
+    // Note: Razorpay's utility function might expect a specific format or object.
+    // Double-check documentation if this specific string concatenation is correct for `validateWebhookSignature`.
+    // Typically, it's `validateWebhookSignature(JSON.stringify(req.body), signatureFromHeader, secret)` for webhooks.
+    // For client-side verification like this, the string `order_id + '|' + payment_id` is common.
+    const isValidSignature = validateWebhookSignature(body_string, RAZORPAY_KEY_SECRET, razorpay_signature);
+
 
     if (!isValidSignature) {
         throw new ApiError('Invalid payment signature.', 400);

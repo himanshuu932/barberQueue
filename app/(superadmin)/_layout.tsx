@@ -59,7 +59,15 @@ export default function Layout() {
               ),
             }}
           />
-          
+          <Tabs.Screen
+            name="History"
+            options={{
+              title: "History",
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="book-outline" size={size} color={color} />
+              ),
+            }}
+          />
           {/* The original 'shops' tab, now named 'shops' in Expo Router */}
           {/* Note: This screen will now expect a 'shopId' param to display content */}
        

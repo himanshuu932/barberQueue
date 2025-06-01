@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,152 +9,241 @@ import {
   Modal,
   TextInput,
   Alert,
-  ImageBackground
+  ImageBackground,
+  ActivityIndicator,
+  Platform 
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Picker } from '@react-native-picker/picker';
 
-const RateList = () => {
-  const [shopId, setShopId] = useState(null);
+// Use the API_BASE_URL consistent with your backend setup
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
+
+ const RateList = () => {
+  const [ownerId, setOwnerId] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
+  const [ownerShops, setOwnerShops] = useState([]);
+  const [selectedShopId, setSelectedShopId] = useState(null);
   const [rateList, setRateList] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingShops, setIsLoadingShops] = useState(true);
+
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isConfirmVisible, setIsConfirmVisible] = useState(false);
-  const [selectedRateItem, setSelectedRateItem] = useState(null);
-  const [newRateItem, setNewRateItem] = useState({ service: "", price: "" });
-  const [updatedRateItem, setUpdatedRateItem] = useState({ service: "", price: "" });
+  const [selectedRateItem, setSelectedRateItem] = useState(null); // This is the service item
+  const [newServiceData, setNewServiceData] = useState({ name: "", price: "" });
+  const [updatedServiceData, setUpdatedServiceData] = useState({ name: "", price: "" });
 
   useEffect(() => {
-    const fetchShopIdAndRates = async () => {
-      const uid = await AsyncStorage.getItem("uid");
-      setShopId(uid);
-      fetchRateList(uid);
+    const loadInitialData = async () => {
+      try {
+        const storedOwnerId = await AsyncStorage.getItem("uid"); // Assuming 'uid' stores owner's ID
+        const storedToken = await AsyncStorage.getItem("userToken"); // Assuming 'userToken' stores the auth token
+
+        if (storedOwnerId && storedToken) {
+          setOwnerId(storedOwnerId);
+          setAuthToken(storedToken);
+          fetchOwnerShops(storedToken);
+        } else {
+          Alert.alert("Authentication Error", "User ID or Token not found. Please log in again.");
+          setIsLoadingShops(false);
+        }
+      } catch (e) {
+        console.error("Failed to load auth data from storage", e);
+        Alert.alert("Storage Error", "Failed to load authentication data.");
+        setIsLoadingShops(false);
+      }
     };
-    fetchShopIdAndRates();
+    loadInitialData();
   }, []);
 
-  const fetchRateList = async (uid) => {
+  const fetchOwnerShops = useCallback(async (token) => {
+    setIsLoadingShops(true);
     try {
-      // GET endpoint with shop id as query parameter
-      const response = await fetch(`https://numbr-p7zc.onrender.com/shop/rateList?id=${uid}`);
+      //  This endpoint /api/owners/me/shops is assumed.
+      //  You might need to adjust it based on your actual owner routes.
+      //  Alternatively, if you have a route like /api/shops and can filter by owner on the backend,
+      //  or fetch all and filter client-side (not ideal for many shops).
+      const response = await fetch(`${API_BASE_URL}/owners/me/shops`, { // Placeholder: Replace with your actual endpoint
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch owner's shops");
+      }
+      const data = await response.json();
+      setOwnerShops(data.data || []); // Assuming shops are in data.data array
+      if (data.data && data.data.length > 0) {
+        setSelectedShopId(data.data[0]._id); // Select the first shop by default
+      } else {
+        setRateList([]); // No shops, so no rates to show
+      }
+    } catch (error) {
+      console.error("Error fetching owner's shops:", error);
+      Alert.alert("Error", error.message || "Could not fetch your shops.");
+      setOwnerShops([]);
+      setRateList([]);
+    } finally {
+      setIsLoadingShops(false);
+    }
+  }, []);
+
+
+  const fetchRateList = useCallback(async (shopIdToFetch) => {
+    if (!shopIdToFetch || !authToken) {
+      setRateList([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/shops/${shopIdToFetch}/rate-list`, { //
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
       const data = await response.json();
       if (response.ok) {
-        setRateList(data);
+        setRateList(data.data || []); // Assuming services are in data.data
       } else {
-        Alert.alert("Error", "Failed to fetch rate list");
+        Alert.alert("Error", data.message || "Failed to fetch rate list for the selected shop.");
+        setRateList([]);
       }
     } catch (error) {
       console.error("Error fetching rate list:", error);
-      Alert.alert("Error", "Could not connect to the server");
+      Alert.alert("Error", "Could not connect to the server to fetch rate list.");
+      setRateList([]);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [authToken]);
 
-  const handleAddRateItem = async () => {
-    if (!shopId) {
-      Alert.alert("Error", "Shop ID not found.");
+  // Fetch rate list when selectedShopId changes
+  useEffect(() => {
+    if (selectedShopId) {
+      fetchRateList(selectedShopId);
+    } else {
+      setRateList([]); // Clear rate list if no shop is selected
+    }
+  }, [selectedShopId, fetchRateList]);
+
+
+  const handleAddServiceItem = async () => {
+    if (!selectedShopId || !authToken) {
+      Alert.alert("Error", "No shop selected or user not authenticated.");
       return;
     }
-    if (!newRateItem.service || newRateItem.price === "") {
-      Alert.alert("Error", "Please fill all fields.");
+    if (!newServiceData.name || newServiceData.price === "") {
+      Alert.alert("Error", "Please fill all fields: Service Name and Price.");
       return;
     }
+    const price = parseFloat(newServiceData.price);
+    if (isNaN(price) || price < 0) {
+      Alert.alert("Validation Error", "Please enter a valid non-negative price.");
+      return;
+    }
+
     try {
-      const response = await fetch("https://numbr-p7zc.onrender.com/shop/rateList/add", {
+      const response = await fetch(`${API_BASE_URL}/shops/${selectedShopId}/services`, { //
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({
-          shopId,
-          service: newRateItem.service,
-          price: newRateItem.price
+          name: newServiceData.name, // API expects 'name'
+          price: price
         })
       });
       const data = await response.json();
       if (response.ok) {
-        setNewRateItem({ service: "", price: "" });
+        setNewServiceData({ name: "", price: "" });
         setIsAddModalVisible(false);
-        Alert.alert("Success", "Rate list item added successfully!");
-        fetchRateList(shopId);
+        Alert.alert("Success", "Service added successfully!");
+        fetchRateList(selectedShopId);
       } else {
-        Alert.alert("Error", data.message || "Failed to add rate list item");
+        Alert.alert("Error", data.message || "Failed to add service.");
       }
     } catch (error) {
-      console.error("Error adding rate list item:", error);
-      Alert.alert("Error", "Could not connect to the server");
+      console.error("Error adding service:", error);
+      Alert.alert("Error", "Could not connect to the server to add service.");
     }
   };
 
-  const handleUpdateRateItem = async () => {
-    if (!shopId) {
-      Alert.alert("Error", "Shop ID not found.");
+  const handleUpdateServiceItem = async () => {
+    if (!selectedShopId || !selectedRateItem || !authToken) {
+      Alert.alert("Error", "No shop/service selected or user not authenticated.");
       return;
     }
-    if (!updatedRateItem.service || updatedRateItem.price === "") {
-      Alert.alert("Error", "Please fill all fields.");
+    if (!updatedServiceData.name || updatedServiceData.price === "") {
+      Alert.alert("Error", "Please fill all fields: Service Name and Price.");
       return;
     }
+    const price = parseFloat(updatedServiceData.price);
+    if (isNaN(price) || price < 0) {
+      Alert.alert("Validation Error", "Please enter a valid non-negative price.");
+      return;
+    }
+
     try {
-      const response = await fetch("https://numbr-p7zc.onrender.com/shop/rateList/update", {
+      const response = await fetch(`${API_BASE_URL}/shops/${selectedShopId}/services/${selectedRateItem._id}`, { //
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({
-          shopId,
-          rateItemId: selectedRateItem._id,
-          service: updatedRateItem.service,
-          price: updatedRateItem.price
+          name: updatedServiceData.name, // API expects 'name'
+          price: price
         })
       });
       const data = await response.json();
       if (response.ok) {
         setIsEditModalVisible(false);
-        Alert.alert("Success", "Rate list item updated successfully!");
-        fetchRateList(shopId);
+        Alert.alert("Success", "Service updated successfully!");
+        fetchRateList(selectedShopId);
       } else {
-        Alert.alert("Error", data.message || "Failed to update rate list item");
+        Alert.alert("Error", data.message || "Failed to update service.");
       }
     } catch (error) {
-      console.error("Error updating rate list item:", error);
-      Alert.alert("Error", "Could not connect to the server");
+      console.error("Error updating service:", error);
+      Alert.alert("Error", "Could not connect to the server to update service.");
     }
   };
 
-  const handleDeleteRateItem = async () => {
-    if (!shopId) {
-      Alert.alert("Error", "Shop ID not found.");
+  const handleDeleteServiceItem = async () => {
+    if (!selectedShopId || !selectedRateItem || !authToken) {
+      Alert.alert("Error", "No shop/service selected or user not authenticated.");
       return;
     }
     try {
-      const response = await fetch("https://numbr-p7zc.onrender.com/shop/rateList/delete", {
+      const response = await fetch(`${API_BASE_URL}/shops/${selectedShopId}/services/${selectedRateItem._id}`, { //
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shopId,
-          rateItemId: selectedRateItem._id
-        })
+        headers: { 'Authorization': `Bearer ${authToken}` }
+        // No body typically needed for DELETE with URL params
       });
-      const data = await response.json();
+      const data = await response.json(); // Even if no content, response.json() might be attempted.
       if (response.ok) {
-        Alert.alert("Success", "Rate list item deleted successfully!");
-        setIsEditModalVisible(false);
-        fetchRateList(shopId);
+        Alert.alert("Success", data.message || "Service deleted successfully!");
+        setIsEditModalVisible(false); // Close edit modal if delete was from there
+        fetchRateList(selectedShopId);
       } else {
-        Alert.alert("Error", data.message || "Failed to delete rate list item");
+         // Try to parse error message from backend
+        Alert.alert("Error", data.message || "Failed to delete service.");
       }
     } catch (error) {
-      console.error("Error deleting rate list item:", error);
-      Alert.alert("Error", "Could not connect to the server");
+      console.error("Error deleting service:", error);
+      Alert.alert("Error", "Could not connect to the server to delete service.");
     }
   };
 
-  const RateListCard = ({ item }) => (
+  const ServiceCard = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.infoContainer}>
-        <Text style={styles.name}>{item.service}</Text>
-        <Text style={styles.detail}>Price: {item.price}</Text>
+        <Text style={styles.name}>{item.name}</Text>
+        <Text style={styles.detail}>Price: ${item.price ? item.price.toFixed(2) : 'N/A'}</Text>
       </View>
       <TouchableOpacity
         style={styles.editButton}
         onPress={() => {
           setSelectedRateItem(item);
-          setUpdatedRateItem({ service: item.service, price: item.price.toString() });
+          setUpdatedServiceData({ name: item.name, price: item.price ? item.price.toString() : "" });
           setIsEditModalVisible(true);
         }}
       >
@@ -163,45 +252,81 @@ const RateList = () => {
     </View>
   );
 
+  if (isLoadingShops) {
+    return (
+      <View style={[styles.container, styles.loadingView]}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text>Loading your shops...</Text>
+      </View>
+    );
+  }
+
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
       <View style={styles.overlay} />
       <View style={styles.container}>
-        <Text style={styles.pageHeading}>Rate List</Text>
-        <FlatList
-          data={rateList}
-          keyExtractor={(item) => item._id}
-          renderItem={({ item }) => <RateListCard item={item} />}
-        />
+        <Text style={styles.pageHeading}>Manage Services</Text>
 
-        {/* Button to open Add Modal */}
-        <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
-          <Text style={styles.buttonText}>+</Text>
-        </TouchableOpacity>
+        {ownerShops.length > 0 ? (
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={selectedShopId}
+              onValueChange={(itemValue) => setSelectedShopId(itemValue)}
+              style={styles.picker}
+              dropdownIconColor="#000000"
+            >
+              {ownerShops.map(shop => (
+                <Picker.Item key={shop._id} label={shop.name} value={shop._id} />
+              ))}
+            </Picker>
+          </View>
+        ) : (
+          <Text style={styles.noShopsText}>You don't have any shops yet. Add a shop to manage services.</Text>
+        )}
 
-        {/* Add Rate List Item Modal */}
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#0000ff" style={{marginTop: 20}}/>
+        ) : selectedShopId && rateList.length > 0 ? (
+          <FlatList
+            data={rateList}
+            keyExtractor={(item) => item._id.toString()}
+            renderItem={({ item }) => <ServiceCard item={item} />}
+            style={{marginTop: 10}}
+          />
+        ) : selectedShopId ? (
+            <Text style={styles.noDataText}>No services found for this shop. Add some!</Text>
+        ): null}
+
+
+        {selectedShopId && (
+          <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
+            <Text style={styles.buttonText}>+</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Add Service Modal */}
         <Modal visible={isAddModalVisible} transparent animationType="slide">
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Add Rate List Item</Text>
+              <Text style={styles.modalTitle}>Add New Service</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Service"
-                value={newRateItem.service}
-                onChangeText={(text) => setNewRateItem({ ...newRateItem, service: text })}
+                placeholder="Service Name"
+                value={newServiceData.name}
+                onChangeText={(text) => setNewServiceData({ ...newServiceData, name: text })}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Price"
                 keyboardType="numeric"
-                value={newRateItem.price}
-                onChangeText={(text) => setNewRateItem({ ...newRateItem, price: text })}
+                value={newServiceData.price}
+                onChangeText={(text) => setNewServiceData({ ...newServiceData, price: text })}
               />
               <View style={styles.modalButtonContainer}>
                 <TouchableOpacity style={styles.modalButton} onPress={() => setIsAddModalVisible(false)}>
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.modalButton} onPress={handleAddRateItem}>
+                <TouchableOpacity style={styles.modalButton} onPress={handleAddServiceItem}>
                   <Text style={styles.modalButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
@@ -209,34 +334,34 @@ const RateList = () => {
           </View>
         </Modal>
 
-        {/* Edit Rate List Item Modal */}
+        {/* Edit Service Modal */}
         <Modal visible={isEditModalVisible} transparent animationType="slide">
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Edit Rate List Item</Text>
+              <Text style={styles.modalTitle}>Edit Service</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Service"
-                value={updatedRateItem.service}
-                onChangeText={(text) => setUpdatedRateItem({ ...updatedRateItem, service: text })}
+                placeholder="Service Name"
+                value={updatedServiceData.name}
+                onChangeText={(text) => setUpdatedServiceData({ ...updatedServiceData, name: text })}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Price"
                 keyboardType="numeric"
-                value={updatedRateItem.price}
-                onChangeText={(text) => setUpdatedRateItem({ ...updatedRateItem, price: text })}
+                value={updatedServiceData.price}
+                onChangeText={(text) => setUpdatedServiceData({ ...updatedServiceData, price: text })}
               />
               <View style={styles.modalButtonContainer}>
                 <TouchableOpacity style={styles.modalButton} onPress={() => setIsEditModalVisible(false)}>
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.modalButton} onPress={handleUpdateRateItem}>
+                <TouchableOpacity style={styles.modalButton} onPress={handleUpdateServiceItem}>
                   <Text style={styles.modalButtonText}>Update</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.deleteButton]}
-                  onPress={() => setIsConfirmVisible(true)}
+                  onPress={() => setIsConfirmVisible(true)} // Open confirmation
                 >
                   <Text style={styles.modalButtonText}>Delete</Text>
                 </TouchableOpacity>
@@ -250,7 +375,7 @@ const RateList = () => {
           <View style={styles.confirmContainer}>
             <View style={styles.confirmBox}>
               <Text style={styles.confirmText}>
-                Are you sure you want to delete this rate item?
+                Are you sure you want to delete this service?
               </Text>
               <View style={styles.confirmButtonContainer}>
                 <TouchableOpacity style={styles.confirmButton} onPress={() => setIsConfirmVisible(false)}>
@@ -259,9 +384,9 @@ const RateList = () => {
                 <TouchableOpacity
                   style={[styles.confirmButton, styles.confirmDeleteButton]}
                   onPress={() => {
-                    handleDeleteRateItem();
+                    handleDeleteServiceItem();
                     setIsConfirmVisible(false);
-                    setIsEditModalVisible(false);
+                    setIsEditModalVisible(false); // Close edit modal as item is deleted
                   }}
                 >
                   <Text style={styles.confirmButtonText}>Delete</Text>
@@ -276,6 +401,37 @@ const RateList = () => {
 };
 
 const styles = StyleSheet.create({
+  loadingView: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 8,
+    marginBottom: 15,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    overflow: 'hidden', // Ensures the border radius is respected by the Picker
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+    color: '#333', // Text color of picker items
+  },
+  noShopsText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#555',
+    marginTop: 30,
+    paddingHorizontal: 20,
+  },
+  noDataText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#555',
+    marginTop: 20,
+  },
   confirmContainer: {
     flex: 1,
     justifyContent: "center",
@@ -294,6 +450,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 20,
+    color: '#333',
   },
   confirmButtonContainer: {
     flexDirection: "row",
@@ -302,7 +459,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: "rgb(0,0,0)",
+    backgroundColor: "rgb(80,80,80)", // Darker gray for cancel
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
@@ -313,14 +470,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   confirmDeleteButton: {
-    backgroundColor: "rgb(0,0,0)",
+    backgroundColor: "#dc3545", // Standard delete red
   },
   backgroundImage: {
     flex: 1,
     resizeMode: "cover",
     width: "100%",
     height: "100%",
-    position: "absolute",
+    // position: "absolute", // Keep for background behavior if needed, or remove if container handles flex
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -330,6 +487,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingLeft: 15,
     paddingRight: 15,
+    paddingTop: Platform.OS === 'android' ? 25 : 40, // Adjust for status bar
   },
   card: {
     backgroundColor: "#fff",
@@ -338,7 +496,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     flexDirection: "row",
     alignItems: "center",
-    elevation: 3,
+    elevation: 3, // Android shadow
+    shadowColor: '#000', // iOS shadow
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   infoContainer: {
     flex: 1,
@@ -354,7 +516,7 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   pageHeading: {
-    fontSize: 65,
+    fontSize: 48, // Slightly reduced for better fit
     fontWeight: "bold",
     textAlign: "center",
     color: "black",
@@ -364,14 +526,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 3,
+    marginBottom: 10, // Add some margin below heading
   },
   editButton: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.26)",
-    padding: 3,
-    borderRadius: 6,
+    // position: "absolute", // No longer absolute for better flow
+    // top: 10,
+    // right: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.26)", // Can be removed or made more subtle
+    padding: 8, // Increased padding
+    borderRadius: 20, // Make it circular
     alignItems: "center",
   },
   addButton: {
@@ -381,15 +544,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgb(51, 154, 28)",
     width: 60,
     height: 60,
-    borderRadius: 15,
+    borderRadius: 30, // Make it circular
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#fff",
-    shadowOpacity: 0.5,
+    shadowColor: "#000", // Darker shadow for better visibility
+    shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 5,
     elevation: 6,
-    padding: 4,
+    // padding: 4, // Padding is managed by centering content
   },
   buttonText: {
     color: "rgb(255,255,255)",
@@ -413,6 +576,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 15,
+    color: '#333',
   },
   input: {
     width: "100%",
@@ -421,24 +585,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
+    backgroundColor: '#f9f9f9', // Light background for input
   },
   modalButtonContainer: {
     flexDirection: "row",
     justifyContent: "space-evenly",
     width: "100%",
+    marginTop: 10, // Add some top margin
   },
   modalButton: {
-    backgroundColor: "#000",
-    padding: 12,
+    backgroundColor: "#007bff", // Primary button color
+    paddingVertical: 12,
+    paddingHorizontal: 10, // Adjust padding for button width
     borderRadius: 8,
     alignItems: "center",
-    marginVertical: 10,
-    shadowColor: "#fff",
-    shadowOpacity: 0.5,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 5,
-    elevation: 6,
-    width: "30%",
+    // marginVertical: 10, // Handled by container
+    // shadowColor: "#000", // Using elevation mostly for Android
+    // shadowOpacity: 0.2,
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowRadius: 3,
+    elevation: 3,
+    minWidth: "30%", // Ensure buttons have some minimum width
+    marginHorizontal: 5, // Space between buttons
   },
   modalButtonText: {
     color: "#fff",
@@ -446,7 +614,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   deleteButton: {
-    backgroundColor: "red",
+    backgroundColor: "#dc3545", // Standard delete red
   },
 });
 

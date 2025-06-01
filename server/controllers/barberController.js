@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 // @access  Private (Owner)
 exports.createBarber = asyncHandler(async (req, res) => {
     const { shopId, name, phone, pass } = req.body;
-
+console.log('Creating barber with data:', { shopId, name, phone, pass });
     // Verify the shop exists and belongs to the owner
     const shop = await Shop.findOne({ _id: shopId, owner: req.user._id });
     if (!shop) {
