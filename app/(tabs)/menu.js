@@ -22,7 +22,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { io } from "socket.io-client";
 import { Rating } from "react-native-ratings";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import {  useNavigation } from "@react-navigation/native";
 import { router } from 'expo-router'; // <--- Import expo-router's router
 import InfoModal from '../../components/InfoModal';
 import ChecklistModal from '../../components/Modal';
