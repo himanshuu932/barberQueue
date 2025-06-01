@@ -18,8 +18,6 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
-import * as Location from "expo-location";
-import MapView, { Marker } from "react-native-maps";
 
 export default function TabProfileScreen() {
   const router = useRouter();
@@ -28,74 +26,51 @@ export default function TabProfileScreen() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  // Add the missing state for the location picker modal:
-  const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false);
-  
-  // editedProfile holds name, email, and an address object (textData, x, and y)
   const [editedProfile, setEditedProfile] = useState({
     name: "",
-    email: "",
-    address: { textData: "", y: 0, x: 0 },
+    phone: "",
+    expopushtoken: "",
   });
-  const [shopId, setShopId] = useState(null);
-  const API_BASE = "https://numbr-p7zc.onrender.com";
-  // State to track location picked in map modal
-  const [selectedLocation, setSelectedLocation] = useState(null);
-
-  // Define the available payment plans
-  const plans = [
-    { id: "monthly", label: "Monthly - ₹241", value: 241 },
-    { id: "quarterly", label: "Quarterly - ₹700", value: 700 },
-    { id: "halfYearly", label: "Half-Yearly - ₹2790", value: 2790 },
-    { id: "yearly", label: "Yearly - ₹5500", value: 5500 },
-  ];
-
-  // Dummy payment initiation function – replace with your payment gateway integration
-  const initiatePayment = async (planId) => {
-    const selectedPlanData = plans.find((plan) => plan.id === planId);
-    if (!selectedPlanData) {
-      Alert.alert("Please select a plan");
-      return;
-    }
-    console.log("Initiating payment for plan:", selectedPlanData);
-    // Replace the following with your payment gateway code
-    Alert.alert("Payment", `Payment initiated for ${selectedPlanData.label}`);
-    // After payment, you may want to update trial status and close the modal:
-    setPaymentModalVisible(false);
-  };
+  const [ownerId, setOwnerId] = useState(null);
+  const API_BASE = "http://10.0.2.2:5000";
 
   useFocusEffect(
     useCallback(() => {
-      const getShopIdAndProfile = async () => {
+      const getOwnerIdAndProfile = async () => {
         try {
+          const token = await AsyncStorage.getItem("userToken");
           const uid = await AsyncStorage.getItem("uid");
+        //  console.log("Token:", token);
           if (!uid) {
-            console.error("Shop ID not found in AsyncStorage");
+            console.error("Owner ID not found in AsyncStorage");
             return;
           }
-          setShopId(uid);
+          setOwnerId(uid);
           await fetchProfile(uid);
         } catch (error) {
           console.error("Error in useFocusEffect:", error);
         }
       };
-      getShopIdAndProfile();
+      getOwnerIdAndProfile();
     }, [])
   );
 
-  // Fetch profile by shopId
+  // Fetch owner profile by ownerId
   const fetchProfile = async (uid) => {
     try {
-      const response = await fetch(`${API_BASE}/shop/profile?id=${uid}`, {
+      const token = await AsyncStorage.getItem("userToken");
+      const response = await fetch(`${API_BASE}/api/owners/profile`, {
         method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
-      setProfile(data);
+    //  console.log("Profile data:", data);
+      setProfile(data.data);
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
@@ -133,112 +108,45 @@ export default function TabProfileScreen() {
     try {
       await AsyncStorage.removeItem("userToken");
       await AsyncStorage.removeItem("uid");
+       await AsyncStorage.removeItem("userType");
+        await AsyncStorage.removeItem("userName");
       router.replace("../pre-login");
     } catch (error) {
       console.error("Error logging out:", error);
     }
   };
 
-  // When "Fetch Current Location" is pressed, update the form's coordinate values.
-  const handleGetCurrentLocation = async () => {
+  // Update owner profile
+  async function updateOwnerProfile() {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission to access location was denied");
-        return;
-      }
-      const location = await Location.getCurrentPositionAsync({});
-      setEditedProfile((prev) => ({
-        ...prev,
-        address: {
-          ...prev.address,
-          x: location.coords.latitude,
-          y: location.coords.longitude,
+      const { name, phone, expopushtoken } = editedProfile;
+      const token = await AsyncStorage.getItem("userToken");
+      
+      const response = await fetch(`${API_BASE}/api/owners/profile`, {
+        method: "PUT",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      }));
-      Alert.alert("Location fetched", "Coordinates have been updated.");
-    } catch (error) {
-      console.error("Error fetching location:", error);
-      Alert.alert("Error", "Unable to fetch location.");
-    }
-  };
-
-  // Update user profile (including updated address coordinates) using the shopId
-  async function updateUserProfile() {
-    try {
-      const { name, email, address } = editedProfile;
-      console.log("Updating user profile with details:", { shopId, name, email, address });
-      const response = await fetch(`${API_BASE}/shop/profile/update`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shopId, name, email, address }),
+        body: JSON.stringify({ name, phone, expopushtoken }),
       });
+      
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Error updating user profile:", errorData);
+        console.error("Error updating profile:", errorData);
+        Alert.alert("Error", errorData.message || "Failed to update profile");
         return;
       }
+      
       const data = await response.json();
-      console.log("User profile updated successfully:", data);
+     // console.log("Profile updated successfully:", data);
       setIsModalVisible(false);
-      fetchProfile(shopId);
+      fetchProfile(ownerId);
     } catch (error) {
-      console.error("Error updating user profile:", error);
+      console.error("Error updating profile:", error);
+      Alert.alert("Error", "Failed to update profile");
     }
   }
-
-  const LocationPreview = () => {
-    if (!editedProfile.address.x || !editedProfile.address.y) {
-      return (
-        <View style={styles.locationPreviewPlaceholder}>
-          <Icon name="map-marker" size={24} color="#888" />
-          <Text style={styles.locationPreviewText}>No location selected</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.locationPreview}>
-        <MapView
-          style={styles.previewMap}
-          region={{
-            latitude: editedProfile.address.x,
-            longitude: editedProfile.address.y,
-            latitudeDelta: 0.005,
-            longitudeDelta: 0.005,
-          }}
-          scrollEnabled={false}
-          zoomEnabled={false}
-          rotateEnabled={false}
-          pitchEnabled={false}
-        >
-          <Marker coordinate={{ latitude: editedProfile.address.x, longitude: editedProfile.address.y }} />
-        </MapView>
-      </View>
-    );
-  };
-
-  const handleOpenLocationPicker = async () => {
-    let defaultLocation;
-    if (editedProfile.address.x && editedProfile.address.y) {
-      defaultLocation = {
-        latitude: editedProfile.address.x,
-        longitude: editedProfile.address.y,
-      };
-    } else if (profile?.address?.x && profile?.address?.y) {
-      defaultLocation = {
-        latitude: profile.address.x,
-        longitude: profile.address.y,
-      };
-    } else {
-      const currentLocation = await Location.getCurrentPositionAsync({});
-      defaultLocation = currentLocation
-        ? { latitude: currentLocation.coords.latitude, longitude: currentLocation.coords.longitude }
-        : { latitude: 26.7282867, longitude: 83.4410984 };
-    }
-    setSelectedLocation(defaultLocation);
-    setIsLocationPickerVisible(true);
-  };
 
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
@@ -253,8 +161,8 @@ export default function TabProfileScreen() {
                 onPress={() => {
                   setEditedProfile({
                     name: profile?.name || "",
-                    email: profile?.email || "",
-                    address: profile?.address || { textData: "", x: 0, y: 0 },
+                    phone: profile?.phone || "",
+                    expopushtoken: profile?.expopushtoken || "",
                   });
                   setIsModalVisible(true);
                 }}
@@ -281,26 +189,9 @@ export default function TabProfileScreen() {
                     <ActivityIndicator size="large" color="#fff" />
                   ) : (
                     <View>
-                      <Text style={styles.username}>{profile?.name || "User Name"}</Text>
-                      <Text style={styles.userInfo}>Username: {profile?.email || "N/A"}</Text>
-                      <Text style={styles.userInfo}>Status: {profile?.trialStatus || "N/A"}</Text>
-                      <Text style={styles.userInfo}>
-                        Ends on:{" "}
-                        {profile?.trialEndDate
-                          ? new Date(profile.trialEndDate).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })
-                          : "N/A"}
-                      </Text>
-                      <Text style={styles.userInfo}>Address: {profile?.address?.textData || ""}</Text>
-                      {/* Conditionally render Renew button if trial is expired */}
-                      {profile?.trialStatus?.toLowerCase() === "expired" && (
-                        <TouchableOpacity style={styles.renewButton} onPress={() => setPaymentModalVisible(true)}>
-                          <Text style={styles.renewButtonText}>Renew</Text>
-                        </TouchableOpacity>
-                      )}
+                      <Text style={styles.username}>{profile?.name || "Owner Name"}</Text>
+                      <Text style={styles.userInfo}>Phone: {profile?.phone || "N/A"}</Text>
+                      
                     </View>
                   )}
                 </View>
@@ -361,126 +252,36 @@ export default function TabProfileScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email</Text>
+                <Text style={styles.inputLabel}>Phone</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Email"
-                  value={editedProfile.email}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+                  placeholder="Phone"
+                  value={editedProfile.phone}
+                  keyboardType="phone-pad"
                   onChangeText={(text) => {
-                    setEditedProfile({ ...editedProfile, email: text });
+                    setEditedProfile({ ...editedProfile, phone: text });
                   }}
                 />
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Address</Text>
+                <Text style={styles.inputLabel}>Expo Push Token</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Address"
-                  value={editedProfile.address.textData}
+                  placeholder="Push Token"
+                  value={editedProfile.expopushtoken}
                   onChangeText={(text) => {
-                    setEditedProfile({ ...editedProfile, address: { ...editedProfile.address, textData: text } });
+                    setEditedProfile({ ...editedProfile, expopushtoken: text });
                   }}
                 />
               </View>
-
-              <LocationPreview />
-
-              <TouchableOpacity style={styles.chooseLocationButton} onPress={handleOpenLocationPicker}>
-                <Icon name="map-marker" size={18} color="#fff" style={styles.buttonIcon} />
-                <Text style={styles.modalButtonText}>Choose Location on Map</Text>
-              </TouchableOpacity>
 
               <View style={styles.modalButtonContainer}>
                 <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsModalVisible(false)}>
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={updateUserProfile}>
+                <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={updateOwnerProfile}>
                   <Text style={styles.modalButtonText}>Save</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal for picking location on map */}
-        <Modal visible={isLocationPickerVisible} transparent animationType="slide">
-          <View style={styles.locationModalContainer}>
-            <View style={styles.locationModalContent}>
-              <MapView
-                style={styles.locationMap}
-                initialRegion={{
-                  latitude: selectedLocation
-                    ? selectedLocation.latitude
-                    : profile && profile.address.x
-                    ? profile.address.x
-                    : 26.7282867,
-                  longitude: selectedLocation
-                    ? selectedLocation.longitude
-                    : profile && profile.address.y
-                    ? profile.address.y
-                    : 83.4410984,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                onPress={(e) => {
-                  const { latitude, longitude } = e.nativeEvent.coordinate;
-                  setSelectedLocation({ latitude, longitude });
-                }}
-              >
-                <Marker
-                  coordinate={
-                    selectedLocation || {
-                      latitude: profile && profile.address.x ? profile.address.x : 26.7282867,
-                      longitude: profile && profile.address.y ? profile.address.y : 83.4410984,
-                    }
-                  }
-                />
-              </MapView>
-              <View style={styles.locationModalButtons}>
-                <TouchableOpacity style={[styles.modalButton, { flex: 1 }]} onPress={() => setIsLocationPickerVisible(false)}>
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, { flex: 1 }]}
-                  onPress={() => {
-                    if (selectedLocation) {
-                      setEditedProfile((prev) => ({
-                        ...prev,
-                        address: { ...prev.address, x: selectedLocation.latitude, y: selectedLocation.longitude },
-                      }));
-                      setIsLocationPickerVisible(false);
-                    } else {
-                      Alert.alert("No location selected", "Please tap on the map to choose a location.");
-                    }
-                  }}
-                >
-                  <Text style={styles.modalButtonText}>Save Location</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Payment Modal */}
-        <Modal visible={isPaymentModalVisible} transparent animationType="slide">
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Choose a Payment Plan</Text>
-              {plans.map((plan) => (
-                <TouchableOpacity key={plan.id} style={styles.planOption} onPress={() => setSelectedPlan(plan.id)}>
-                  <View style={[styles.radioButton, selectedPlan === plan.id && styles.radioButtonSelected]} />
-                  <Text style={styles.planLabel}>{plan.label}</Text>
-                </TouchableOpacity>
-              ))}
-              <View style={styles.modalButtonContainer}>
-                <TouchableOpacity style={[styles.modalButton, { backgroundColor: "#aaa" }]} onPress={() => setPaymentModalVisible(false)}>
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.modalButton} onPress={() => initiatePayment(selectedPlan)}>
-                  <Text style={styles.modalButtonText}>Pay Now</Text>
                 </TouchableOpacity>
               </View>
             </View>

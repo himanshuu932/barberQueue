@@ -22,7 +22,7 @@ import { Ionicons } from "@expo/vector-icons";
 export default function SignupScreen() {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState(""); // Changed from email to phone
   const [password, setPassword] = useState("");
   const [addressText, setAddressText] = useState("");
   const [expoPushToken, setExpoPushToken] = useState("");
@@ -32,7 +32,7 @@ export default function SignupScreen() {
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  const API_BASE = "https://numbr-p7zc.onrender.com";
+  const API_BASE = "http://10.0.2.2:5000";
 
   // Register for push notifications
   useEffect(() => {
@@ -51,7 +51,9 @@ export default function SignupScreen() {
       Alert.alert("Failed to get push token for push notifications!");
       return;
     }
-    token = (await Notifications.getExpoPushTokenAsync()).data;
+    token = (await Notifications.getExpoPushTokenAsync({
+      projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
+    })).data;
     console.log("Expo Push Token:", token);
 
     if (Platform.OS === "android") {
@@ -89,34 +91,62 @@ export default function SignupScreen() {
   }, []);
 
   const handleSignup = async () => {
-    if (!name || !email || !password || !addressText) {
-      Alert.alert("Error", "Please fill in all required fields, including address.");
+    if (!name || !phone || !password) { // Changed from email to phone
+      Alert.alert("Error", "Please fill in all required fields.");
       return;
     }
+    // Address is not directly part of owner registration in the provided backend,
+    // but the UI has it. If this is for a shop owner, the shop creation would handle address.
+    // For now, I'll remove the address check for owner signup as per backend.
+    // If address is intended for the owner, the Owner model would need an address field.
+
     setIsLoading(true);
     try {
-      // Build the address object with textData and location coordinates
-      const address = {
-        textData: addressText,
-        y: location ? location.coords.longitude : 0,
-        x: location ? location.coords.latitude : 0,
-      };
+      // The `ownerController.js` does not handle `address` or `expoPushToken` during registration directly.
+      // `expopushtoken` is handled via `updateOwnerProfile`.
+      // `address` would typically be part of a `Shop` model.
+      // For now, only sending `name`, `phone`, `pass` as per `registerOwner` controller.
 
-      const response = await fetch(`${API_BASE}/shop/signup`, {
+      const response = await fetch(`${API_BASE}/api/owners/register`, { // Corrected endpoint
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, expoPushToken, address }),
+        body: JSON.stringify({ name, phone, pass: password }), // Corrected fields
       });
       const data = await response.json();
       if (!response.ok) {
-        Alert.alert("Error", data.message || "Signup failed");
+        Alert.alert("Error", data.message || "Signup failed"); // Use data.message
         setIsLoading(false);
         return;
       }
-      await AsyncStorage.setItem("userToken", data.token);
-      await AsyncStorage.setItem("userName", data.shop.name);
-      Alert.alert("Success", `Signed up as: ${data.shop.email}`);
-      router.replace("/owner-login");
+      console.log("Signup successful:", data);
+
+      await AsyncStorage.setItem("userToken", data.data.token); // Access token from data.data
+      await AsyncStorage.setItem("userName", data.data.name); // Access name from data.data
+      await AsyncStorage.setItem("uid", data.data._id); // Store owner ID
+      let userType = "owner";
+      await AsyncStorage.setItem("userType", userType);
+
+      // Now update the owner's profile with the push token
+      if (expoPushToken) {
+        const updateResponse = await fetch(`${API_BASE}/api/owners/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.data.token}`, // Use the newly received token
+          },
+          body: JSON.stringify({ expopushtoken: expoPushToken }),
+        });
+        if (!updateResponse.ok) {
+          const updateErrorData = await updateResponse.json();
+          console.error("Error updating owner push token:", updateErrorData);
+          Alert.alert("Push Token Error", `Failed to register push token: ${updateErrorData.message || "Unknown error"}`);
+        } else {
+          console.log("Owner push token updated successfully.");
+        }
+      }
+
+      Alert.alert("Success", `Signed up as: ${data.data.phone}`); // Use phone for alert
+      router.replace("/owner-login"); // Redirect to login after successful signup
     } catch (error) {
       console.error("Signup error:", error);
       Alert.alert("Error", "Something went wrong during signup.");
@@ -131,6 +161,9 @@ export default function SignupScreen() {
       // Update main location state with the chosen location
       setLocation({ coords: selectedLocation });
       setIsLocationModalVisible(false);
+      // You might want to reverse geocode the selected location to get a human-readable address
+      // and set it to `addressText` here.
+      // For this example, we'll just keep the coordinates.
     } else {
       Alert.alert("Please select a location on the map.");
     }
@@ -140,7 +173,7 @@ export default function SignupScreen() {
     <ImageBackground source={require("./image/bglogin.png")} style={styles.background}>
       <View style={styles.overlay}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Shop Sign Up</Text>
+          <Text style={styles.title}>Owner Sign Up</Text> {/* Changed title to Owner Sign Up */}
 
           <TextInput
             style={styles.input}
@@ -153,19 +186,21 @@ export default function SignupScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Phone Number" // Changed from email to phone
             placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="email-address"
+            keyboardType="phone-pad" // Changed keyboardType
             autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+            value={phone}
+            onChangeText={setPhone} // Changed setter
           />
 
           {/* Address field with locate icon on the right */}
+          {/* Keep this section if shops will be created immediately after owner signup with this address */}
+          {/* Note: The current backend owner registration doesn't take address, this would be for shop creation */}
           <View style={styles.addressContainer}>
             <TextInput
               style={styles.addressInput}
-              placeholder="Address"
+              placeholder="Address (for your shop)" // Clarified placeholder
               placeholderTextColor="rgb(0, 0, 0)"
               value={addressText}
               onChangeText={setAddressText}
@@ -219,8 +254,8 @@ export default function SignupScreen() {
               <MapView
                 style={styles.modalMap}
                 initialRegion={{
-                  latitude: selectedLocation ? selectedLocation.latitude : location.coords.latitude,
-                  longitude: selectedLocation ? selectedLocation.longitude : location.coords.longitude,
+                  latitude: selectedLocation ? selectedLocation.latitude : (location ? location.coords.latitude : 0),
+                  longitude: selectedLocation ? selectedLocation.longitude : (location ? location.coords.longitude : 0),
                   latitudeDelta: 0.01,
                   longitudeDelta: 0.01,
                 }}

@@ -47,7 +47,7 @@ exports.registerOwner = asyncHandler(async (req, res) => {
 // @access  Public
 exports.loginOwner = asyncHandler(async (req, res) => {
     const { phone, pass } = req.body;
-
+    console.log('Login attempt with phone:', phone);
     const owner = await Owner.findOne({ phone });
 
     if (owner && (await bcrypt.compare(pass, owner.pass))) {
