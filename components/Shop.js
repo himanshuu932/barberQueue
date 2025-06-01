@@ -7,31 +7,35 @@ import {
   FlatList,
   ActivityIndicator,
   StyleSheet,
-  Switch,
   Image,
   Dimensions,
   StatusBar,
+  PixelRatio,
+  TouchableWithoutFeedback, // Import TouchableWithoutFeedback
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
+const fontScale = PixelRatio.getFontScale();
+const getResponsiveFontSize = (size) => size / fontScale;
+
+const responsiveHeight = (h) => height * (h / 100);
+const responsiveWidth = (w) => width * (w / 100);
 
 export const ShopList = ({ onSelect, onClose }) => {
-  // shopRatings now holds shops directly, with rating as a property on each shop
-  const [shopRatings, setShopRatings] = useState([]); 
+  const [shopRatings, setShopRatings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  // Re-introducing minRating state
-  const [minRating, setMinRating] = useState(0); 
-  const [nearbyOnly, setNearbyOnly] = useState(false);
   const [error, setError] = useState("");
   const [selectedShopId, setSelectedShopId] = useState(null);
-  const [showFilters, setShowFilters] = useState(false); // State for filter visibility
+
+  const [sortCriteria, setSortCriteria] = useState([]); // [{ key: 'rating', order: 'desc' }, { key: 'queue', order: 'asc' }]
+  const [showSortOptions, setShowSortOptions] = useState(false); // Controls visibility of the sort dropdown
 
   useEffect(() => {
-    fetchShops(); 
+    fetchShops();
     loadCurrentShop();
   }, []);
 
@@ -48,15 +52,21 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   const fetchShops = async () => {
     try {
-      const shopRes = await fetch("http://10.0.2.2:5000/api/shops");
-      const shopsData = await shopRes.json(); 
-      const shops = shopsData.data; 
+      const shopRes = await fetch("https://numbr-p7zc.onrender.com/api/shops");
+      const shopsData = await shopRes.json();
+      const shops = shopsData.data;
 
-      if (!Array.isArray(shops)) { 
+      if (!Array.isArray(shops)) {
         throw new Error("API did not return a list of shops.");
       }
 
-      setShopRatings(shops); 
+      const shopsWithExtraData = shops.map(shop => ({
+        ...shop,
+        queueLength: Math.floor(Math.random() * 16), // Simulate queue length
+        distance: parseFloat((Math.random() * 10 + 0.5).toFixed(1)), // Simulate distance in km
+      }));
+
+      setShopRatings(shopsWithExtraData);
     } catch (err) {
       setError(err.message || "Error loading shops");
     } finally {
@@ -70,41 +80,90 @@ export const ShopList = ({ onSelect, onClose }) => {
     onSelect?.();
   };
 
-  const isNearby = (shop) => {
-    return shop.address?.x <= 100; // sample proximity logic
-  };
-
-  // Filter logic updated to include minRating based on shop.rating
-  const filtered = shopRatings.filter((shop) => {
-    const matchesName = searchQuery ? shop.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
-    // Use shop.rating directly for filtering
-    const matchesRating = shop.rating >= minRating; 
-    const matchesProximity = !nearbyOnly || isNearby(shop);
-    return matchesName && matchesRating && matchesProximity; 
-  });
-
-  
   const getActiveFilterSummary = () => {
     const filters = [];
     if (searchQuery) {
       filters.push(`"${searchQuery}"`);
     }
-    // Re-introducing minRating filter summary
-    if (minRating > 0) { 
-      filters.push(`Rating: ${minRating}+`);
+
+    const sortSummaries = sortCriteria.map(c => {
+      const label = c.key.charAt(0).toUpperCase() + c.key.slice(1);
+      const orderLabel = c.order === 'asc' ? 'Low to High' : 'High to Low';
+      return `${label} (${orderLabel})`;
+    });
+
+    let finalSummary = '';
+    if (filters.length > 0) {
+      finalSummary += filters.join(", ");
     }
-    if (nearbyOnly) {
-      filters.push("Nearby");
+    if (sortSummaries.length > 0) {
+      if (filters.length > 0) {
+        finalSummary += '; ';
+      }
+      finalSummary += `Sorted by: ${sortSummaries.join(', ')}`;
     }
-    return filters.length > 0 ? ` (${filters.join(", ")})` : "";
+
+    return finalSummary ? ` (${finalSummary})` : '';
   };
 
   const filterSummary = getActiveFilterSummary();
 
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setSortCriteria([]);
+    setShowSortOptions(false); // Close sort dropdown
+  };
+
+  const handleSort = (criterionKey, order) => {
+    setSortCriteria(prevCriteria => {
+      const existingIndex = prevCriteria.findIndex(c => c.key === criterionKey);
+
+      if (existingIndex !== -1) {
+        const existingCriterion = prevCriteria[existingIndex];
+        if (existingCriterion.order === order) {
+          return prevCriteria.filter((_, i) => i !== existingIndex);
+        } else {
+          const newCriteria = [...prevCriteria];
+          newCriteria[existingIndex] = { key: criterionKey, order: order };
+          return newCriteria;
+        }
+      } else {
+        return [...prevCriteria, { key: criterionKey, order: order }];
+      }
+    });
+    setShowSortOptions(false); // Close sort options after selection
+  };
+
+  const sortedAndFilteredShops = [...shopRatings].filter((shop) => {
+    return searchQuery ? shop.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
+  }).sort((a, b) => {
+    for (let i = 0; i < sortCriteria.length; i++) {
+      const { key, order } = sortCriteria[i];
+      let comparison = 0;
+
+      if (key === 'rating') {
+        comparison = a.rating - b.rating;
+      } else if (key === 'distance') {
+        comparison = a.distance - b.distance;
+      } else if (key === 'queue') {
+        comparison = a.queueLength - b.queueLength;
+      }
+
+      if (order === 'desc') {
+        comparison = -comparison;
+      }
+
+      if (comparison !== 0) {
+        return comparison;
+      }
+    }
+    return 0;
+  });
+
   const renderShopItem = ({ item }) => {
-    const shop = item; 
+    const shop = item;
     const isSelected = shop._id === selectedShopId;
-    const shopRating = shop.rating || 0; // Get rating directly from shop, default to 0 if not present
+    const shopRating = shop.rating || 0;
 
     return (
       <TouchableOpacity
@@ -122,40 +181,46 @@ export const ShopList = ({ onSelect, onClose }) => {
           />
           {isSelected && (
             <View style={styles.selectedBadge}>
-              <FontAwesome5 name="check" size={12} color="#fff" />
+              <FontAwesome5 name="check" size={getResponsiveFontSize(12)} color={colors.white} />
             </View>
           )}
         </View>
 
         <View style={styles.shopDetails}>
-          <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
+          <Text style={styles.shopName} numberOfLines={1}>
+            {shop.name}
+          </Text>
 
-          {/* Re-introducing Rating Container */}
           <View style={styles.ratingContainer}>
             <View style={styles.starsContainer}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <Icon
                   key={star}
                   name="star"
-                  size={14}
-                  color={star <= Math.round(shopRating) ? "#FFD700" : "#E0E0E0"}
-                  style={{ marginRight: 2 }}
+                  size={getResponsiveFontSize(14)}
+                  color={star <= Math.round(shopRating) ? colors.starActive : colors.starInactive}
+                  style={{ marginRight: responsiveWidth(0.5) }}
                 />
               ))}
             </View>
             <Text style={styles.ratingText}>{shopRating.toFixed(1)}</Text>
           </View>
-          
 
           <View style={styles.shopMeta}>
             <View style={styles.metaItem}>
-              <FontAwesome5 name="map-marker-alt" size={12} color="#666" />
-              <Text style={styles.metaText}>2.3 km</Text>
+              <FontAwesome5 name="map-marker-alt" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
+              <Text style={styles.metaText}>{shop.distance.toFixed(1)} km</Text>
             </View>
             <View style={styles.metaItem}>
-              <FontAwesome5 name="clock" size={12} color="#666" />
+              <FontAwesome5 name="clock" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
               <Text style={styles.metaText}>Open</Text>
             </View>
+            {shop.queueLength !== undefined && (
+              <View style={styles.metaItem}>
+                <FontAwesome5 name="users" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
+                <Text style={styles.metaText}>Queue: {shop.queueLength}</Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -165,7 +230,7 @@ export const ShopList = ({ onSelect, onClose }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#186ac8" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading shops...</Text>
       </View>
     );
@@ -174,9 +239,9 @@ export const ShopList = ({ onSelect, onClose }) => {
   if (error) {
     return (
       <View style={styles.errorContainer}>
-        <FontAwesome5 name="exclamation-circle" size={40} color="#ff6b6b" />
+        <FontAwesome5 name="exclamation-circle" size={getResponsiveFontSize(40)} color={colors.error} />
         <Text style={styles.errorText}>Error: {error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchShops}> 
+        <TouchableOpacity style={styles.retryButton} onPress={fetchShops}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>
@@ -185,34 +250,45 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   return (
     <View style={styles.container}>
-      {/* App Name Header */}
       <View style={styles.headerApp}>
         <Text style={styles.titleApp}>Numbr</Text>
       </View>
-      <StatusBar backgroundColor="#fff" barStyle="dark-content" />
+      <StatusBar backgroundColor={colors.headerBackground} barStyle="light-content" />
 
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.title}>Choose Barber Shop</Text>
+          <Text style={[styles.title, { flexShrink: 1 }]}>Shops</Text> {/* Added flexShrink */}
           <View style={styles.headerActions}>
-            {onClose && (
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={onClose}
-                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-              >
-                <Icon name="times" size={20} color="#333" />
-              </TouchableOpacity>
-            )}
+            {/* Sort By Button */}
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => setShowSortOptions(!showSortOptions)}
+            >
+              <FontAwesome5 name="sort" size={getResponsiveFontSize(18)} color={colors.textDark} />
+              <Text style={styles.actionButtonText}>Sort By</Text>
+              <Icon
+                name={showSortOptions ? "chevron-up" : "chevron-down"}
+                size={getResponsiveFontSize(16)}
+                color={colors.textDark}
+                style={styles.actionButtonIcon}
+              />
+            </TouchableOpacity>
+            {/* Clear All Button */}
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleClearFilters}
+            >
+              <Text style={styles.actionButtonText}>Clear All</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.searchContainer}>
-          <Icon name="search" size={18} color="#888" style={styles.searchIcon} />
+          <Icon name="search" size={getResponsiveFontSize(18)} color={colors.textLight} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search shops by name..."
-            placeholderTextColor="#888"
+            placeholderTextColor={colors.textLight}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -221,297 +297,354 @@ export const ShopList = ({ onSelect, onClose }) => {
               onPress={() => setSearchQuery("")}
               hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
             >
-              <Icon name="times-circle" size={18} color="#888" />
+              <Icon name="times-circle" size={getResponsiveFontSize(18)} color={colors.textLight} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Filter Toggle and Section */}
-      <View style={styles.filterToggleContainer}>
-        <TouchableOpacity
-          style={styles.filterToggleButton}
-          onPress={() => setShowFilters(!showFilters)}
-        >
-          <FontAwesome5 name="filter" size={18} color="#333" />
-          <Text style={styles.filterToggleButtonText}>Filter</Text>
-          <Icon
-            name={showFilters ? "chevron-up" : "chevron-down"}
-            size={16}
-            color="#333"
-            style={styles.filterToggleIcon}
-          />
-        </TouchableOpacity>
+      {/* Filter Summary - remains in its current position */}
+      <View style={styles.controlsContainer}>
         {filterSummary ? (
           <Text style={styles.filterSummaryText}>{filterSummary}</Text>
         ) : null}
       </View>
 
-      {showFilters && (
-        <View style={styles.filterSection}>
-          <View style={styles.filterRow}>
-            {/* Re-introducing Min Rating filter */}
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Min Rating:</Text>
-              <View style={styles.ratingSelector}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity
-                    key={star}
-                    onPress={() => setMinRating(star)}
-                  >
-                    <Icon
-                      name="star"
-                      size={18}
-                      color={star <= minRating ? "#FFD700" : "#E0E0E0"}
-                      style={{ marginHorizontal: 1 }}
-                    />
-                  </TouchableOpacity>
-                ))}
+      {/* Main content area wrapped by TouchableWithoutFeedback */}
+      <TouchableWithoutFeedback onPress={() => setShowSortOptions(false)}>
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={sortedAndFilteredShops}
+            renderItem={renderShopItem}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={styles.shopList}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <FontAwesome5 name="search" size={getResponsiveFontSize(50)} color={colors.textLight} />
+                <Text style={styles.emptyText}>No shops found matching your criteria</Text>
               </View>
-            </View>
-            
+            }
+          />
+        </View>
+      </TouchableWithoutFeedback>
 
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Nearby Only:</Text>
-              <Switch
-                value={nearbyOnly}
-                onValueChange={(val) => setNearbyOnly(val)}
-                trackColor={{ false: "#ccc", true: "#186ac8" }}
-                thumbColor={nearbyOnly ? "#fff" : "#f4f3f4"}
-                ios_backgroundColor="#ccc"
-                style={styles.switch}
-              />
-            </View>
-          </View>
+      {/* Sort Options Dropdown - positioned absolutely on top of everything */}
+      {showSortOptions && (
+        <View style={styles.sortOptionsDropdown}>
+          <Text style={styles.dropdownHeader}>Rating</Text>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('rating', 'desc')}>
+            <Text style={styles.sortOptionText}>High to Low</Text>
+            {sortCriteria.some(c => c.key === 'rating' && c.order === 'desc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('rating', 'asc')}>
+            <Text style={styles.sortOptionText}>Low to High</Text>
+            {sortCriteria.some(c => c.key === 'rating' && c.order === 'asc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+          </TouchableOpacity>
+          <View style={styles.sortOptionDivider} />
 
-          <View style={styles.filterStats}>
-            <Text style={styles.resultsText}>
-              {filtered.length} {filtered.length === 1 ? "shop" : "shops"} found
-            </Text>
-          </View>
+          <Text style={styles.dropdownHeader}>Distance</Text>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('distance', 'asc')}>
+            <Text style={styles.sortOptionText}>Low to High</Text>
+            {sortCriteria.some(c => c.key === 'distance' && c.order === 'asc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('distance', 'desc')}>
+            <Text style={styles.sortOptionText}>High to Low</Text>
+            {sortCriteria.some(c => c.key === 'distance' && c.order === 'desc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+          </TouchableOpacity>
+          <View style={styles.sortOptionDivider} />
+
+          <Text style={styles.dropdownHeader}>Queue</Text>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('queue', 'asc')}>
+            <Text style={styles.sortOptionText}>Low to High</Text>
+            {sortCriteria.some(c => c.key === 'queue' && c.order === 'asc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('queue', 'desc')}>
+            <Text style={styles.sortOptionText}>High to Low</Text>
+            {sortCriteria.some(c => c.key === 'queue' && c.order === 'desc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+          </TouchableOpacity>
         </View>
       )}
 
-      <FlatList
-        data={filtered}
-        renderItem={renderShopItem}
-        keyExtractor={(item) => item._id} 
-        contentContainerStyle={styles.shopList}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <FontAwesome5 name="search" size={50} color="#ccc" />
-            <Text style={styles.emptyText}>No shops found matching your criteria</Text>
-          </View>
-        }
-      />
+      {/* Close Button - positioned at the bottom center */}
+      {onClose && (
+        <View style={styles.bottomButtonContainer}> {/* Added a container for padding */}
+          <TouchableOpacity
+            style={styles.bottomCloseButton}
+            onPress={onClose}
+            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+          >
+            <Text style={styles.bottomCloseButtonText}>Back to Home</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
 
+const colors = {
+  primary: '#3182ce', // A vibrant blue
+  secondary: '#63b3ed', // Lighter blue
+  background: '#f5f7fa', // Light grey background
+  cardBackground: '#ffffff', // White cards
+  headerBackground: '#000000', // Black for app name
+  textDark: '#2d3748', // Dark grey for main text
+  textMedium: '#4a5568', // Medium grey for labels
+  textLight: '#a0aec0', // Light grey for placeholders and empty states
+  textSecondary: '#718096', // Muted grey for meta info
+  border: '#e2e8f0', // Light border
+  shadow: 'rgba(0, 0, 0, 0.08)', // Soft shadow
+  starActive: '#FFD700', // Gold
+  starInactive: '#cbd5e0', // Lighter grey for inactive stars
+  switchInactive: '#cbd5e0',
+  switchThumbInactive: '#f8f9fa',
+  error: '#e53e3e', // Red for errors
+  clearButton: '#000000', // Black for clear action
+  white: '#ffffff',
+};
+
 const styles = StyleSheet.create({
   headerApp: {
-    height: 60,
+    height: responsiveHeight(9),
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 15,
+    paddingHorizontal: responsiveWidth(4),
     width: '100%',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.4) },
+    shadowOpacity: 0.2,
+    shadowRadius: responsiveWidth(1.2),
+    elevation: 8,
   },
   titleApp: {
     color: "#fff",
-    fontSize: 20,
-    marginLeft: 15,
+    fontSize: getResponsiveFontSize(20),
+    marginLeft: responsiveWidth(4),
+    marginTop: responsiveHeight(2),
   },
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    padding: 20,
+    backgroundColor: colors.background,
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#555",
+    marginTop: responsiveHeight(2),
+    fontSize: getResponsiveFontSize(16),
+    color: colors.textMedium,
+    fontWeight: "500",
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    padding: 20,
+    padding: responsiveWidth(6),
+    backgroundColor: colors.background,
   },
   errorText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: "#555",
+    marginTop: responsiveHeight(2),
+    fontSize: getResponsiveFontSize(16),
+    color: colors.textMedium,
     textAlign: "center",
+    lineHeight: responsiveHeight(3),
+    fontWeight: "500",
   },
   retryButton: {
-    marginTop: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: "#186ac8",
+    marginTop: responsiveHeight(3),
+    paddingVertical: responsiveHeight(1.5),
+    paddingHorizontal: responsiveWidth(6),
+    backgroundColor: colors.primary,
     borderRadius: 8,
+    elevation: 2,
   },
   retryButtonText: {
-    color: "#fff",
-    fontSize: 16,
+    color: colors.white,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: "600",
   },
   header: {
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingTop: 15,
-    paddingBottom: 10,
-    paddingHorizontal: 16,
+    backgroundColor: colors.cardBackground,
+    paddingTop: responsiveHeight(2),
+    paddingBottom: responsiveHeight(1.5),
+    paddingHorizontal: responsiveWidth(4),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.1) },
+    shadowOpacity: 0.05,
+    shadowRadius: responsiveWidth(0.5),
+    elevation: 2,
+    zIndex: 10,
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: responsiveHeight(1.5),
   },
   title: {
-    fontSize: 24,
+    fontSize: getResponsiveFontSize(22),
     fontWeight: "700",
-    color: "#333",
+    color: colors.textDark,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 5, // Reduced gap between buttons
   },
-  closeButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "#f0f0f0",
+  closeButton: { // This style is no longer used for the close button in the header
+    padding: responsiveWidth(2),
+    borderRadius: 50,
+    backgroundColor: colors.background,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#eee",
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    paddingHorizontal: responsiveWidth(4),
+    height: responsiveHeight(6),
+    marginBottom: responsiveHeight(1),
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: responsiveWidth(3),
+    color: colors.textSecondary,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#333",
+    fontSize: getResponsiveFontSize(16),
+    color: colors.textDark,
+    paddingVertical: 0,
   },
-  filterToggleContainer: {
-    flexDirection: 'row', 
-    justifyContent: 'flex-end', 
-    alignItems: 'center', 
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    gap: 10, 
+  controlsContainer: {
+    paddingHorizontal: responsiveWidth(4),
+    paddingVertical: responsiveHeight(1),
+    backgroundColor: colors.cardBackground,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.1) },
+    shadowOpacity: 0.1,
+    shadowRadius: responsiveWidth(0.5),
+    elevation: 3,
+    zIndex: 9,
+    position: 'relative',
+    alignItems: 'flex-end', // Align summary text to the right
   },
-  filterToggleButton: {
+  buttonsRow: { // This style is now used for the buttons in the headerActions
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    gap: responsiveWidth(2.5),
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingVertical: responsiveHeight(0.8), // Reduced vertical padding
+    paddingHorizontal: 10, // Reduced horizontal padding
     borderRadius: 20,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.2) },
+    shadowOpacity: 0.15,
+    shadowRadius: responsiveWidth(0.75),
+    elevation: 4,
   },
-  filterToggleButtonText: {
-    fontSize: 16,
+  actionButtonText: {
+    fontSize: getResponsiveFontSize(15),
     fontWeight: '600',
-    color: '#333',
-    marginLeft: 5,
+    color: colors.textDark,
+    marginLeft: 4, // Reduced margin left
   },
-  filterToggleIcon: {
-    marginLeft: 8,
+  actionButtonIcon: {
+    marginLeft: 4, // Reduced margin left
   },
   filterSummaryText: {
-    fontSize: 14,
-    color: '#666',
-    flexShrink: 1, 
+    fontSize: getResponsiveFontSize(14),
+    color: colors.textSecondary,
+    textAlign: 'right',
+    paddingHorizontal: responsiveWidth(1.2),
   },
-  filterSection: {
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginBottom: 10,
+  sortOptionsDropdown: {
+    position: 'absolute',
+    top: responsiveHeight(6),
+    right: responsiveWidth(4),
+    width: responsiveWidth(60),
+    backgroundColor: colors.cardBackground,
+    borderRadius: 10,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.4) },
+    shadowOpacity: 0.25,
+    shadowRadius: responsiveWidth(1.5),
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: responsiveHeight(1),
+    zIndex: 100,
   },
-  filterRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 10,
+  dropdownHeader: {
+    fontSize: getResponsiveFontSize(14),
+    fontWeight: '700',
+    color: colors.textMedium,
+    paddingHorizontal: responsiveWidth(4),
+    paddingVertical: responsiveHeight(0.8),
+    backgroundColor: colors.background,
+    borderRadius: 5,
+    marginHorizontal: responsiveWidth(2),
+    marginBottom: responsiveHeight(0.5),
   },
-  filterItem: {
-    flexDirection: "row",
-    alignItems: "center",
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: responsiveHeight(1.2),
+    paddingHorizontal: responsiveWidth(4),
   },
-  filterLabel: {
-    fontSize: 15,
-    color: "#555",
+  sortOptionText: {
+    fontSize: getResponsiveFontSize(15),
+    color: colors.textDark,
+    fontWeight: '500',
   },
-  ratingSelector: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  switch: {
-    transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
-  },
-  filterStats: {
-    marginVertical: 8,
-  },
-  resultsText: {
-    fontSize: 14,
-    color: "#777",
+  sortOptionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginVertical: responsiveHeight(0.5),
+    marginHorizontal: responsiveWidth(2),
   },
   shopList: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 20,
+    paddingHorizontal: responsiveWidth(4),
+    paddingTop: responsiveHeight(1.5),
+    paddingBottom: responsiveHeight(3),
   },
   shopCard: {
-    backgroundColor: "#fff",
-    width: width - 32,
-    height: 200,
-    marginBottom: 16,
+    backgroundColor: colors.cardBackground,
+    width: '100%',
+    marginBottom: responsiveHeight(2),
     borderRadius: 12,
     overflow: "hidden",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.2) },
+    shadowOpacity: 0.08,
+    shadowRadius: responsiveWidth(1),
     borderWidth: 1,
-    borderColor: "#eee",
-    flexDirection: 'column',
+    borderColor: colors.border,
   },
   selectedShopCard: {
-    borderColor: "#186ac8",
+    borderColor: colors.primary,
     borderWidth: 2,
-    transform: [{ scale: 1.00 }],
+    shadowColor: colors.primary,
+    shadowOpacity: 0.2,
+    shadowRadius: responsiveWidth(2),
   },
   shopImageContainer: {
     position: "relative",
     width: "100%",
-    height: "50%",
+    height: responsiveWidth(32),
   },
   shopImage: {
     width: "100%",
@@ -520,63 +653,99 @@ const styles = StyleSheet.create({
   },
   selectedBadge: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "#186ac8",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    top: responsiveHeight(1),
+    right: responsiveWidth(2),
+    backgroundColor: colors.primary,
+    width: responsiveWidth(6),
+    height: responsiveWidth(6),
+    borderRadius: responsiveWidth(3),
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.1) },
+    shadowOpacity: 0.2,
+    shadowRadius: responsiveWidth(0.5),
   },
   shopDetails: {
-    padding: 12,
-    height: "50%",
-    justifyContent: 'space-between',
+    paddingHorizontal: responsiveWidth(4),
+    paddingVertical: responsiveHeight(1.2),
   },
   shopName: {
-    fontSize: 18,
+    fontSize: getResponsiveFontSize(18),
     fontWeight: "700",
-    color: "#333",
-    marginBottom: 4,
+    color: colors.textDark,
+    marginBottom: responsiveHeight(1),
   },
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: responsiveHeight(1.5),
   },
   starsContainer: {
     flexDirection: "row",
+    marginRight: responsiveWidth(2),
   },
   ratingText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#555",
+    fontSize: getResponsiveFontSize(16),
+    fontWeight: "600",
+    color: colors.textMedium,
   },
   shopMeta: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 8,
+    flexWrap: 'wrap',
+    gap: responsiveWidth(2),
   },
   metaItem: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: colors.background,
+    paddingVertical: responsiveHeight(0.6),
+    paddingHorizontal: responsiveWidth(2),
+    borderRadius: 8,
   },
   metaText: {
-    fontSize: 13,
-    color: "#666",
-    marginLeft: 4,
+    fontSize: getResponsiveFontSize(14),
+    color: colors.textSecondary,
+    marginLeft: responsiveWidth(1.5),
+    fontWeight: "500",
   },
   emptyContainer: {
-    padding: 30,
+    flex: 1,
+    padding: responsiveWidth(10),
     alignItems: "center",
     justifyContent: "center",
   },
   emptyText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: "#888",
+    marginTop: responsiveHeight(2),
+    fontSize: getResponsiveFontSize(16),
+    color: colors.textLight,
     textAlign: "center",
+    lineHeight: responsiveHeight(3),
+    fontWeight: "500",
+  },
+  bottomButtonContainer: {
+    position: 'absolute',
+    top: responsiveHeight(92.8),
+    width: '100%',
+    paddingHorizontal: responsiveWidth(4), // Add horizontal padding for the container
+    zIndex: 200,
+  },
+  bottomCloseButton: {
+    backgroundColor: '#000000', // Changed to primary color
+    paddingVertical: responsiveHeight(2),
+    borderRadius: 10, // Slightly rounded corners for a button look
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.4) },
+    shadowOpacity: 0.3,
+    shadowRadius: responsiveWidth(1.5),
+    elevation: 10,
+  },
+  bottomCloseButtonText: {
+    color: colors.white,
+    fontSize: getResponsiveFontSize(18),
+    fontWeight: '700',
   },
 });
