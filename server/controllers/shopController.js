@@ -46,12 +46,16 @@ const calculateEndDate = (startDate, durationValue, durationUnit) => {
 // @route   POST /api/shops
 // @access  Private (Owner)
 exports.createShop = asyncHandler(async (req, res) => {
+
+    console.log("Incoming shop creation body:", req.body);
+
     const { name, address, photos } = req.body; // Owner ID comes from req.user._id
 
     // Basic validation
-    if (!name || !address || !address.fullDetails || !address.coordinates || address.coordinates.length !== 2) {
-        throw new ApiError('Missing required shop details (name, full address, coordinates).', 400);
-    }
+ if ( !name ||!address || !address.fullDetails || !address.coordinates || address.coordinates.type !== 'Point' ||!Array.isArray(address.coordinates.coordinates) ||address.coordinates.coordinates.length !== 2) {
+  throw new ApiError('Missing required shop details (name, full address, coordinates).', 400);
+}
+
 
     const owner = await Owner.findById(req.user._id);
     if (!owner) {
@@ -214,66 +218,76 @@ exports.deleteShop = asyncHandler(async (req, res) => {
 // @desc    Add a service with its specific price to a shop's offerings (by Owner)
 // @route   POST /api/shops/:id/services
 // @access  Private (Owner)
-exports.addServiceToShop = asyncHandler(async (req, res) => {
-    const { id } = req.params; // Shop ID
-    const { serviceId, price } = req.body; // serviceId is the _id of the generic Service document
+exports.addService = asyncHandler(async (req, res) => {
+    const { name, price } = req.body;
 
-    const shop = await Shop.findById(id);
+    // Validate input
+    if (!name || !price) {
+        throw new ApiError('Name and price are required', 400);
+    }
+
+    // Find shop and verify ownership
+    const shop = await Shop.findOne({
+        _id: req.params.id,
+        owner: req.user.id
+    });
+
     if (!shop) {
-        throw new ApiError('Shop not found.', 404);
-    }
-    // Authorization
-    if (shop.owner.toString() !== req.user._id.toString()) {
-        throw new ApiError('Not authorized to modify this shop.', 403);
+        throw new ApiError('Shop not found or not owned by you', 404);
     }
 
-    const genericService = await Service.findById(serviceId);
-    if (!genericService) {
-        throw new ApiError('Generic service not found.', 404);
+    // Check for duplicate service names (case insensitive)
+    const serviceExists = shop.services.some(
+        service => service.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (serviceExists) {
+        throw new ApiError('This service already exists in your shop', 400);
     }
 
-    // Check if service already exists for this shop
-    if (shop.services.some(s => s.service.toString() === serviceId)) {
-        throw new ApiError('Service already exists for this shop. Use PUT to update price.', 400);
-    }
-
-    shop.services.push({ service: serviceId, price });
+    // Add the new service
+    shop.services.push({ name, price });
     await shop.save();
 
     res.status(201).json({
         success: true,
-        message: 'Service added to shop successfully',
-        data: shop.services,
+        message: 'Service added successfully',
+        data: shop.services[shop.services.length - 1]
     });
 });
+
 
 // @desc    Update the price of an existing service at a specific shop (by Owner)
 // @route   PUT /api/shops/:id/services/:serviceItemId
 // @access  Private (Owner)
 exports.updateShopServicePrice = asyncHandler(async (req, res) => {
-    const { id, serviceItemId } = req.params; // shopId and the _id of the service subdocument in shop.services
-    const { price } = req.body;
+    const { id, serviceItemId } = req.params;
+    const { name, price } = req.body;
 
     const shop = await Shop.findById(id);
     if (!shop) {
         throw new ApiError('Shop not found.', 404);
     }
+    
     // Authorization
     if (shop.owner.toString() !== req.user._id.toString()) {
         throw new ApiError('Not authorized to modify this shop.', 403);
     }
 
-    const serviceItem = shop.services.id(serviceItemId); // Mongoose subdocument finding
+    const serviceItem = shop.services.id(serviceItemId);
     if (!serviceItem) {
         throw new ApiError('Service item not found in this shop\'s offerings.', 404);
     }
 
-    serviceItem.price = price;
+    // Update both name and price if provided
+    if (name) serviceItem.name = name;
+    if (price) serviceItem.price = price;
+    
     await shop.save();
 
     res.json({
         success: true,
-        message: 'Service price updated successfully',
+        message: 'Service updated successfully',
         data: serviceItem,
     });
 });
@@ -317,23 +331,15 @@ exports.removeServiceFromShop = asyncHandler(async (req, res) => {
 exports.getShopRateList = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    const shop = await Shop.findById(id).populate('services.service', 'name'); // Populate generic service name
+    const shop = await Shop.findById(id);
 
     if (!shop) {
         throw new ApiError('Shop not found.', 404);
     }
 
-    // Map the populated services to a more readable format
-    const rateList = shop.services.map(s => ({
-        _id: s._id, // The subdocument ID
-        serviceId: s.service._id, // The generic service ID
-        name: s.service.name, // The generic service name
-        price: s.price,
-    }));
-
     res.json({
         success: true,
-        data: rateList,
+        data: shop.services,
     });
 });
 

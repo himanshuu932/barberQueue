@@ -126,26 +126,28 @@ export default function MenuScreen() {
       checkPendingRatingAndNotifications();
     }, [])
   );
-  const fetchRateList = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/shop/rateList?id=${shopId}`);
-      if (!response.ok) {
-        console.error("Failed to fetch rate list");
-        return;
-      }
-      const data = await response.json();
-      const fetchedChecklist = data.map((item, index) => ({
-        id: index + 1,
-        text: item.service,
-        price: item.price,
-        checked: false,
-      }));
-      setDefaultChecklist(fetchedChecklist);
-      setChecklist(fetchedChecklist);
-    } catch (error) {
-      console.error("Error fetching rate list:", error);
+
+const fetchRateList = async () => {
+  try {
+    const response = await fetch(`${API_BASE}/shop/${shopId}/rate-list`);
+    if (!response.ok) {
+      console.error("Failed to fetch rate list");
+      return;
     }
-  };
+    const data = await response.json();
+    const fetchedChecklist = data.map((item, index) => ({
+      id: index + 1,
+      text: item.service,
+      price: item.price,
+      checked: false,
+    }));
+    setDefaultChecklist(fetchedChecklist);
+    setChecklist(fetchedChecklist);
+  } catch (error) {
+    console.error("Error fetching rate list:", error);
+  }
+};
+
   
 
   const refreshShop = async () => {
