@@ -5,6 +5,8 @@ const barberController = require('../controllers/barberController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 // Public routes for barber information
+router.post('/login', barberController.authBarber);
+router.post('/register-push-token', protect(['barber', 'owner', 'user']), barberController.registerPushToken); // ADD THIS LINE: This route saves the token for any authenticated user type
 router.get('/:id', barberController.getBarberById);
 router.get('/:id/customers-served', barberController.getBarberCustomersServed);
 router.get('/shop/:shopId', barberController.getBarbersByShop); // Get barbers for a specific shop

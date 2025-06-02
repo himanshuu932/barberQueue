@@ -15,7 +15,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 
-async function registerForPushNotifications(uid) {
+// Base API URL
+const API_BASE_URL = "http://10.0.2.2:5000/api";
+
+async function registerForPushNotifications(uid, userToken) { // Pass userToken here
   console.log("Registering for push notifications for uid:", uid);
   if (!Constants.isDevice) {
     console.log("Must use a physical device for Push Notifications");
@@ -35,12 +38,16 @@ async function registerForPushNotifications(uid) {
   }
   const token = (await Notifications.getExpoPushTokenAsync()).data;
   console.log("Expo Push Token generated:", token);
-  // Send token to your backend so it can be stored in the user record
+
+  // Send token to your backend
   try {
-    const response = await fetch("https://numbr-p7zc.onrender.com/register-push-token", {
+    const response = await fetch(`${API_BASE_URL}/barbers/register-push-token`, { // Use the new dedicated endpoint
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid, token }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${userToken}` // Send the authentication token
+      },
+      body: JSON.stringify({ uid, token }), // uid is technically not needed by backend if protect is used, but harmless
     });
     const resData = await response.json();
     console.log("Backend response for push token registration:", resData);
@@ -59,19 +66,19 @@ async function registerForPushNotifications(uid) {
 
 export default function BarberLoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
- 
+
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password.");
+    if (!phone || !password) {
+      Alert.alert("Error", "Please enter both phone and password.");
       return;
     }
     try {
-      const response = await fetch("https://numbr-p7zc.onrender.com/barber/login", {
+      const response = await fetch(`${API_BASE_URL}/barbers/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ phone, pass: password }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -81,15 +88,13 @@ export default function BarberLoginScreen() {
       // Store token and user data
       await AsyncStorage.setItem("userToken", data.token);
       await AsyncStorage.setItem("userName", data.barber.name);
-      await AsyncStorage.setItem("uid", data.barber.id);
-      await AsyncStorage.setItem("shopId", data.shopId);
-      console.log(data.barber.id);
+      await AsyncStorage.setItem("uid", data.barber._id);
+      await AsyncStorage.setItem("shopId", data.barber.shopId);
+      console.log(data.barber._id);
       await AsyncStorage.setItem("userType", "barber");
 
-   //   Alert.alert("Success", `Logged in as Barber: ${email}`);
-
-      // Register push notifications for this user
-      await registerForPushNotifications(data.barber.id);
+      // Register push notifications for this user AFTER successful login
+      await registerForPushNotifications(data.barber._id, data.token); // Pass the token received from login
 
       // Navigate to the barber dashboard
       router.replace("/(admin)/menu");
@@ -110,12 +115,12 @@ export default function BarberLoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Phone Number"
             placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="email-address"
+            keyboardType="phone-pad"
             autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+            value={phone}
+            onChangeText={setPhone}
           />
 
           <TextInput
@@ -138,7 +143,7 @@ export default function BarberLoginScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-        
+
         </View>
       </View>
     </ImageBackground>

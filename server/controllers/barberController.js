@@ -8,6 +8,28 @@ const bcrypt = require('bcryptjs');
 // @desc    Create a new barber (by Owner)
 // @route   POST /api/barbers
 // @access  Private (Owner)
+exports.authBarber = asyncHandler(async (req, res) => {
+    const { phone, pass } = req.body;
+
+    const barber = await Barber.findOne({ phone });
+
+    if (barber && (await bcrypt.compare(pass, barber.pass))) {
+        res.json({
+            success: true,
+            message: 'Barber logged in successfully',
+            token: generateToken(barber._id), // Generate token for the barber
+            barber: {
+                _id: barber._id,
+                name: barber.name,
+                phone: barber.phone,
+                shopId: barber.shopId, // Include shopId
+            },
+        });
+    } else {
+        throw new ApiError('Invalid credentials', 401);
+    }
+});
+
 exports.createBarber = asyncHandler(async (req, res) => {
     const { shopId, name, phone, pass } = req.body;
 console.log('Creating barber with data:', { shopId, name, phone, pass });
@@ -47,7 +69,31 @@ console.log('Creating barber with data:', { shopId, name, phone, pass });
         },
     });
 });
+exports.registerPushToken = asyncHandler(async (req, res) => {
+    const { token } = req.body; // The push token from the frontend
+    const userId = req.user._id; // The ID of the authenticated user
+    const userType = req.userType; // The type of the authenticated user (e.g., 'Barber', 'Owner', 'User')
 
+    if (!token) {
+        throw new ApiError('Push token is required', 400);
+    }
+
+ 
+
+    const user = await Barber.findById(userId);
+
+    if (!user) {
+        throw new ApiError('User not found', 404);
+    }
+
+    user.expopushtoken = token;
+    await user.save();
+
+    res.status(200).json({
+        success: true,
+        message: `${userType} Expo Push Token registered successfully.`,
+    });
+});
 // @desc    Get barber by ID
 // @route   GET /api/barbers/:id
 // @access  Public
