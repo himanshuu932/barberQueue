@@ -13,9 +13,11 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  ImageBackground
+  ImageBackground,
+  Linking
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Icon from "react-native-vector-icons/FontAwesome";
 
 export default function TabProfileScreen() {
   const router = useRouter();
@@ -273,6 +275,7 @@ export default function TabProfileScreen() {
           </View>
         </View>
 
+
         {/* Fixed logout button */}
         <View style={styles.footer}>
           <TouchableOpacity style={styles.buttonContainer} onPress={handleLogout}>
@@ -329,7 +332,7 @@ const styles = StyleSheet.create({
   serviceHistoryContainer: {
     width: "100%", 
     alignItems: "center", 
-    marginBottom: "auto", 
+    marginBottom: 20, 
   },
   historyBox: {
     backgroundColor: "#fff", 
@@ -503,8 +506,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   footer: {
-    padding: 20,
+    padding: 8,
     alignItems: "center",
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
   },
   buttonContainer: {
     width: "90%",
@@ -518,5 +524,78 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  companyContainer: {
+    width: "90%",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginLeft: "5%",
+    marginBottom: 80, // Increased margin to prevent touching logout button
+  },
+  companyBackground: {
+    padding: 20,
+    borderRadius: 12,
+  },
+  companyTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  companyTagline: {
+    fontSize: 16,
+    color: "#ddd",
+    marginBottom: 10,
+    fontStyle: "italic",
+    textAlign: "center",
+  },
+  companyDescription: {
+    fontSize: 14,
+    color: "#ccc",
+    textAlign: "justify",
+    marginBottom: 15,
+    paddingHorizontal: 15,
+  },
+  companyWebsite: {
+    fontSize: 16,
+    color: "#00aaff",
+    fontWeight: "bold",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#444",
+    width: "100%",
+    marginVertical: 15,
+  },
+  phoneContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    justifyContent: "flex-start",
+  },
+  numberText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#00aaff",
+    marginLeft: 5,
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  infoGridItem: {
+    width: '48%',
+    paddingVertical: 5,
+    marginBottom: 10,
+    alignItems: 'flex-start',
+  },
+  infoLinkText: {
+    fontSize: 13,
+    color: "#ADD8E6",
+    textDecorationLine: "underline",
+    textAlign: "left",
   },
 });
