@@ -25,29 +25,70 @@ export default function TabProfileScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ name: "", email: "" });
   const [isUpdating, setIsUpdating] = useState(false);
-  const API_BASE = "https://numbr-p7zc.onrender.com";
+  const API_BASE = "http://10.0.2.2:5000/api"; // Ensure this is correct for your setup
 
-  // Fetch profile data and store user id
-  const fetchProfile = async () => {
+  // Fetch profile data and history
+  const fetchProfileAndHistory = async () => {
+    setLoading(true);
     try {
-      const uid = await AsyncStorage.getItem("uid");
-      const response = await fetch(`${API_BASE}/profile?uid=${uid}`, {
+      const userToken = await AsyncStorage.getItem("userToken");
+      if (!userToken) {
+        console.warn("No userToken found in AsyncStorage. Redirecting to pre-login.");
+        router.replace("../pre-login");
+        return;
+      }
+      console.log("Retrieved userToken:", userToken); // For debugging: check if token is present
+
+      // Fetch user profile
+      const profileResponse = await fetch(`${API_BASE}/users/profile`, {
         method: "GET",
+        headers: {
+          "Authorization": `Bearer ${userToken}`,
+        },
       });
-      const data = await response.json();
-      setProfile(data);
-      await AsyncStorage.setItem("id", data._id);
+
+      if (!profileResponse.ok) {
+        const errorText = await profileResponse.text(); // Get raw error text for debugging
+        console.error(`Profile fetch failed with status: ${profileResponse.status}, response: ${errorText}`);
+        throw new Error(`Profile fetch failed: ${profileResponse.status}`);
+      }
+      const profileData = await profileResponse.json();
+      console.log("Profile Data:", profileData); // For debugging: check response structure
+
+      // Fetch user history
+      const historyResponse = await fetch(`${API_BASE}/history/me`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${userToken}`,
+        },
+      });
+
+      if (!historyResponse.ok) {
+        const errorText = await historyResponse.text(); // Get raw error text for debugging
+        console.error(`History fetch failed with status: ${historyResponse.status}, response: ${errorText}`);
+        throw new Error(`History fetch failed: ${historyResponse.status}`);
+      }
+      const historyData = await historyResponse.json();
+      console.log("History Data:", historyData); // For debugging: check response structure
+
+      setProfile({
+        ...profileData.data, // Assuming profileData.data contains the user object
+        history: historyData.data, // Assuming historyData.data contains the history array
+      });
+
     } catch (error) {
-      console.error("Error fetching profile:", error);
+      console.error("Error fetching profile or history:", error);
+      Alert.alert("Error", "Failed to load profile or history. Please try again.");
+      // Optionally, redirect to login or show an error screen
     } finally {
       setLoading(false);
     }
   };
 
-  // Refresh profile data whenever the screen is focused.
+  // Refresh profile and history data whenever the screen is focused.
   useFocusEffect(
     useCallback(() => {
-      fetchProfile();
+      fetchProfileAndHistory();
     }, [])
   );
 
@@ -81,7 +122,6 @@ export default function TabProfileScreen() {
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem("userToken");
-      await AsyncStorage.removeItem("id");
       router.replace("../pre-login");
     } catch (error) {
       console.error("Error logging out:", error);
@@ -103,22 +143,29 @@ export default function TabProfileScreen() {
   };
 
   async function updateUserProfile(name, email) {
-    const uid = await AsyncStorage.getItem("id");
+    const userToken = await AsyncStorage.getItem("userToken");
+    if (!userToken) {
+      Alert.alert("Error", "Authentication token missing.");
+      return;
+    }
     try {
       setIsUpdating(true);
-      const response = await fetch(`${API_BASE}/profile`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, name, email }),
+      const response = await fetch(`${API_BASE}/users/profile`, { 
+        method: "PUT", 
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({ name, email }), 
       });
       if (!response.ok) {
         const errorData = await response.json();
-        Alert.alert("Update Failed", errorData.error || "An error occurred");
+        Alert.alert("Update Failed", errorData.message || "An error occurred during profile update.");
         return;
       }
       await response.json();
       Alert.alert("Success", "Profile updated successfully.");
-      fetchProfile(); // Refresh profile info after update.
+      fetchProfileAndHistory(); // Refresh profile info after update.
       setIsModalVisible(false);
     } catch (error) {
       console.error("Error updating user profile:", error);
@@ -127,6 +174,12 @@ export default function TabProfileScreen() {
       setIsUpdating(false);
     }
   }
+
+  const formatTrialEndDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString(); // Formats to local date string (e.g., "6/7/2025")
+  };
 
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
@@ -173,7 +226,19 @@ export default function TabProfileScreen() {
                   ) : (
                     <View>
                       <Text style={styles.username}>{profile?.name || "User Name"}</Text>
-                      <Text style={styles.userInfo}>{profile?.email || "N/A"}</Text>
+                      <Text style={styles.userInfo}>{profile?.email || profile?.phone || "N/A"}</Text> 
+                      {/* Display Subscription Status */}
+                      {profile?.subscription?.status && (
+                        <Text style={styles.subscriptionText}>
+                          Subscription: {profile.subscription.status === 'trial' ? 'Trial' : profile.subscription.status.charAt(0).toUpperCase() + profile.subscription.status.slice(1)}
+                        </Text>
+                      )}
+                      {/* Display Trial End Date if status is trial */}
+                      {profile?.subscription?.status === 'trial' && profile?.subscription?.trialEndDate && (
+                        <Text style={styles.subscriptionText}>
+                          Trial Ends: {formatTrialEndDate(profile.subscription.trialEndDate)}
+                        </Text>
+                      )}
                     </View>
                   )}
                 </View>
@@ -192,9 +257,13 @@ export default function TabProfileScreen() {
                   <View key={index} style={styles.historyCard}>
                     <View style={styles.paymentRow}>
                       <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
-                      <Text style={styles.paymentAmount}>₹{item.cost}.00</Text>
+                      <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
                     </View>
-                    <Text style={styles.historyService}>{item.service}</Text>
+                    <Text style={styles.historyService}>
+                      {item.services?.map(s => s.service?.name || 'Unknown Service').join(', ')}
+                    </Text>
+                    <Text style={styles.historyService}>Barber: {item.barber?.name || 'N/A'}</Text>
+                    <Text style={styles.historyService}>Shop: {item.shop?.name || 'N/A'}</Text>
                   </View>
                 ))
               ) : (
@@ -406,6 +475,11 @@ const styles = StyleSheet.create({
   userInfo: {
     fontSize: 16,
     fontWeight: "bold",
+    color: "#fff",
+    marginTop: 2,
+  },
+  subscriptionText: { // New style for subscription info
+    fontSize: 14,
     color: "#fff",
     marginTop: 2,
   },

@@ -313,7 +313,7 @@ const removeFromQueue = asyncHandler(async (req, res, next) => {
     // @desc    Update queue entry status (e.g., in-progress, completed)
     // @route   PUT /api/queue/:id/status
     // @access  Private (Barber, Owner, Admin)
-    const updateQueueStatus = asyncHandler(async (req, res) => {
+const updateQueueStatus = asyncHandler(async (req, res) => {
         const { id } = req.params;
         const { status } = req.body; // Expect "in-progress" or "completed"
 
@@ -326,8 +326,7 @@ const removeFromQueue = asyncHandler(async (req, res, next) => {
         if (!queueEntry) {
             throw new ApiError('Queue entry not found', 404);
         }
-        // Add authorization logic here (e.g., check if req.user is owner of shop or assigned barber)
-
+        
         const oldStatus = queueEntry.status;
         queueEntry.status = status;
 

@@ -40,7 +40,7 @@ const HistorySchema = new Schema({
     },
     rating: { // User's rating for this specific service instance (optional)
         type: Number,
-        min: 1,
+        min: 0,
         max: 5,
         required: false
     }
