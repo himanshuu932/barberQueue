@@ -348,7 +348,7 @@ const ShopsList = ({ shopId, onClose, userToken, fetchOwnerShops }) => {
 
   const displayCarouselImages = isEditShopModalVisible && editedShopData ? editedShopData.carouselImages : currentShop?.carouselImages;
 
-  return (
+ return (
     <View style={styles.container}>
       {/* Header with Numbr logo */}
       <View style={styles.header}>
@@ -552,93 +552,171 @@ const ShopsList = ({ shopId, onClose, userToken, fetchOwnerShops }) => {
         {/* All modals remain the same as in your original code, but with updated styles */}
         {/* Shop Edit Modal */}
         <Modal visible={isEditShopModalVisible} transparent animationType="slide" onRequestClose={() => setIsEditShopModalVisible(false)}>
-          <View style={styles.modalContainer}><View style={styles.modalContent}><Text style={styles.modalTitle}>Edit Shop</Text>
-            <Text style={styles.inputLabel}>Name:</Text><TextInput style={styles.input} value={editedShopData?.name} onChangeText={txt => setEditedShopData({...editedShopData, name: txt})} />
-            <Text style={styles.inputLabel}>Address:</Text><TextInput style={styles.input} value={editedShopData?.address} onChangeText={txt => setEditedShopData({...editedShopData, address: txt})} />
-            <Text style={styles.inputLabel}>Opening (HH:MM):</Text><TextInput style={styles.input} value={editedShopData?.openingTime} onChangeText={txt => setEditedShopData({...editedShopData, openingTime: txt})} />
-            <Text style={styles.inputLabel}>Closing (HH:MM):</Text><TextInput style={styles.input} value={editedShopData?.closingTime} onChangeText={txt => setEditedShopData({...editedShopData, closingTime: txt})} />
-            <View style={styles.toggleRow}><Text style={styles.toggleLabel}>Status:</Text><Switch value={editedShopData?.isOpen} onValueChange={handleToggleShopStatusInEditModal} /><Text>{editedShopData?.isOpen ? 'Open' : 'Closed'}</Text></View>
-            <Text style={styles.carouselImagesTitle}>Images:</Text>
-            <ScrollView style={styles.carouselEditScrollVertical}><View style={styles.carouselImagesGrid}>
-              <TouchableOpacity style={styles.addImageButton} onPress={pickShopImage}><Icon name="plus" size={30} color="#007BFF" /><Text>Add</Text></TouchableOpacity>
-              {editedShopData?.carouselImages.map((img, idx) => <View key={idx.toString()} style={styles.carouselEditImageContainer}><Image source={{uri: img}} style={styles.carouselEditImage} /><TouchableOpacity style={styles.removeImageButton} onPress={() => handleRemoveShopCarouselImage(idx)}><Icon name="times-circle" size={24} color="#DC3545" /></TouchableOpacity></View>)}
-            </View></ScrollView>
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveShopChanges}><Text style={styles.modalButtonText}>Save</Text></TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsEditShopModalVisible(false)}><Text style={styles.modalButtonText}>Cancel</Text></TouchableOpacity>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit Shop</Text>
+              <Text style={styles.inputLabel}>Name:</Text>
+              <TextInput style={styles.input} value={editedShopData?.name} onChangeText={txt => setEditedShopData({ ...editedShopData, name: txt })} />
+              <Text style={styles.inputLabel}>Address:</Text>
+              <TextInput style={styles.input} value={editedShopData?.address} onChangeText={txt => setEditedShopData({ ...editedShopData, address: txt })} />
+              <Text style={styles.inputLabel}>Opening (HH:MM):</Text>
+              <TextInput style={styles.input} value={editedShopData?.openingTime} onChangeText={txt => setEditedShopData({ ...editedShopData, openingTime: txt })} />
+              <Text style={styles.inputLabel}>Closing (HH:MM):</Text>
+              <TextInput style={styles.input} value={editedShopData?.closingTime} onChangeText={txt => setEditedShopData({ ...editedShopData, closingTime: txt })} />
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>Status:</Text>
+                <Switch value={editedShopData?.isOpen} onValueChange={handleToggleShopStatusInEditModal} />
+                <Text style={styles.toggleStatusText}>{editedShopData?.isOpen ? 'Open' : 'Closed'}</Text>
+              </View>
+              <Text style={styles.carouselImagesTitle}>Images:</Text>
+              <ScrollView style={styles.carouselEditScrollVertical}>
+                <View style={styles.carouselImagesGrid}>
+                  <TouchableOpacity style={styles.addImageButton} onPress={pickShopImage}>
+                    <Icon name="plus" size={30} color="#007BFF" />
+                    <Text>Add</Text>
+                  </TouchableOpacity>
+                  {editedShopData?.carouselImages.map((img, idx) => (
+                    <View key={idx.toString()} style={styles.carouselEditImageContainer}>
+                      <Image source={{ uri: img }} style={styles.carouselEditImage} />
+                      <TouchableOpacity style={styles.removeImageButton} onPress={() => handleRemoveShopCarouselImage(idx)}>
+                        <Icon name="times-circle" size={24} color="#DC3545" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveShopChanges}>
+                  <Text style={styles.modalButtonText}>Save</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsEditShopModalVisible(false)}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View></View>
+          </View>
         </Modal>
 
         {/* Add Barber Modal */}
         <Modal visible={isAddBarberModalVisible} transparent animationType="slide" onRequestClose={() => setIsAddBarberModalVisible(false)}>
-          <View style={styles.modalContainer}><View style={styles.modalContent}><Text style={styles.modalTitle}>Add Barber</Text>
-            <Text style={styles.inputLabel}>Name:</Text><TextInput style={styles.input} value={newBarberData.name} onChangeText={txt => setNewBarberData({...newBarberData, name: txt})} />
-            <Text style={styles.inputLabel}>Phone:</Text><TextInput style={styles.input} value={newBarberData.phone} onChangeText={txt => setNewBarberData({...newBarberData, phone: txt})} keyboardType="phone-pad"/>
-            <Text style={styles.inputLabel}>Password:</Text><TextInput style={styles.input} value={newBarberData.password} onChangeText={txt => setNewBarberData({...newBarberData, password: txt})} secureTextEntry/>
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddBarber}><Text style={styles.modalButtonText}>Add</Text></TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddBarberModalVisible(false)}><Text style={styles.modalButtonText}>Cancel</Text></TouchableOpacity>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Add Barber</Text>
+              <Text style={styles.inputLabel}>Name:</Text>
+              <TextInput style={styles.input} value={newBarberData.name} onChangeText={txt => setNewBarberData({ ...newBarberData, name: txt })} />
+              <Text style={styles.inputLabel}>Phone:</Text>
+              <TextInput style={styles.input} value={newBarberData.phone} onChangeText={txt => setNewBarberData({ ...newBarberData, phone: txt })} keyboardType="phone-pad" />
+              <Text style={styles.inputLabel}>Password:</Text>
+              <TextInput style={styles.input} value={newBarberData.password} onChangeText={txt => setNewBarberData({ ...newBarberData, password: txt })} secureTextEntry />
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddBarber}>
+                  <Text style={styles.modalButtonText}>Add</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddBarberModalVisible(false)}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View></View>
+          </View>
         </Modal>
 
         {/* Edit Barber Modal */}
         <Modal visible={isEditBarberModalVisible} transparent animationType="slide" onRequestClose={() => setIsEditBarberModalVisible(false)}>
-          <View style={styles.modalContainer}><View style={styles.modalContent}><Text style={styles.modalTitle}>Edit Barber</Text>
-            {editingBarber && <>
-              <Text style={styles.inputLabel}>Name:</Text><TextInput style={styles.input} value={editedBarberData.name} onChangeText={txt => setEditedBarberData({...editedBarberData, name: txt})} />
-              <Text style={styles.inputLabel}>Phone:</Text><TextInput style={styles.input} value={editedBarberData.phone} onChangeText={txt => setEditedBarberData({...editedBarberData, phone: txt})} keyboardType="phone-pad"/>
-              <Text style={styles.inputLabel}>New Password (optional):</Text><TextInput style={styles.input} placeholder="Leave blank to keep current" value={editedBarberData.password} onChangeText={txt => setEditedBarberData({...editedBarberData, password: txt})} secureTextEntry/>
-              <View style={styles.modalButtonContainer}>
-                <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveBarberChanges}><Text style={styles.modalButtonText}>Save</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => {setIsEditBarberModalVisible(false); /*setEditingBarber(null);*/}}><Text style={styles.modalButtonText}>Cancel</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, styles.deleteButton]} onPress={() => {setIsEditBarberModalVisible(false); confirmDeleteBarber(editingBarber);}}><Text style={styles.modalButtonText}>Delete</Text></TouchableOpacity>
-              </View>
-            </>}
-          </View></View>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit Barber</Text>
+              {editingBarber && (
+                <>
+                  <Text style={styles.inputLabel}>Name:</Text>
+                  <TextInput style={styles.input} value={editedBarberData.name} onChangeText={txt => setEditedBarberData({ ...editedBarberData, name: txt })} />
+                  <Text style={styles.inputLabel}>Phone:</Text>
+                  <TextInput style={styles.input} value={editedBarberData.phone} onChangeText={txt => setEditedBarberData({ ...editedBarberData, phone: txt })} keyboardType="phone-pad" />
+                  <Text style={styles.inputLabel}>New Password (optional):</Text>
+                  <TextInput style={styles.input} placeholder="Leave blank to keep current" value={editedBarberData.password} onChangeText={txt => setEditedBarberData({ ...editedBarberData, password: txt })} secureTextEntry />
+                  <View style={styles.modalButtonContainer}>
+                    <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveBarberChanges}>
+                      <Text style={styles.modalButtonText}>Save</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => { setIsEditBarberModalVisible(false); /*setEditingBarber(null);*/ }}>
+                      <Text style={styles.modalButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.modalButton, styles.modalDeleteButton]} onPress={() => { setIsEditBarberModalVisible(false); confirmDeleteBarber(editingBarber); }}>
+                      <Text style={styles.modalButtonText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
         </Modal>
 
         {/* Add Service Modal */}
         <Modal visible={isAddServiceModalVisible} transparent animationType="slide" onRequestClose={() => setIsAddServiceModalVisible(false)}>
-            <View style={styles.modalContainer}><View style={styles.modalContent}><Text style={styles.modalTitle}>Add Service</Text>
-                <Text style={styles.inputLabel}>Service Name:</Text><TextInput style={styles.input} value={newServiceData.name} onChangeText={txt => setNewServiceData({...newServiceData, name: txt})} />
-                <Text style={styles.inputLabel}>Price:</Text><TextInput style={styles.input} value={newServiceData.price} onChangeText={txt => setNewServiceData({...newServiceData, price: txt})} keyboardType="numeric"/>
-                <View style={styles.modalButtonContainer}>
-                    <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddService}><Text style={styles.modalButtonText}>Add</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddServiceModalVisible(false)}><Text style={styles.modalButtonText}>Cancel</Text></TouchableOpacity>
-                </View>
-            </View></View>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Add Service</Text>
+              <Text style={styles.inputLabel}>Service Name:</Text>
+              <TextInput style={styles.input} value={newServiceData.name} onChangeText={txt => setNewServiceData({ ...newServiceData, name: txt })} />
+              <Text style={styles.inputLabel}>Price:</Text>
+              <TextInput style={styles.input} value={newServiceData.price} onChangeText={txt => setNewServiceData({ ...newServiceData, price: txt })} keyboardType="numeric" />
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddService}>
+                  <Text style={styles.modalButtonText}>Add</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddServiceModalVisible(false)}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </Modal>
 
         {/* Edit Service Modal */}
         <Modal visible={isEditServiceModalVisible} transparent animationType="slide" onRequestClose={() => setIsEditServiceModalVisible(false)}>
-            <View style={styles.modalContainer}><View style={styles.modalContent}><Text style={styles.modalTitle}>Edit Service</Text>
-                {editingService && <>
-                    <Text style={styles.inputLabel}>Service Name:</Text><TextInput style={styles.input} value={editedServiceData.name} onChangeText={txt => setEditedServiceData({...editedServiceData, name: txt})} />
-                    <Text style={styles.inputLabel}>Price:</Text><TextInput style={styles.input} value={editedServiceData.price} onChangeText={txt => setEditedServiceData({...editedServiceData, price: txt})} keyboardType="numeric"/>
-                    <View style={styles.modalButtonContainer}>
-                        <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleUpdateService}><Text style={styles.modalButtonText}>Save</Text></TouchableOpacity>
-                        <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => {setIsEditServiceModalVisible(false); /*setEditingService(null);*/}}><Text style={styles.modalButtonText}>Cancel</Text></TouchableOpacity>
-                    </View>
-                </>}
-            </View></View>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit Service</Text>
+              {editingService && (
+                <>
+                  <Text style={styles.inputLabel}>Service Name:</Text>
+                  <TextInput style={styles.input} value={editedServiceData.name} onChangeText={txt => setEditedServiceData({ ...editedServiceData, name: txt })} />
+                  <Text style={styles.inputLabel}>Price:</Text>
+                  <TextInput style={styles.input} value={editedServiceData.price} onChangeText={txt => setEditedServiceData({ ...editedServiceData, price: txt })} keyboardType="numeric" />
+                  <View style={styles.modalButtonContainer}>
+                    <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleUpdateService}>
+                      <Text style={styles.modalButtonText}>Save</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => { setIsEditServiceModalVisible(false); /*setEditingService(null);*/ }}>
+                      <Text style={styles.modalButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
         </Modal>
 
         {/* Delete Confirmation Modals (Shop, Barber, Service) */}
         {[
-          {visible: isDeleteShopConfirmModalVisible, close: () => setIsDeleteShopConfirmModalVisible(false), title: "Delete Shop", text: `Delete "${currentShop?.name}"?`, action: executeDeleteShop},
-          {visible: isDeleteBarberConfirmModalVisible, close: () => setIsDeleteBarberConfirmModalVisible(false), title: "Delete Barber", text: `Remove "${barberToDelete?.name}"?`, action: executeDeleteBarber},
-          {visible: isDeleteServiceConfirmModalVisible, close: () => setIsDeleteServiceConfirmModalVisible(false), title: "Delete Service", text: `Remove "${serviceToDelete?.name}"?`, action: executeDeleteService}
+          { visible: isDeleteShopConfirmModalVisible, close: () => setIsDeleteShopConfirmModalVisible(false), title: "Delete Shop", text: `Delete "${currentShop?.name}"?`, action: executeDeleteShop },
+          { visible: isDeleteBarberConfirmModalVisible, close: () => setIsDeleteBarberConfirmModalVisible(false), title: "Delete Barber", text: `Remove "${barberToDelete?.name}"?`, action: executeDeleteBarber },
+          { visible: isDeleteServiceConfirmModalVisible, close: () => setIsDeleteServiceConfirmModalVisible(false), title: "Delete Service", text: `Remove "${serviceToDelete?.name}"?`, action: executeDeleteService }
         ].map(m => m.visible && (
           <Modal key={m.title} visible={m.visible} transparent animationType="fade" onRequestClose={m.close}>
-            <View style={styles.confirmModalContainer}><View style={styles.confirmModalContent}>
-              <Text style={styles.confirmModalTitle}>{m.title}</Text><Text style={styles.confirmModalText}>{m.text}</Text>
-              <View style={styles.modalButtonContainer}>
-                <TouchableOpacity style={[styles.modalButton, styles.deleteButton]} onPress={m.action}><Text style={styles.modalButtonText}>Delete</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={m.close}><Text style={styles.modalButtonText}>Cancel</Text></TouchableOpacity>
+            <View style={styles.confirmModalContainer}>
+              <View style={styles.confirmModalContent}>
+                <Text style={styles.confirmModalTitle}>{m.title}</Text>
+                <Text style={styles.confirmModalText}>{m.text}</Text>
+                <View style={styles.modalButtonContainer}>
+                  <TouchableOpacity style={[styles.modalButton, styles.modalDeleteButton]} onPress={m.action}>
+                    <Text style={styles.modalButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={m.close}>
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View></View>
+            </View>
           </Modal>
         ))}
 
@@ -952,7 +1030,7 @@ const styles = StyleSheet.create({
     width: "90%",
     maxHeight: '90%',
     backgroundColor: "#FFFFFF", // White background
-    padding: 35, // Increased padding
+    padding: 20, // Increased padding
     borderRadius: 25, // More rounded modals
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
@@ -963,7 +1041,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24, // Larger title
     fontWeight: "bold",
-    marginBottom: 25,
+    marginBottom: 20,
     color: "#007BFF",
     textAlign: 'center',
   },
@@ -971,7 +1049,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     fontSize: 16,
     color: '#444',
-    marginBottom: 8,
+    marginBottom: 6,
     fontWeight: '600',
   },
   input: {
@@ -980,7 +1058,7 @@ const styles = StyleSheet.create({
     borderColor: "#E0E0E0", // Lighter border
     borderRadius: 10,
     padding: 15, // Increased padding
-    marginBottom: 20,
+    marginBottom: 15,
     fontSize: 16,
     backgroundColor: "#F9F9F9", // Light input background
     color: '#333',
@@ -1066,12 +1144,12 @@ const styles = StyleSheet.create({
     marginTop: 25,
   },
   modalButton: {
-    paddingVertical: 16, // Increased padding
-    paddingHorizontal: 22,
+    paddingVertical: 15,
+    paddingHorizontal: 15,
     borderRadius: 12,
     alignItems: "center",
-    flex: 1,
-    marginHorizontal: 8, // Increased margin
+    flex: 1, // Crucial for equal width
+    marginHorizontal: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
@@ -1090,6 +1168,20 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: "#6C757D", // Grey cancel button
   },
+  modalDeleteButton: {
+    backgroundColor: '#E74C3C',
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 4,
+  },
   confirmModalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1098,7 +1190,7 @@ const styles = StyleSheet.create({
   },
   confirmModalContent: {
     backgroundColor: '#FFFFFF', // White background
-    padding: 30,
+    padding: 20,
     borderRadius: 20,
     width: '85%',
     alignItems: 'center',
@@ -1122,5 +1214,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 });
+
+
 
 export default ShopsList;
