@@ -11,6 +11,8 @@ import {
   Alert,
   Platform,
   ActivityIndicator, // Moved from react-native-paper to react-native
+  PixelRatio,
+  Icon
 } from "react-native";
 import { Menu, Provider } from "react-native-paper"; // Keep Provider for Menu
 import { DatePickerModal } from "react-native-paper-dates";
@@ -25,6 +27,11 @@ import * as Sharing from 'expo-sharing';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const fontScale = PixelRatio.getFontScale();
+const getResponsiveFontSize = (size) => size / fontScale;
+const responsiveHeight = (h) => screenHeight * (h / 100);
+const responsiveWidth = (w) => screenWidth * (w / 100);
 
 registerTranslation('en', en);
 
@@ -679,22 +686,24 @@ const History = ({ onClose }) => {
       source={require("../../app/image/bglogin.png")} // Adjusted path for assets
       style={styles.backgroundImage}
     >
+      <View style={styles.header}>
+              <Text style={styles.title}>Numbr</Text>
+            </View>
       <View style={styles.overlay} />
       <Provider>
         <View style={styles.fullscreenContainer}>
-          {/* Fixed Header with Close Button */}
-          <View style={styles.fixedHeader}>
-            <Text style={styles.headerTitle}>STATISTICS</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <MaterialCommunityIcons name="close-circle" size={30} color="#2d3436" />
-            </TouchableOpacity>
-          </View>
 
           {/* Scrollable Content */}
           <ScrollView
             style={styles.scrollableContent}
             contentContainerStyle={styles.scrollContentContainer}
           >
+
+          {/* Fixed Header with Close Button */}
+          <View style={styles.fixedHeader}>
+            <Text style={styles.headerTitle}>STATISTICS</Text>
+          </View>
+
             {/* Filter and Visualize Controls */}
             <View style={styles.outerContainer}>
               <View style={styles.filterGroup}>
@@ -949,6 +958,12 @@ const History = ({ onClose }) => {
               </ScrollView>
             </View>
           </ScrollView>
+          <TouchableOpacity 
+          onPress={onClose} 
+          style={styles.fixedCloseButton}
+        >
+          <MaterialCommunityIcons name="close-circle" size={30} color="#2d3436" />
+        </TouchableOpacity>
         </View>
       </Provider>
     </ImageBackground>
@@ -956,6 +971,21 @@ const History = ({ onClose }) => {
 };
 
 const styles = StyleSheet.create({
+
+  header: {
+    height: "8%",
+    backgroundColor: "black",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    // paddingTop: 35, // Add padding to account for notch/status bar
+  },
+  title: {
+    color: "#fff",
+    fontSize: 20,
+    marginLeft: 15,
+  },
+
   backgroundImage: {
     flex: 1,
     resizeMode: "cover",
@@ -966,6 +996,7 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(237,236,236,0.77)",
+    top: "8%",
   },
   fullscreenContainer: {
     flex: 1,
@@ -981,25 +1012,40 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "android" ? 40 : 50, // Adjust for status bar padding
+    // paddingTop: Platform.OS === "android" ? 20 : 25, // Adjust for status bar padding
     paddingBottom: 15,
-    backgroundColor: "rgba(237,236,236,0.9)", // Semi-transparent header
-    borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+    // backgroundColor: "rgba(237,236,236,0.9)", // Semi-transparent header
+    // borderBottomWidth: 1,
+    // borderBottomColor: "#ccc",
     position: "relative",
     zIndex: 10,
   },
   headerTitle: {
-    fontSize: 30,
+    fontSize: 40,
     fontWeight: "900",
     color: "#2d3436",
     textAlign: "center",
     flex: 1, // Allow text to take available space
   },
+
+  fixedCloseButton: {
+  position: 'absolute',
+  bottom: 20,
+  alignSelf: 'center',
+  zIndex: 100,
+  backgroundColor: 'white',
+  borderRadius: 20,
+  padding: 5,
+  elevation: 5,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 3.84,
+},
   closeButton: {
     position: "absolute",
-    right: 20,
-    top: Platform.OS === "android" ? 45 : 55, // Align with header content
+    right: 5,
+    top: Platform.OS === "android" ? 5 : 6.11, // Align with header content
     zIndex: 11,
   },
   scrollableContent: {
@@ -1106,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    padding: 20, // Increased padding
+    padding: responsiveWidth(4), // Increased padding
     borderRadius: 12, // More rounded corners
     elevation: 4, // More prominent shadow
     shadowColor: "#000",
@@ -1177,7 +1223,7 @@ const styles = StyleSheet.create({
   navButtonText: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#555",
+    color: "#0984e3",
   },
   paginationContainer: {
     flexDirection: "row",
@@ -1190,7 +1236,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   paginationDotActive: {
-    backgroundColor: "#888",
+    backgroundColor: "#0984e3",
   },
   calendarWrapper: {
     width: "100%",

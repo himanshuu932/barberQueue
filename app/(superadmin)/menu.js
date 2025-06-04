@@ -1,5 +1,4 @@
-// menu.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,7 +9,11 @@ import {
   ImageBackground,
   Modal,
   Platform,
-  StatusBar
+  StatusBar,
+  PixelRatio, // Import PixelRatio for responsive fonts
+  ActivityIndicator, // Import ActivityIndicator
+  Animated, // Import Animated for animations
+  PanResponder, // Import PanResponder for gestures
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,6 +25,148 @@ import History from '../../components/owner/History';
 const IST_TIMEZONE = "Asia/Kolkata";
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
+// Responsive utility functions
+const fontScale = PixelRatio.getFontScale();
+const getResponsiveFontSize = (size) => size / fontScale;
+const responsiveHeight = (h) => screenHeight * (h / 100);
+const responsiveWidth = (w) => screenWidth * (w / 100);
+
+// Define colors based on History.js for consistency
+const colors = {
+  // Removed primary color, will use green/blue directly where primary was used for main elements
+  secondary: '#30cfd0', // Secondary accent color (can be kept for insights if desired)
+  background: '#f5f7fa', // Light grey background
+  cardBackground: '#ffffff', // White cards
+  headerBackground: '#000000', // Black for app name (as per original menu.js)
+  textDark: '#333', // Dark grey for main text
+  textMedium: '#666', // Medium grey for labels
+  textLight: '#a0aec0', // Light grey for placeholders
+  textSecondary: '#555', // Muted grey for meta info
+  border: '#f0f0f0', // Light border
+  shadow: 'rgba(0, 0, 0, 0.15)', // Soft shadow for cards
+  error: '#dc3545', // Red for errors
+  white: '#ffffff',
+  green: '#00b894', // Green for revenue
+  blue: '#0984e3', // Blue for customers
+};
+
+// SliderButton Component
+const SliderButton = ({ onSlideComplete, initialColor, finalColor, text }) => {
+  const slideX = useRef(new Animated.Value(0)).current;
+  // Initialize buttonWidth and thumbWidth with their calculated responsive values
+  const [buttonWidth, setButtonWidth] = useState(screenWidth - (responsiveWidth(5) * 2));
+  const [thumbWidth, setThumbWidth] = useState(responsiveWidth(15));
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        slideX.setOffset(slideX._value); // Store current value as offset
+        slideX.setValue(0); // Reset current value for delta tracking
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Clamp the movement within the button bounds
+        const newX = Math.max(0, Math.min(gestureState.dx, buttonWidth - thumbWidth));
+        slideX.setValue(newX);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        slideX.flattenOffset(); // Add the offset back to the current value
+        const slideRange = buttonWidth - thumbWidth;
+        // Adjusted slideThreshold to 15% for even easier activation
+        const slideThreshold = slideRange * 0.15; // 15% to trigger
+
+        if (gestureState.dx >= slideThreshold && slideRange > 0) { // Ensure slideRange is positive
+          Animated.timing(slideX, {
+            toValue: slideRange,
+            duration: 100,
+            useNativeDriver: false,
+          }).start(() => {
+            onSlideComplete();
+            // Reset after a short delay or when modal closes
+            setTimeout(() => {
+              slideX.setValue(0); // Reset for next use
+            }, 500); // Small delay to show completion
+          });
+        } else {
+          Animated.spring(slideX, {
+            toValue: 0,
+            useNativeDriver: false,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  // Ensure inputRange is monotonically non-decreasing and always valid
+  const safeSlideRange = Math.max(0, buttonWidth - thumbWidth);
+
+  const backgroundColor = slideX.interpolate({
+    inputRange: [0, safeSlideRange],
+    outputRange: [initialColor, finalColor],
+    extrapolate: 'clamp',
+  });
+
+  const thumbTranslateX = slideX.interpolate({
+    inputRange: [0, safeSlideRange],
+    outputRange: [0, safeSlideRange],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <Animated.View
+      style={[sliderStyles.sliderButtonContainer, { backgroundColor }]}
+    >
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          sliderStyles.sliderThumb,
+          { transform: [{ translateX: thumbTranslateX }] },
+        ]}
+      >
+        <Icon name="chevron-right" size={getResponsiveFontSize(18)} color={colors.white} />
+      </Animated.View>
+      <Text style={sliderStyles.sliderButtonText}>{text}</Text>
+    </Animated.View>
+  );
+};
+
+const sliderStyles = StyleSheet.create({
+  sliderButtonContainer: {
+    width: screenWidth - (responsiveWidth(5) * 2), // Explicitly set width based on content area
+    height: responsiveHeight(7), // Responsive height
+    borderRadius: responsiveWidth(3),
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    marginTop: responsiveHeight(3), // Responsive margin
+    elevation: 5,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.3) },
+    shadowOpacity: 0.2,
+    shadowRadius: responsiveWidth(1),
+  },
+  sliderThumb: {
+    width: responsiveWidth(15), // Responsive thumb width
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)', // Semi-transparent white thumb
+    borderRadius: responsiveWidth(3),
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    left: 0,
+  },
+  sliderButtonText: {
+    position: 'absolute',
+    width: '100%',
+    textAlign: 'center',
+    color: colors.white,
+    fontSize: getResponsiveFontSize(16),
+    fontWeight: '600',
+  },
+});
+
+
 const Menu = () => {
   const [shopId, setShopId] = useState(null);
   const [todayStats, setTodayStats] = useState({
@@ -32,6 +177,8 @@ const Menu = () => {
   });
   const [graphFlag, setGraphFlag] = useState(1);
   const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
+  const [loading, setLoading] = useState(true); // Added loading state
+  const [error, setError] = useState(null); // Added error state
 
   useEffect(() => {
     const getShopId = async () => {
@@ -46,6 +193,7 @@ const Menu = () => {
         fetchTodayStats(uid);
       } catch (error) {
         console.error("Error fetching shop ID:", error);
+        setError("Failed to retrieve shop ID."); // Set error state
       }
     };
     getShopId();
@@ -53,19 +201,24 @@ const Menu = () => {
 
   const fetchTodayStats = async (uid) => {
     try {
+      // Dummy data for demonstration. In a real app, this would come from an API.
       const barbersData = [
         {
-          name: "Dummy Barber 1",
+          name: "John Doe",
           history: [
             { totalCost: 150, services: ["Haircut"], date: "2025-06-01T10:00:00Z" },
-            { totalCost: 200, services: ["Shave"], date: "2025-06-01T11:30:00Z" },
+            { totalCost: 200, services: ["Shave", "Facial"], date: "2025-06-01T11:30:00Z" },
+            { totalCost: 100, services: ["Haircut"], date: "2025-06-02T09:00:00Z" }, // Today's data
+            { totalCost: 250, services: ["Haircut", "Beard Trim"], date: "2025-06-02T10:30:00Z" }, // Today's data
           ],
         },
         {
-          name: "Dummy Barber 2",
+          name: "Jane Smith",
           history: [
             { totalCost: 100, services: ["Haircut"], date: "2025-06-01T13:00:00Z" },
             { totalCost: 180, services: ["Beard Trim"], date: "2025-06-01T14:45:00Z" },
+            { totalCost: 120, services: ["Shave"], date: "2025-06-02T11:00:00Z" }, // Today's data
+            { totalCost: 300, services: ["Haircut", "Coloring"], date: "2025-06-02T12:30:00Z" }, // Today's data
           ],
         },
       ];
@@ -80,7 +233,7 @@ const Menu = () => {
       const barberEarnings = {};
 
       barbersData.forEach((barber) => {
-        barberEarnings[barber.name] = 0;
+        barberEarnings[barber.name] = 0; // Initialize earnings for each barber
         barber.history.forEach((transaction) => {
           const transactionDate = utcToZonedTime(new Date(transaction.date), IST_TIMEZONE);
           const transactionDateString = format(transactionDate, "yyyy-MM-dd", {
@@ -125,14 +278,18 @@ const Menu = () => {
       });
     } catch (error) {
       console.error("Error fetching today's stats:", error);
+      setError("Failed to load today's statistics."); // Set error state for UI feedback
+    } finally {
+      setLoading(false); // Ensure loading is set to false even on error
     }
   };
 
+  // Dummy data for charts - replace with actual data fetched from API
   const revenueTimelineData = {
     labels: ["9 AM", "12 PM", "3 PM", "6 PM", "9 PM"],
     datasets: [{
       data: [500, 1200, 800, 1600, 900],
-      color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
+      color: (opacity = 1) => colors.green, // Line color, directly use green
       strokeWidth: 2
     }],
   };
@@ -152,13 +309,55 @@ const Menu = () => {
     setGraphFlag((prev) => (prev === 2 ? 1 : prev + 1));
   };
 
+  // Chart configuration for responsive design
+  const chartConfig = {
+    backgroundColor: colors.cardBackground,
+    backgroundGradientFrom: colors.cardBackground,
+    backgroundGradientTo: colors.cardBackground,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(0,0,0,${opacity})`, // Label color
+    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    style: { borderRadius: responsiveWidth(4) }, // Responsive border radius
+    propsForDots: { r: responsiveWidth(1.2), strokeWidth: responsiveWidth(0.5), stroke: "#ffa726" }, // Responsive dot size
+    barPercentage: 0.8, // Adjust bar width for BarChart
+    categoryPercentage: 0.7, // Adjust spacing between bars
+    // Explicitly set fillShadowGradient and opacity for the area below the line
+    // fillShadowGradient: colors.green, // Use the green color for the fill
+    // fillShadowGradientOpacity: 0.3, // Adjust opacity as needed
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.green} /> {/* Changed from primary to green */}
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Icon name="exclamation-triangle" size={responsiveWidth(10)} color={colors.error} />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => { setLoading(true); fetchTodayStats(shopId); }}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerBackground} />
       <ImageBackground
-        source={require("../image/bglogin.png")}
+        source={require("../image/bglogin.png")} // Ensure this path is correct
         style={styles.backgroundImage}
       >
-        <View style={styles.overlay} />
+        <LinearGradient
+          colors={['rgba(240, 240, 240, 0.8)', 'rgba(240, 240, 240, 0.9)']}
+          style={styles.overlay}
+        />
         <ScrollView
           style={styles.container}
           showsVerticalScrollIndicator={false}
@@ -172,18 +371,18 @@ const Menu = () => {
 
           {/* Stats Cards */}
           <View style={styles.statsRow}>
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, { backgroundColor: colors.green }]}> {/* Changed to green */}
               <Text style={styles.statCardLabel}>Earnings</Text>
               <Text style={styles.statCardValue}>₹{todayStats.earnings}</Text>
               <View style={styles.statCardIcon}>
-                <Icon name="money" size={20} color="#fff" />
+                <Icon name="money" size={getResponsiveFontSize(20)} color={colors.white} />
               </View>
             </View>
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, { backgroundColor: colors.blue }]}> {/* Changed to blue */}
               <Text style={styles.statCardLabel}>Customers</Text>
               <Text style={styles.statCardValue}>{todayStats.customers}</Text>
               <View style={styles.statCardIcon}>
-                <Icon name="users" size={20} color="#fff" />
+                <Icon name="users" size={getResponsiveFontSize(20)} color={colors.white} />
               </View>
             </View>
           </View>
@@ -196,7 +395,7 @@ const Menu = () => {
               </Text>
               <View style={styles.navigationContainer}>
                 <TouchableOpacity onPress={handleLeft} style={styles.navButton}>
-                  <Icon name="chevron-left" size={20} color="#6a11cb" />
+                  <Icon name="chevron-left" size={getResponsiveFontSize(20)} color={colors.blue} /> {/* Changed to blue */}
                 </TouchableOpacity>
                 <View style={styles.paginationContainer}>
                   {[1, 2].map((value) => (
@@ -204,13 +403,13 @@ const Menu = () => {
                       key={value}
                       style={[
                         styles.paginationDot,
-                        graphFlag === value && styles.paginationDotActive,
+                        graphFlag === value ? styles.paginationDotActive : styles.paginationDot, // Alternating colors
                       ]}
                     />
                   ))}
                 </View>
                 <TouchableOpacity onPress={handleRight} style={styles.navButton}>
-                  <Icon name="chevron-right" size={20} color="#6a11cb" />
+                  <Icon name="chevron-right" size={getResponsiveFontSize(20)} color={colors.blue} /> {/* Changed to blue */}
                 </TouchableOpacity>
               </View>
             </View>
@@ -218,23 +417,14 @@ const Menu = () => {
             {graphFlag === 1 ? (
               <LineChart
                 data={revenueTimelineData}
-                width={screenWidth * 0.85}
-                height={220}
-                chartConfig={{
-                  backgroundColor: "#fff",
-                  backgroundGradientFrom: "#fff",
-                  backgroundGradientTo: "#fff",
-                  decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(106, 17, 203, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  style: { borderRadius: 16 },
-                  propsForDots: { r: "5", strokeWidth: "2", stroke: "#ffa726" },
-                }}
+                width={responsiveWidth(90) - responsiveWidth(8)} // Card width - padding
+                height={responsiveHeight(30)}
+                chartConfig={chartConfig}
                 bezier
                 style={styles.chart}
                 yAxisLabel="₹"
                 yAxisInterval={1}
-                verticalLabelRotation={30}
+                verticalLabelRotation={Platform.OS === 'ios' ? 0 : 30} // Adjust for platform
                 segments={5}
               />
             ) : (
@@ -243,18 +433,13 @@ const Menu = () => {
                   labels: barberContributionData.map((item) => item.name),
                   datasets: [{ data: barberContributionData.map((item) => item.revenue) }],
                 }}
-                width={screenWidth * 0.85}
-                height={220}
+                width={responsiveWidth(90) - responsiveWidth(8)} // Card width - padding
+                height={responsiveHeight(30)}
                 fromZero
-                verticalLabelRotation={45}
+                verticalLabelRotation={Platform.OS === 'ios' ? 0 : 45} // Adjust for platform
                 chartConfig={{
-                  backgroundColor: "#fff",
-                  backgroundGradientFrom: "#fff",
-                  backgroundGradientTo: "#fff",
-                  decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(34, 128, 176, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  style: { borderRadius: 16 },
+                  ...chartConfig,
+                  color: (opacity = 1) => colors.blue, // Bar color for BarChart
                 }}
                 style={styles.chart}
               />
@@ -268,8 +453,8 @@ const Menu = () => {
             </View>
             <View style={styles.insightsContainer}>
               <View style={styles.insightItem}>
-                <View style={[styles.insightIcon, { backgroundColor: '#6a11cb20' }]}>
-                  <Icon name="scissors" size={20} color="#6a11cb" />
+                <View style={[styles.insightIcon, { backgroundColor: `${colors.green}20` }]}> {/* Using green with opacity */}
+                  <Icon name="scissors" size={getResponsiveFontSize(20)} color={colors.green} />
                 </View>
                 <View style={styles.insightText}>
                   <Text style={styles.insightLabel}>Popular Service</Text>
@@ -277,8 +462,8 @@ const Menu = () => {
                 </View>
               </View>
               <View style={styles.insightItem}>
-                <View style={[styles.insightIcon, { backgroundColor: '#30cfd020' }]}>
-                  <Icon name="star" size={20} color="#30cfd0" />
+                <View style={[styles.insightIcon, { backgroundColor: `${colors.blue}20` }]}> {/* Using blue with opacity */}
+                  <Icon name="star" size={getResponsiveFontSize(20)} color={colors.blue} />
                 </View>
                 <View style={styles.insightText}>
                   <Text style={styles.insightLabel}>Top Employee</Text>
@@ -288,14 +473,13 @@ const Menu = () => {
             </View>
           </View>
 
-          {/* See All Stats Button */}
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => setIsHistoryModalVisible(true)}
-          >
-            <Text style={styles.primaryButtonText}>View Detailed Statistics</Text>
-            <Icon name="arrow-right" size={16} color="#fff" style={{ marginLeft: 10 }} />
-          </TouchableOpacity>
+          {/* See All Stats Slider Button */}
+          <SliderButton
+            onSlideComplete={() => setIsHistoryModalVisible(true)}
+            initialColor={colors.green}
+            finalColor={colors.blue}
+            text="Slide to View Detailed Statistics"
+          />
         </ScrollView>
       </ImageBackground>
 
@@ -315,7 +499,7 @@ const Menu = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    backgroundColor: colors.background,
   },
   backgroundImage: {
     flex: 1,
@@ -325,161 +509,203 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    // LinearGradient is used in the component directly, so this overlay style is minimal
   },
   container: {
     flex: 1,
   },
   contentContainer: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: responsiveWidth(5), // Responsive padding
+    // paddingBottom: responsiveHeight(5), // More padding at the bottom
   },
   header: {
-    marginBottom: 20,
+    marginBottom: responsiveHeight(3), // Responsive margin
+    alignItems: 'center', // Center align header text
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: getResponsiveFontSize(50), // Responsive font size
     fontWeight: '700',
-    color: '#333',
-    marginBottom: 4,
+    color: colors.textDark,
+    marginBottom: responsiveHeight(0.5), // Responsive margin
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: getResponsiveFontSize(18), // Responsive font size
+    color: colors.textMedium,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: responsiveHeight(3), // Responsive margin
   },
   statCard: {
-    width: '48%',
-    backgroundColor: '#6a11cb',
-    borderRadius: 12,
-    padding: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    width: responsiveWidth(44), // Responsive width (approx. 48% - gap/2)
+    // backgroundColor handled inline for specific colors
+    borderRadius: responsiveWidth(3), // Responsive border radius
+    padding: responsiveWidth(4), // Responsive padding
+    elevation: 5, // Increased elevation for a more prominent shadow
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.3) }, // Responsive shadow offset
+    shadowOpacity: 0.15, // Adjusted shadow opacity
+    shadowRadius: responsiveWidth(1), // Responsive shadow radius
   },
   statCardLabel: {
-    color: '#fff',
-    fontSize: 14,
+    color: colors.white,
+    fontSize: getResponsiveFontSize(14), // Responsive font size
     opacity: 0.9,
-    marginBottom: 4,
+    marginBottom: responsiveHeight(0.5), // Responsive margin
   },
   statCardValue: {
-    color: '#fff',
-    fontSize: 24,
+    color: colors.white,
+    fontSize: getResponsiveFontSize(24), // Responsive font size
     fontWeight: '700',
   },
   statCardIcon: {
     position: 'absolute',
-    right: 16,
-    top: 16,
+    right: responsiveWidth(4), // Responsive position
+    top: responsiveWidth(4), // Responsive position
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: responsiveWidth(8), // Responsive size
+    height: responsiveWidth(8), // Responsive size
+    borderRadius: responsiveWidth(4), // Responsive border radius
     justifyContent: 'center',
     alignItems: 'center',
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    backgroundColor: colors.cardBackground,
+    borderRadius: responsiveWidth(4), // Responsive border radius
+    padding: responsiveWidth(4), // Responsive padding
+    marginBottom: responsiveHeight(3), // Responsive margin
+    elevation: 5, // Increased elevation
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: responsiveHeight(0.3) },
+    shadowOpacity: 0.15,
+    shadowRadius: responsiveWidth(1),
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: responsiveHeight(2), // Responsive margin
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: getResponsiveFontSize(18), // Responsive font size
     fontWeight: '600',
-    color: '#333',
+    color: colors.textDark,
   },
   navigationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   navButton: {
-    padding: 8,
+    padding: responsiveWidth(2), // Responsive padding
   },
   paginationContainer: {
     flexDirection: 'row',
-    marginHorizontal: 8,
+    marginHorizontal: responsiveWidth(2), // Responsive margin
   },
   paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: responsiveWidth(2), // Responsive size
+    height: responsiveWidth(2), // Responsive size
+    borderRadius: responsiveWidth(1), // Responsive border radius
     backgroundColor: '#ddd',
-    marginHorizontal: 4,
+    marginHorizontal: responsiveWidth(1), // Responsive margin
   },
-  paginationDotActive: {
-    backgroundColor: '#6a11cb',
+  // paginationDotActive: { // New style for green active dot
+  //   backgroundColor: colors.green,
+  // },
+  paginationDotActive: { // New style for blue active dot
+    backgroundColor: colors.blue,
   },
   chart: {
-    borderRadius: 12,
-    marginTop: 8,
+    borderRadius: responsiveWidth(3), // Responsive border radius
+    marginTop: responsiveHeight(1), // Responsive margin
+    alignSelf: 'center', // Center the chart
   },
   insightsContainer: {
-    marginTop: 8,
+    marginTop: responsiveHeight(1), // Responsive margin
   },
   insightItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: responsiveHeight(1.5), // Responsive padding
+    borderBottomWidth: StyleSheet.hairlineWidth, // Thin border
+    borderBottomColor: colors.border,
   },
   insightIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: responsiveWidth(10), // Responsive size
+    height: responsiveWidth(10), // Responsive size
+    borderRadius: responsiveWidth(5), // Responsive border radius
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: responsiveWidth(3), // Responsive margin
   },
   insightText: {
     flex: 1,
   },
   insightLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
+    fontSize: getResponsiveFontSize(14), // Responsive font size
+    color: colors.textMedium,
+    marginBottom: responsiveHeight(0.2), // Responsive margin
   },
   insightValue: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16), // Responsive font size
     fontWeight: '600',
-    color: '#333',
+    color: colors.textDark,
   },
-  primaryButton: {
-    backgroundColor: '#6a11cb',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    flexDirection: 'row',
+  // primaryButton: { // This style is no longer directly used for the button, but kept for reference if needed elsewhere.
+  //   backgroundColor: colors.green, // Default to green if used
+  //   paddingVertical: responsiveHeight(2), // Responsive padding
+  //   paddingHorizontal: responsiveWidth(6), // Responsive padding
+  //   borderRadius: responsiveWidth(3), // Responsive border radius
+  //   flexDirection: 'row',
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  //   elevation: 5, // Increased elevation
+  //   shadowColor: colors.shadow,
+  //   shadowOffset: { width: 0, height: responsiveHeight(0.3) },
+  //   shadowOpacity: 0.2,
+  //   shadowRadius: responsiveWidth(1),
+  //   marginTop: responsiveHeight(3), // Responsive margin
+  // },
+  // primaryButtonText: { // This style is no longer directly used for the button, but kept for reference if needed elsewhere.
+  //   color: colors.white,
+  //   fontSize: getResponsiveFontSize(16), // Responsive font size
+  //   fontWeight: '600',
+  // },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    backgroundColor: colors.background,
   },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
+  loadingText: {
+    marginTop: responsiveHeight(2),
+    fontSize: getResponsiveFontSize(16),
+    color: colors.textMedium,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    padding: responsiveWidth(5),
+  },
+  errorText: {
+    marginTop: responsiveHeight(2),
+    fontSize: getResponsiveFontSize(16),
+    color: colors.error,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: responsiveHeight(2),
+    backgroundColor: colors.green, // Changed from primary to green
+    paddingVertical: responsiveHeight(1.5),
+    paddingHorizontal: responsiveWidth(5),
+    borderRadius: responsiveWidth(2),
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: '600',
   },
 });

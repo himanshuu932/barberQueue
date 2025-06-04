@@ -14,7 +14,7 @@ export default function Layout() {
       <View style={styles.container}>
         <Tabs
           screenOptions={{
-            tabBarStyle: { backgroundColor: "black", height: 60 },
+            tabBarStyle: { backgroundColor: "black", height: "10%" },
             tabBarActiveTintColor: "#007bff",
             tabBarInactiveTintColor: "#ddd",
             headerShown: false, // Hide default header for all tabs
@@ -89,12 +89,12 @@ export default function Layout() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    height: 60,
+    height: 90,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 15,
-    paddingTop: 10, // Add padding to account for notch/status bar
+    paddingHorizontal: 20,
+    paddingTop: 35, // Add padding to account for notch/status bar
   },
   title: {
     color: "#fff",
