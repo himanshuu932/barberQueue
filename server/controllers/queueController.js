@@ -75,7 +75,8 @@ const addToQueue = asyncHandler(async (req, res) => {
 
   // Barber and phone are always null in this flow
   const barberId = null;
-  const customerPhone = null;
+ const customerPhone = req.body.customerPhone || null;
+
 
   console.log('Incoming payload:', JSON.stringify(req.body));
 
@@ -228,6 +229,102 @@ const addToQueue = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Add walk-in customer to queue (Barber-specific)
+// @route   POST /api/queue/walkin
+// @access  Private (Barber, Owner, Admin)
+const addWalkInToQueue = asyncHandler(async (req, res) => {
+  console.log("reached to walking");
+    const { shopId, customerName, services: requestedServicesInput } = req.body;
+
+    // 1. Validate required fields
+    if (!shopId || !customerName || !requestedServicesInput) {
+        throw new ApiError('Shop ID, customer name, and services are required', 400);
+    }
+
+    // 2. Find the shop
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+        throw new ApiError('Shop not found', 404);
+    }
+
+    // 3. Validate services array
+    if (!Array.isArray(requestedServicesInput)) {
+        throw new ApiError('Services must be an array', 400);
+    }
+
+    // 4. Build services array and calculate total cost
+    let totalCost = 0;
+    const servicesForQueueSchema = [];
+
+    for (const reqService of requestedServicesInput) {
+        const shopServiceEntry = shop.services.find(
+            s => s._id.toString() === reqService.service.toString()
+        );
+
+        if (!shopServiceEntry) {
+            throw new ApiError(`Service with ID "${reqService.service}" not found`, 400);
+        }
+
+        const quantity = Math.max(1, parseInt(reqService.quantity, 10) || 1);
+        
+        servicesForQueueSchema.push({
+            name: shopServiceEntry.name,
+            price: shopServiceEntry.price
+        });
+        
+        totalCost += shopServiceEntry.price * quantity;
+    }
+
+    // 5. Determine next queue number
+    const lastQueueEntry = await Queue.findOne({
+        shop: shop._id,
+        barber: null,
+        status: { $in: ['pending', 'in-progress'] }
+    }).sort({ orderOrQueueNumber: -1 });
+
+    const nextQueueNumber = lastQueueEntry ? lastQueueEntry.orderOrQueueNumber + 1 : 1;
+
+    // 6. Generate unique code
+    let uniqueCode;
+    do {
+        uniqueCode = generateUniqueCode();
+    } while (await Queue.findOne({ uniqueCode }));
+
+    // 7. Create the queue entry
+    const queueEntry = await Queue.create({
+        shop: shop._id,
+        barber: req.userType === 'Barber' ? req.user._id : null,
+        customerName: customerName,
+        customerPhone: req.body.customerPhone || null,
+        services: servicesForQueueSchema,
+        orderOrQueueNumber: nextQueueNumber,
+        uniqueCode: uniqueCode,
+        totalCost: totalCost,
+        status: 'pending'
+    });
+
+    // 8. Emit socket update
+    await emitQueueUpdate(shop._id.toString());
+
+    res.status(201).json({
+        success: true,
+        message: 'Walk-in customer added to queue successfully.',
+        data: {
+            _id: queueEntry._id,
+            shop: { _id: shop._id, name: shop.name },
+            barber: req.userType === 'Barber' ? { _id: req.user._id, name: req.user.name } : null,
+            customerName: queueEntry.customerName,
+            orderOrQueueNumber: queueEntry.orderOrQueueNumber,
+            uniqueCode: queueEntry.uniqueCode,
+            totalCost: queueEntry.totalCost,
+            services: queueEntry.services,
+            status: queueEntry.status,
+            createdAt: queueEntry.createdAt
+        }
+    });
+});
+
+
 
 
     // @desc    Remove/Cancel customer from queue
@@ -273,6 +370,17 @@ const removeFromQueue = asyncHandler(async (req, res, next) => {
     console.log(`Cancelling queue entry ${id} (prev status=${queueEntry.status})`);
     queueEntry.status = 'cancelled';
     await queueEntry.save();
+
+    // Reorder remaining queue
+const remainingQueue = await Queue.find({
+  shop: queueEntry.shop._id,
+  status: { $in: ['pending', 'in-progress'] }
+}).sort({ orderOrQueueNumber: 1 });
+
+for (let i = 0; i < remainingQueue.length; i++) {
+  remainingQueue[i].orderOrQueueNumber = i + 1;
+  await remainingQueue[i].save();
+}
     console.log(`Queue entry ${id} status updated to 'cancelled'`);
 
     // 6. Send push notification if there's an associated user
@@ -439,12 +547,12 @@ const movePersonDownInQueue = asyncHandler(async (req, res) => {
             }
         }
 
-        const nextEntry = await Queue.findOne({
-            shop: currentEntry.shop,
-            barber: currentEntry.barber,
-            orderOrQueueNumber: currentEntry.orderOrQueueNumber + 1,
-            status: { $in: ['pending', 'in-progress'] }
-        });
+      const nextEntry = await Queue.findOne({
+    shop: currentEntry.shop,
+    orderOrQueueNumber: { $gt: currentEntry.orderOrQueueNumber },
+    status: { $in: ['pending', 'in-progress'] }
+}).sort({ orderOrQueueNumber: 1 });
+
 
         if (!nextEntry) {
             throw new ApiError('Cannot move down, already last in queue or no next person.', 400);
@@ -500,6 +608,7 @@ const movePersonDownInQueue = asyncHandler(async (req, res) => {
     });
     return {
         addToQueue,
+        addWalkInToQueue,
         removeFromQueue,
         updateQueueStatus,
         getShopQueue,

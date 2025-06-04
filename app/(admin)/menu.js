@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
-import {View,
+import {
+  View,
   Text,
   StyleSheet,
   ActivityIndicator,
@@ -13,12 +14,12 @@ import {View,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
-import { PlusButtonContext } from "./_layout"; // Adjust this import path as needed
+import { PlusButtonContext } from "./_layout";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { io } from "socket.io-client";
 import { useFocusEffect } from "@react-navigation/native";
 
-const API_BASE = "https://numbr-p7zc.onrender.com";
+const API_BASE = "http://10.0.2.2:5000";
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
@@ -28,26 +29,19 @@ export default function MenuScreen() {
   const [shopId, setShopId] = useState(null);
   const [barberId, setBarberId] = useState(null);
   const [userId, setUserId] = useState(null);
-  // New state to track which queue item's uid is being edited.
   const [editingUid, setEditingUid] = useState(null);
   const [socket, setSocket] = useState(null);
-
-  // Checklist state – loaded dynamically
   const [checklist, setChecklist] = useState([]);
   const [longPressIndex, setLongPressIndex] = useState(null);
-
-  // State for the editing modal checklist
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const [infoModalChecklist, setInfoModalChecklist] = useState([]);
 
-  // Calculate total price (assuming price is numeric)
   const totalSelectedPrice = checklist
     .filter((item) => item.checked)
     .reduce((sum, item) => sum + item.price, 0);
 
   const { setPlusButtonHandler } = useContext(PlusButtonContext);
 
-  // Fetch IDs from AsyncStorage
   useEffect(() => {
     const fetchIds = async () => {
       const uidStored = await AsyncStorage.getItem("uid");
@@ -62,27 +56,40 @@ export default function MenuScreen() {
     fetchIds();
   }, []);
 
-  // Fetch dynamic rate list from the API
-  const fetchRateList = async () => {
-    if (!shopId) return;
-    try {
-      const response = await fetch(`${API_BASE}/shop/rateList?id=${shopId}`);
-      if (!response.ok) {
-        console.error("Failed to fetch rate list");
-        return;
-      }
-      const data = await response.json();
-      const fetchedChecklist = data.map((item, index) => ({
-        id: index + 1,
-        text: item.service,
-        price: item.price, // assuming numeric price
-        checked: false,
-      }));
-      setChecklist(fetchedChecklist);
-    } catch (error) {
-      console.error("Error fetching rate list:", error);
+const fetchRateList = async () => {
+  if (!shopId) {
+    console.error("Shop ID not available");
+    return;
+  }
+
+  try {
+    console.log("Fetching rate list for shopId:", shopId);
+    const response = await fetch(`${API_BASE}/api/shops/${shopId}/rate-list`);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Rate list fetch failed:", errText);
+      return;
     }
-  };
+
+    const result = await response.json();
+    console.log("Rate list response:", result);
+
+    const fetchedChecklist = result.data.map((item, index) => ({
+      id: index + 1,
+       _id: item._id,
+      text: item.name,
+      price: item.price,
+      checked: false,
+    }));
+
+    console.log("Checklist generated:", fetchedChecklist);
+    setChecklist(fetchedChecklist);
+  } catch (err) {
+    console.error("Error in fetchRateList:", err);
+  }
+};
+
 
   useEffect(() => {
     if (shopId) {
@@ -95,7 +102,6 @@ export default function MenuScreen() {
     return () => setPlusButtonHandler(() => {});
   }, [setPlusButtonHandler]);
 
-  // Initialize WebSocket connection
   useEffect(() => {
     const newSocket = io(API_BASE);
     setSocket(newSocket);
@@ -104,23 +110,63 @@ export default function MenuScreen() {
 
   useEffect(() => {
     if (socket) {
-      socket.on("queueUpdated", () => {
+      socket.on("queue:updated", () => {
         fetchQueueData();
       });
     }
   }, [socket]);
 
-  const fetchQueueData = async () => {
-    if (!shopId) return;
-    try {
-      const response = await fetch(`${API_BASE}/queue?shopId=${shopId}`);
-      const data = await response.json();
-      setQueueLength(data.queueLength);
-      setQueueItems(data.data);
-    } catch (error) {
-      console.error("Error fetching queue data:", error);
+const fetchQueueData = async () => {
+  if (!shopId) {
+    console.error("Cannot fetch queue - shopId is null/undefined");
+    return;
+  }
+  
+  console.log(`Attempting to fetch queue for shopId: ${shopId}`);
+  
+  try {
+    const url = `${API_BASE}/api/queue/shop/${shopId}`;
+    console.log("Making request to:", url);
+    
+    const response = await fetch(url);
+    
+    console.log("Received response, status:", response.status);
+    
+    // First check if response is OK
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`HTTP error! status: ${response.status}, response:`, errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  };
+    
+    // Check content type
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await response.text();
+      console.error("Received non-JSON response. Content-Type:", contentType, "Response:", text);
+      throw new TypeError("Expected JSON response");
+    }
+    
+    const data = await response.json();
+    console.log("Successfully parsed JSON response:", data);
+    
+    if (data.success) {
+      console.log("Queue data received. Count:", data.count, "Items:", data.data.length);
+      setQueueLength(data.count);
+      setQueueItems(data.data);
+    } else {
+      console.error("API returned unsuccessful response:", data);
+      Alert.alert("Error", "Failed to load queue data. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error in fetchQueueData:", {
+      error: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    Alert.alert("Error", "Failed to load queue data. Please try again.");
+  }
+};
 
   useFocusEffect(
     React.useCallback(() => {
@@ -128,7 +174,6 @@ export default function MenuScreen() {
     }, [shopId])
   );
 
-  // Updated function that now uses editingUid rather than global userId
   const updateUserServices = async (selectedServices, totalCost) => {
     try {
       const token = await AsyncStorage.getItem("userToken");
@@ -136,189 +181,221 @@ export default function MenuScreen() {
         Alert.alert("Authentication Error", "User not authenticated.");
         return;
       }
-      const response = await fetch(`${API_BASE}/update-services`, {
+
+      const servicesForUpdate = selectedServices.map(serviceName => {
+        const service = checklist.find(item => item.text === serviceName);
+        return {
+          name: serviceName,
+          price: service ? service.price : 0
+        };
+      });
+
+      const response = await fetch(`${API_BASE}/queue/${editingUid}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          shopId,
-          uid: editingUid, // Use the uid of the item whose info button was clicked
-          services: selectedServices,
+          services: servicesForUpdate,
           totalCost: totalCost,
         }),
       });
+
       if (response.ok) {
         fetchQueueData();
+        Alert.alert("Success", "Services updated successfully.");
       } else {
         Alert.alert("Error", "Failed to update services.");
       }
     } catch (error) {
       console.error("Error updating services:", error);
+      Alert.alert("Error", "Failed to update services.");
     }
   };
 
-  const markUserServed = async (uidParam, userName, services, cost) => {
-    if (!shopId) return;
+  const markUserServed = async (queueId, userName, services, cost) => {
+    if (!shopId || !barberId) return;
     try {
       const token = await AsyncStorage.getItem("userToken");
       if (!token) {
         Alert.alert("Authentication Error", "User not authenticated.");
         return;
       }
-      const response = await fetch(`${API_BASE}/barber/add-history`, {
-        method: "POST",
+
+      const statusResponse = await fetch(`${API_BASE}/queue/${queueId}/status`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ shopId, barberId, userId: uidParam, service: services, cost }),
+        body: JSON.stringify({ status: "completed" }),
       });
-      if (response.ok) {
-        await fetch(`${API_BASE}/notify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            uid: uidParam,
-            title: "Service Done",
-            body: `Thank you please rate us`,
-            data: { id: `${barberId}` },
-          }),
-        });
-        socket.emit("markedServed", { userId: uidParam, userName });
+
+      if (statusResponse.ok) {
+        const queueEntry = await statusResponse.json();
+        if (queueEntry.data.userId) {
+          await fetch(`${API_BASE}/notify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              uid: queueEntry.data.userId,
+              title: "Service Done",
+              body: `Thank you please rate us`,
+            }),
+          });
+        }
+        
+        fetchQueueData();
+        Alert.alert("Success", "User has been marked as served.");
+      } else {
+        Alert.alert("Error", "Failed to mark user as served.");
       }
-      await fetch(`${API_BASE}/queue?shopId=${shopId}&uid=${encodeURIComponent(uidParam)}`, {
-        method: "DELETE",
-      });
-      fetchQueueData();
-      Alert.alert("Success", "User has been marked as served and removed from the queue.");
     } catch (error) {
       console.error("Error marking user served:", error);
       Alert.alert("Error", "Failed to mark user as served.");
     }
   };
 
-  const removePerson = async (name, uidParam) => {
-    if (!shopId) return;
-    const res = await fetch(
-      `${API_BASE}/queue?shopId=${shopId}&uid=${encodeURIComponent(uidParam)}`,
-      { method: "DELETE" }
-    );
-    if (res.ok) {
-      await fetch(`${API_BASE}/notify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: uidParam,
-          title: "Removed from queue",
-          body: `You have been removed from the queue.`,
-        }),
-      });
-      socket.emit("removedFromQueue", { name, uid: uidParam });
-    }
-    fetchQueueData();
-  };
-
-  const moveDownPerson = async (name, id, uidParam) => {
-    if (!shopId) return;
-    try {
-      const res = await fetch(`${API_BASE}/queue/move`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shopId, name, id }),
-      });
-      if (res.ok) {
-        if (uidParam.endsWith("=")) {
-          console.log("Dummy user detected, skipping history update");
-          return;
-        }
-        const token = await AsyncStorage.getItem("userToken");
-        if (!token) {
-          Alert.alert("Authentication Error", "User not authenticated.");
-          return;
-        }
-        const notifyResponse = await fetch(`${API_BASE}/notify`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            uid: uidParam,
-            title: "Queue Update",
-            body: `Dear ${name}, you have been moved down in the queue.`,
-          }),
-        });
-        if (!notifyResponse.ok) {
-          console.error("Failed to send notification");
-        }
-        socket.emit("moveDownQueue", { shopId, name, id, uid: uidParam });
-        fetchQueueData();
-      } else {
-        console.error("Failed to move user down in the queue");
-        Alert.alert("Error", "Failed to move user down in the queue.");
-      }
-    } catch (error) {
-      console.error("Error moving user down:", error);
-      Alert.alert("Error", "Failed to move user down in the queue.");
-    }
-  };
-
-  const joinQueue = async () => {
-    if (!shopId) {
-      Alert.alert("Error", "Shop ID not available.");
+const removePerson = async (queueId) => {
+  if (!shopId) return;
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    if (!token) {
+      Alert.alert("Authentication Error", "User not authenticated.");
       return;
     }
-    let finalName = newName.trim();
-    const random = Math.floor(Math.random() * 1000);
-    if (finalName === "") {
-      const now = new Date();
-      const hour = now.getHours().toString().padStart(2, "0");
-      const minutes = now.getMinutes().toString().padStart(2, "0");
-      const seconds = now.getSeconds().toString().padStart(2, "0");
-      finalName = `User${hour}${minutes}${seconds}`;
+
+    const response = await fetch(`${API_BASE}/api/queue/${queueId}/cancel`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      const queueEntry = await response.json();
+      if (queueEntry.data && queueEntry.data.userId) {
+        await fetch(`${API_BASE}/notify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uid: queueEntry.data.userId,
+            title: "Removed from queue",
+            body: `You have been removed from the queue.`,
+          }),
+        });
+      }
+      fetchQueueData();
+    } else {
+      const errorText = await response.text();
+      console.error("Remove person failed:", errorText);
+      Alert.alert("Error", "Failed to remove person from queue.");
     }
+  } catch (error) {
+    console.error("Error removing person:", error);
+    Alert.alert("Error", "Failed to remove person from queue.");
+  }
+};
+
+const moveDownPerson = async (queueId) => {
+    if (!shopId) return;
+    try {
+        console.log(`Attempting to move down queue entry: ${queueId}`);
+        const token = await AsyncStorage.getItem("userToken");
+        if (!token) {
+            Alert.alert("Authentication Error", "User not authenticated.");
+            return;
+        }
+        
+        console.log("Making request to:", `${API_BASE}/api/queue/${queueId}/move-down`);
+        
+        const response = await fetch(`${API_BASE}/api/queue/${queueId}/move-down`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        console.log("Response status:", response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log("Move down successful:", data);
+            fetchQueueData();
+        } else {
+            const errorText = await response.text();
+            console.error("Move down failed:", errorText);
+            Alert.alert("Error", "Failed to move user down in queue.");
+        }
+    } catch (error) {
+        console.error("Error moving user down:", error);
+        Alert.alert("Error", "Failed to move user down in queue.");
+    }
+};
+
+const joinQueue = async () => {
+  if (!shopId) {
+    Alert.alert("Error", "Shop ID not available.");
+    return;
+  }
+
+  let finalName = newName.trim();
+  if (finalName === "") {
     const now = new Date();
     const hour = now.getHours().toString().padStart(2, "0");
     const minutes = now.getMinutes().toString().padStart(2, "0");
     const seconds = now.getSeconds().toString().padStart(2, "0");
-    const id = `${finalName}${hour}${minutes}${seconds}${random}=`;
-    const code = finalName.substring(0, 2) + id.substring(8, 12).toUpperCase();
-    const selectedServices = checklist.filter((item) => item.checked).map((item) => item.text);
-    if (selectedServices.length === 0) {
-      Alert.alert("No Service Selected", "Please select at least one service before proceeding.");
-      return;
+    finalName = `User${hour}${minutes}${seconds}`;
+  }
+
+  // Build service list in backend-compatible format
+  const selectedServices = checklist
+    .filter((item) => item.checked)
+    .map((item) => ({
+      service: item._id,
+      quantity: 1,
+    }));
+
+  if (selectedServices.length === 0) {
+    Alert.alert("No Service Selected", "Please select at least one service before proceeding.");
+    return;
+  }
+
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+
+    const response = await fetch(`${API_BASE}/api/queue/walkin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        shopId,
+        customerName: finalName,
+        customerPhone: "0000000000", // fallback for walk-ins
+        services: selectedServices,
+      }),
+    });
+
+    if (response.ok) {
+      fetchQueueData();
+      setModalVisible(false);
+    } else {
+      const errorText = await response.text();
+      console.error("Join queue failed:", errorText);
+      Alert.alert("Error", "Failed to add walk-in customer to queue.");
     }
-    try {
-      const response = await fetch(`${API_BASE}/queue`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shopId,
-          name: finalName,
-          id: id,
-          code: code,
-          services: selectedServices,
-          totalCost: totalSelectedPrice,
-        }),
-      });
-      if (response.ok) {
-        socket.emit("joinQueue", {
-          shopId,
-          name: finalName,
-          id: id,
-          code: code,
-          services: selectedServices,
-          totalCost: totalSelectedPrice,
-        });
-        fetchQueueData();
-        setModalVisible(false);
-      } else {
-        Alert.alert("Error", "Failed to join the queue.");
-      }
-    } catch (error) {
-      console.error("Error joining queue:", error);
-      Alert.alert("Error", "An error occurred while joining the queue.");
-    }
-  };
+  } catch (error) {
+    console.error("Error adding walk-in customer:", error);
+    Alert.alert("Error", "An error occurred while adding walk-in customer.");
+  }
+};
+
+
 
   const handleIncrement = () => {
     setNewName("");
@@ -343,7 +420,7 @@ export default function MenuScreen() {
       <View style={styles.overlay} />
       <View style={styles.container}>
         <Text style={styles.userCode}>
-          {queueItems[0] ? queueItems[0].code : "Aaj kdki h!"}
+          {queueItems[0] ? queueItems[0].uniqueCode : "No queue"}
         </Text>
         <Text style={styles.queue}>👤 {queueLength}</Text>
         <Text style={styles.queueListTitle}>Queue List</Text>
@@ -355,7 +432,7 @@ export default function MenuScreen() {
         >
           {queueItems.map((item, index) => (
             <TouchableOpacity
-              key={item.uid}
+              key={item._id}
               style={styles.queueCard}
               onLongPress={() => {
                 setLongPressIndex(index);
@@ -363,31 +440,32 @@ export default function MenuScreen() {
               }}
             >
               <View style={styles.leftSection}>
-                <Text style={styles.queueNumber}>{index + 1}.</Text>
+                <Text style={styles.queueNumber}>{item.orderOrQueueNumber}.</Text>
                 <View style={styles.detailsContainer}>
-                  <Text style={styles.queueName}>{item.name}</Text>
-                  <Text style={styles.queueId}>ID: {item.code}</Text>
+                  <Text style={styles.queueName}>
+                    {item.customerName || (item.userId && item.userId.name) || 'Guest'}
+                  </Text>
+                  <Text style={styles.queueId}>Code: {item.uniqueCode}</Text>
                   <View style={styles.serviceRow}>
                     <TouchableOpacity
                       onPress={() =>
                         Alert.alert(
                           "Services",
                           item.services && item.services.length > 0
-                            ? item.services.join(", ")
+                            ? item.services.map(s => s.name).join(", ")
                             : "No services"
                         )
                       }
                     >
                       <Text style={styles.servicesText}>View Services</Text>
                     </TouchableOpacity>
-                    {/* Capture the clicked item's uid in editingUid */}
                     <TouchableOpacity
                       style={styles.infoButton}
                       onPress={() => {
-                        setEditingUid(item.uid);
-                        const updatedChecklist = checklist.map((service) => ({
+                        setEditingUid(item._id);
+                        const updatedChecklist = checklist.map(service => ({
                           ...service,
-                          checked: item.services.includes(service.text),
+                          checked: item.services.some(s => s.name === service.text),
                         }));
                         setInfoModalChecklist(updatedChecklist);
                         setInfoModalVisible(true);
@@ -403,13 +481,18 @@ export default function MenuScreen() {
                   <TouchableOpacity
                     style={styles.doneButton}
                     onPress={() =>
-                      markUserServed(item.uid, item.name, item.services, item.totalCost)
+                      markUserServed(
+                        item._id,
+                        item.customerName || (item.userId && item.userId.name) || 'Guest',
+                        item.services,
+                        item.totalCost
+                      )
                     }
                   >
                     <Icon name="check" size={24} color="white" />
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => removePerson(item.name, item.uid)}>
+                  <TouchableOpacity onPress={() => removePerson(item._id)}>
                     <Icon name="delete" size={24} color="red" />
                   </TouchableOpacity>
                 )}
@@ -418,8 +501,8 @@ export default function MenuScreen() {
                     style={styles.downButton}
                     onPress={() =>
                       longPressIndex === index
-                        ? removePerson(item.name, item.uid)
-                        : moveDownPerson(item.name, item._id, item.uid)
+                        ? removePerson(item._id)
+                        : moveDownPerson(item._id)
                     }
                   >
                     <Icon
@@ -434,7 +517,6 @@ export default function MenuScreen() {
           ))}
         </ScrollView>
 
-        {/* Modal for joining queue */}
         <Modal
           transparent={true}
           animationType="slide"
@@ -492,7 +574,6 @@ export default function MenuScreen() {
           </View>
         </Modal>
 
-        {/* Modal for editing services */}
         <Modal
           visible={infoModalVisible}
           animationType="slide"
@@ -649,11 +730,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     color: "#333",
-    marginRight:0,  // Adds spacing between number and text
+    marginRight: 0,
   },
   nameContainer: {
-    flexShrink: 1,  // Ensures text does not overflow
-    maxWidth: "70%", // Prevents excessive width
+    flexShrink: 1,
+    maxWidth: "70%",
   },
   queueName: {
     fontSize: 20,
@@ -677,7 +758,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   iconGroup: {
-    display:"flex",
+    display: "flex",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",

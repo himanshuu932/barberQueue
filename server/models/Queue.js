@@ -27,9 +27,7 @@ const QueueSchema = new Schema({
     },
     customerPhone: { // Phone for non-registered users
         type: String,
-        required: function() {
-            return !this.userId; // Required if userId is not present
-        }
+        required: false
     },
     services: [{ // Array of services the customer is getting
       name: {

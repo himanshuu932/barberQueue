@@ -379,7 +379,7 @@ exports.removeServiceFromShop = asyncHandler(async (req, res) => {
 // @access  Public
 exports.getShopRateList = asyncHandler(async (req, res) => {
     const { id } = req.params;
-
+console.log("reached to rate-list controller");
     const shop = await Shop.findById(id).select('services'); // Only select services
 
     if (!shop) {
