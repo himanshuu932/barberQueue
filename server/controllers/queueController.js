@@ -480,6 +480,50 @@ const updateQueueStatus = asyncHandler(async (req, res) => {
         res.json({ success: true, message: `Queue entry status updated to ${status}.`, data: queueEntry });
     });
 
+
+    // @desc    Update services for an existing queue entry
+// @route   PATCH /api/queue/:id/services
+// @access  Private (User or Guest via token or ID)
+const updateQueueServices = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { services } = req.body; // Expecting [{ service: <id>, quantity: 1 }]
+
+  if (!Array.isArray(services) || services.length === 0) {
+    throw new ApiError('At least one service must be selected.', 400);
+  }
+
+  const queueEntry = await Queue.findById(id).populate('shop');
+  if (!queueEntry || queueEntry.status !== 'pending') {
+    throw new ApiError('Cannot modify queue entry.', 400);
+  }
+
+  const shop = queueEntry.shop;
+
+  // Validate and build updated services array
+  let totalCost = 0;
+  const updatedServices = [];
+
+  for (const reqService of services) {
+    const match = shop.services.find(s => s._id.toString() === reqService.service);
+    if (!match) throw new ApiError(`Service not found: ${reqService.service}`, 400);
+    const quantity = Math.max(1, parseInt(reqService.quantity) || 1);
+
+    for (let i = 0; i < quantity; i++) {
+      updatedServices.push({ name: match.name, price: match.price });
+    }
+    totalCost += match.price * quantity;
+  }
+
+  queueEntry.services = updatedServices;
+  queueEntry.totalCost = totalCost;
+  await queueEntry.save();
+
+  await emitQueueUpdate(shop._id.toString());
+
+  res.json({ success: true, message: 'Queue entry updated', data: queueEntry });
+});
+
+
     // @desc    Get queue for a specific shop
     // @route   GET /api/queue/shop/:shopId
     // @access  Public
@@ -611,6 +655,7 @@ const movePersonDownInQueue = asyncHandler(async (req, res) => {
         addWalkInToQueue,
         removeFromQueue,
         updateQueueStatus,
+        updateQueueServices,
         getShopQueue,
         getBarberQueue,
          movePersonDownInQueue,

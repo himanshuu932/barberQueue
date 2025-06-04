@@ -344,65 +344,222 @@ export default function MenuScreen() {
     }
   };
   
-  const leaveQueue = async () => {
-    if (!uid) {
-      Alert.alert("Error", "User information not loaded.");
-      return;
-    }
-    const currentUserQueueEntry = queueItems.find(item => item.userId && item.userId._id === uid);
 
-    if (!currentUserQueueEntry) {
-        Alert.alert("Not in Queue", "You are not currently in the queue for this shop.");
-        return;
-    }
-    const queueEntryId = currentUserQueueEntry._id;
+const leaveQueue = async () => {
+  console.log('[leaveQueue] Function initiated');
+  
+  if (!uid) {
+    console.error('[leaveQueue] Error: UID not available');
+    Alert.alert("Error", "User information not loaded.");
+    return;
+  }
 
+  console.log('[leaveQueue] Finding user in queue...');
+  const currentUserQueueEntry = queueItems.find(item => item.userId && item.userId._id === uid);
+
+  if (!currentUserQueueEntry) {
+    console.warn('[leaveQueue] User not found in queue items:', {
+      uid,
+      queueItems: queueItems.map(item => ({
+        id: item._id,
+        userId: item.userId?._id,
+        status: item.status
+      }))
+    });
+    Alert.alert("Not in Queue", "You are not currently in the queue for this shop.");
+    return;
+  }
+
+  const queueEntryId = currentUserQueueEntry._id;
+  console.log('[leaveQueue] Found queue entry:', {
+    queueEntryId,
+    status: currentUserQueueEntry.status,
+    position: currentUserQueueEntry.orderOrQueueNumber
+  });
+
+  try {
+    console.log('[leaveQueue] Retrieving token from storage...');
+    const token = await AsyncStorage.getItem('userToken');
+    console.log('[leaveQueue] Token retrieved:', token ? 'exists' : 'MISSING');
+    
+    if (!token) {
+      console.error('[leaveQueue] No token found in storage');
+      throw new Error('Authentication token not found. Please login again.');
+    }
+
+    console.log('[leaveQueue] Showing confirmation alert...');
     Alert.alert(
-      "Confirm Leave", `Are you sure you want to leave the queue?${queueEntryId}`,
+      "Confirm Leave", 
+      "Are you sure you want to leave the queue?",
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Cancel", style: "cancel", onPress: () => console.log('[leaveQueue] User canceled') },
         {
           text: "OK",
           onPress: async () => {
+            console.log('[leaveQueue] User confirmed, preparing request...', {
+              endpoint: `${API_BASE}/queue/${queueEntryId}/cancel`,
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token?.substring(0, 10)}...` // Log first 10 chars only
+              }
+            });
+
             try {
+              const startTime = Date.now();
+              console.log('[leaveQueue] Sending request...');
+              
               const response = await fetch(
-                `${API_BASE}/queue/${queueEntryId}/cancel`, // PUT /api/queue/:id/cancel
+                `${API_BASE}/queue/${queueEntryId}/cancel`,
                 { 
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" }, // Add Auth header if needed
+                  method: "PUT",
+                  headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                  },
                 }
               );
+
+              const responseTime = Date.now() - startTime;
+              console.log(`[leaveQueue] Received response in ${responseTime}ms`, {
+                status: response.status,
+                statusText: response.statusText
+              });
+
               const responseData = await response.json();
-              if (response.ok && responseData.success) {
-                // fetchQueueData(); // Socket should update, or next poll. For immediate feedback:
-                if (!socket || !socket.connected) fetchQueueData();
+              console.log('[leaveQueue] Response data:', responseData);
+
+              if (!response.ok) {
+                console.error('[leaveQueue] Backend error response:', {
+                  status: response.status,
+                  error: responseData,
+                  queueEntryId,
+                  tokenPresent: !!token,
+                  headers: Object.fromEntries(response.headers.entries())
+                });
+                throw new Error(responseData.message || "Failed to leave the queue");
+              }
+
+              if (responseData.success) {
+                console.log('[leaveQueue] Successfully left queue');
+                if (!socket || !socket.connected) {
+                  console.log('[leaveQueue] Socket not connected, manually fetching queue data');
+                  fetchQueueData();
+                }
                 Alert.alert("Success", "You have left the queue.");
               } else {
-                Alert.alert("Error Leaving Queue", responseData.message || "Failed to leave the queue.");
+                console.warn('[leaveQueue] Unsuccessful response:', responseData);
+                Alert.alert("Error", responseData.message || "Failed to leave the queue.");
               }
             } catch (error) {
-              console.error("Error leaving queue:", error);
-              Alert.alert("Connection Error", "An error occurred while leaving the queue.");
+              console.error('[leaveQueue] Request failed:', {
+                error: error.message,
+                stack: error.stack,
+                queueEntryId,
+                tokenPresent: !!token,
+                tokenLength: token?.length,
+                isTokenValid: token && token.split('.').length === 3 // Basic JWT check
+              });
+              
+              Alert.alert(
+                "Error", 
+                error.message.includes('token') 
+                  ? "Session expired. Please login again."
+                  : error.message || "An error occurred while leaving the queue. Please try again."
+              );
+              
+              // Additional debug info for network errors
+              if (error.message.includes('Network request failed')) {
+                console.error('[leaveQueue] Network failure details:', {
+                  isOnline: await checkNetworkStatus(), // You'd need to implement this
+                  apiBase: API_BASE,
+                  reachable: await checkApiReachable() // You'd need to implement this
+                });
+              }
             }
           },
         },
       ]
     );
-  };
+  } catch (error) {
+    console.error('[leaveQueue] Outer catch block error:', {
+      error: error.message,
+      stack: error.stack
+    });
+    Alert.alert(
+      "Authentication Error", 
+      "Please login again to perform this action."
+    );
+    
+    // You might want to add automatic logout here
+    // await AsyncStorage.multiRemove(['token', 'refreshToken', 'uid', 'userName']);
+    // router.replace('/login');
+  }
+};
+
+
+
+// Helper functions you could add:
+async function checkNetworkStatus() {
+  // Implementation depends on your React Native version
+  return true; // Simplified
+}
+
+async function checkApiReachable() {
+  try {
+    const response = await fetch(`${API_BASE}/health`);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
 
   // Placeholder for updateUserServices - requires backend implementation for PATCH /api/queue/:id/services
-  const updateUserServices = async () => {
-    const selectedForInfoModal = infoModalChecklist.filter(i => i.checked);
-    if (selectedForInfoModal.length === 0) {
-        Alert.alert("No Services", "Please select at least one service.");
-        return;
+const updateUserServices = async () => {
+  const selected = infoModalChecklist.filter(i => i.checked);
+  if (selected.length === 0) {
+    Alert.alert("No Services", "Please select at least one service.");
+    return;
+  }
+
+  const queueEntryId = currentUserQueueEntry?._id;
+  if (!queueEntryId) return;
+
+  const token = await AsyncStorage.getItem("userToken");
+  if (!token) {
+    Alert.alert("Error", "You are not logged in.");
+    return;
+  }
+
+  const servicesPayload = selected.map(item => ({
+    service: item.id,
+    quantity: 1,
+  }));
+
+  try {
+    const response = await fetch(`${API_BASE}/queue/${queueEntryId}/services`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ services: servicesPayload }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      Alert.alert("Success", "Services updated!");
+      setInfomodalVisible(false);
+    } else {
+      throw new Error(data.message || "Failed to update.");
     }
-    // ... find currentUserQueueEntry._id ...
-    // ... construct servicesPayload like in joinQueueHandler ...
-    // ... make API call to PATCH /api/queue/:queueEntryId/services with servicesPayload ...
-    Alert.alert("Modify Services", "This feature requires backend implementation for updating services in an existing queue entry.");
-    setInfomodalVisible(false);
-  };
+  } catch (err) {
+    console.error("Update error:", err);
+    Alert.alert("Error", err.message || "Something went wrong.");
+  }
+};
+
 
 
   const currentUserQueueEntry = queueItems.find(item => item.userId && item.userId._id === uid);

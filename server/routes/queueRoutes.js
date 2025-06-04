@@ -7,7 +7,7 @@ module.exports = (io) => {
     // Pass io to the controller functions
     const queueController = require('../controllers/queueController')(io);
 
-    // Public route for adding to queue (can be by guest or logged-in user)
+    // Public route for adding to queue (can be logged-in user)
     router.post('/', queueController.addToQueue);
     //  route for adding walkin customers
 router.post('/walkin', protect(['barber', 'owner', 'admin']), (req, res, next) => {
@@ -21,7 +21,13 @@ router.post('/walkin', protect(['barber', 'owner', 'admin']), (req, res, next) =
 
     // Private routes for queue management (User, Barber, Owner, Admin)
     router.put('/:id/cancel', protect(['user', 'barber', 'owner', 'admin']), queueController.removeFromQueue);
+
+
     router.put('/:id/status', protect(['barber', 'owner', 'admin']), queueController.updateQueueStatus); // Status updates often by barber/owner
+
+
+    router.patch('/:id/services', protect(['user', 'barber', 'owner', 'admin']), queueController.updateQueueServices);
+
 
     // Route to move a person down in queue
     router.put('/:id/move-down', protect(['barber', 'owner', 'admin']), queueController.movePersonDownInQueue);
