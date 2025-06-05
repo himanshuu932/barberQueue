@@ -262,7 +262,7 @@ export default function TabProfileScreen() {
                       <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
                     </View>
                     <Text style={styles.historyService}>
-                      {item.services?.map(s => s.service?.name || 'Unknown Service').join(', ')}
+                      {item.services?.map(s => s.name || 'Unknown Service').join(', ')}
                     </Text>
                     <Text style={styles.historyService}>Barber: {item.barber?.name || 'N/A'}</Text>
                     <Text style={styles.historyService}>Shop: {item.shop?.name || 'N/A'}</Text>

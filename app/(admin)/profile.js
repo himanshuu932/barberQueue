@@ -93,27 +93,42 @@ export default function TabProfileScreen() {
     }
   };
 
-  const fetchBarberHistory = async () => {
-    if (!uid || !userToken) {
-      return; // Wait for all necessary data to be loaded from AsyncStorage
-    }
-    try {
-      const response = await fetch(`${API_BASE_URL}/history/me`, { // Use /history/me for logged-in barber's history
-        headers: {
-          'Authorization': `Bearer ${userToken}` // Pass authentication token
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch history");
-      }
-      const data = await response.json();
-      setHistory(data.data); // Assuming the history is in a 'data' field
-    } catch (error) {
-      console.error("Error fetching barber history:", error);
-      // Don't set error state globally, as profile might still load
-    }
-  };
+const fetchBarberHistory = async () => {
+  if (!uid || !userToken) return;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/history/barber/${uid}`, {
+      headers: {
+        'Authorization': `Bearer ${userToken}`
+      },
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch history');
+    
+    const data = await response.json();
+    
+
+    const validatedHistory = (data.data || []).map(item => ({
+      ...item,
+      services: (item.services || []).map(s => ({
+        ...s,
+        service: { name: s.name || 'Unknown service' }
+      })),
+      user: item.user || null,
+       customerName: item.customerName || null,
+      shop: item.shop || { name: 'N/A' }
+    }));
+
+    console.log("Validated history:", JSON.stringify(validatedHistory, null, 2));
+
+    setHistory(validatedHistory);
+  } catch (error) {
+    console.error("Error fetching barber history:", error);
+    setHistory([]);
+  }
+};
+
+
 
   // Fetch barber details and history when the screen is focused and all data is available
   useFocusEffect(
@@ -294,9 +309,10 @@ export default function TabProfileScreen() {
                         <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
                       </View>
                       <Text style={styles.historyService}> {/* Changed from paymentDescription to historyService */}
-                        {item.services.map(s => s.service.name).join(', ')}
+                       {item.services.map(s =>  s.name || 'Unknown').join(', ')}
+
                       </Text>
-                      <Text style={styles.historyService}>Customer: {item.user?.name || 'N/A'}</Text> {/* Added customer info */}
+                      <Text style={styles.historyService}>Customer: {item.user?.name === 'N/A' ? item.customerName : item.user?.name || item.customerName || 'Guest'}</Text> {/* Added customer info */}
                       <Text style={styles.historyService}>Shop: {item.shop?.name || 'N/A'}</Text> {/* Added shop info */}
                     </View>
                   ))

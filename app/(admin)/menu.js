@@ -214,48 +214,50 @@ const fetchQueueData = async () => {
     }
   };
 
-  const markUserServed = async (queueId, userName, services, cost) => {
-    if (!shopId || !barberId) return;
-    try {
-      const token = await AsyncStorage.getItem("userToken");
-      if (!token) {
-        Alert.alert("Authentication Error", "User not authenticated.");
-        return;
-      }
+const markUserServed = async (queueId) => {
+  try {
+    const token = await AsyncStorage.getItem("userToken");
+    const barberId = await AsyncStorage.getItem("uid"); // Assuming barber's ID is stored here
 
-      const statusResponse = await fetch(`${API_BASE}/queue/${queueId}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: "completed" }),
-      });
-
-      if (statusResponse.ok) {
-        const queueEntry = await statusResponse.json();
-        if (queueEntry.data.userId) {
-          await fetch(`${API_BASE}/notify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              uid: queueEntry.data.userId,
-              title: "Service Done",
-              body: `Thank you please rate us`,
-            }),
-          });
-        }
-        
-        fetchQueueData();
-        Alert.alert("Success", "User has been marked as served.");
-      } else {
-        Alert.alert("Error", "Failed to mark user as served.");
-      }
-    } catch (error) {
-      console.error("Error marking user served:", error);
-      Alert.alert("Error", "Failed to mark user as served.");
+    if (!token || !barberId) {
+      console.error("Missing token or barber ID");
+      Alert.alert("Error", "Authentication required. Please re-login.");
+      return;
     }
-  };
+
+    const payload = {
+      status: "completed",
+      barberId: barberId,
+    };
+
+    console.log("Marking user served with payload:", payload);
+
+    const response = await fetch(`${API_BASE}/api/queue/${queueId}/status`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Failed to mark as served. Response:", data);
+      Alert.alert("Error", data.message || "Failed to mark as served");
+      return;
+    }
+
+    console.log("User marked as served successfully:", data);
+    Alert.alert("Success", "Customer marked as served");
+    fetchQueueData(); // Refresh the queue
+  } catch (error) {
+    console.error("Error in markUserServed:", error);
+    Alert.alert("Error", error.message || "Failed to mark as served");
+  }
+};
+
 
 const removePerson = async (queueId) => {
   if (!shopId) return;

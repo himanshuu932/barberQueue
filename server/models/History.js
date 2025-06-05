@@ -6,8 +6,12 @@ const HistorySchema = new Schema({
     user: { // User who received the service (required, as it's a history of a completed service)
         type: Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: false
     },
+    customerName: {
+  type: String,
+  required: false
+},
     barber: { // Barber who provided the service
         type: Schema.Types.ObjectId,
         ref: 'Barber',
@@ -24,6 +28,16 @@ const HistorySchema = new Schema({
             ref: 'Service',
             required: true
         },
+        name: {
+             type: String,
+             default: "any service"
+        },
+
+        price: {
+            type: Number,
+            default: 10,
+        },
+
         quantity: { // Quantity of this service (e.g., 2 haircuts)
             type: Number,
             default: 1

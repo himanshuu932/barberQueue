@@ -74,39 +74,66 @@ exports.getUserHistory = asyncHandler(async (req, res) => {
 // @route   GET /api/history/barber/:barberId (or /api/me/history if barber)
 // @access  Private (Barber - own history, Owner of shop, Admin)
 exports.getBarberHistory = asyncHandler(async (req, res) => {
-    const targetBarberId = req.params.barberId || req.user._id; // Allow fetching own history if no param
+  const targetBarberId = req.params.barberId || req.user._id;
 
-    const barber = await Barber.findById(targetBarberId);
-    if (!barber) {
-        throw new ApiError('Barber not found', 404);
+  const barber = await Barber.findById(targetBarberId);
+  if (!barber) throw new ApiError('Barber not found', 404);
+
+  if (req.userType === 'Barber' && targetBarberId.toString() !== req.user._id.toString()) {
+    throw new ApiError('Not authorized to view other barber\'s history', 403);
+  }
+
+  if (req.userType === 'Owner') {
+    const shop = await Shop.findById(barber.shopId);
+    if (!shop || shop.owner.toString() !== req.user._id.toString()) {
+      throw new ApiError('Not authorized to view this barber\'s history', 403);
     }
+  }
 
-    // Authorization:
-    // A barber can only fetch their own history.
-    // An owner can fetch history for barbers in their shops.
-    // An admin can fetch any barber's history.
-    if (req.userType === 'Barber' && targetBarberId.toString() !== req.user._id.toString()) {
-        throw new ApiError('Not authorized to view other barber\'s history', 403);
-    }
-    if (req.userType === 'Owner') {
-        const shop = await Shop.findById(barber.shopId);
-        if (!shop || shop.owner.toString() !== req.user._id.toString()) {
-            throw new ApiError('Not authorized to view this barber\'s history (not from your shop)', 403);
-        }
-    }
-    // Admin user has implicit access from authMiddleware role check
+  const history = await History.find({ barber: targetBarberId })
+    .populate('user', 'name')
+    .populate('shop', 'name')
+    .populate('services.service', 'name price') // ensure populated service object
+    .sort({ date: -1 });
 
-    const history = await History.find({ barber: targetBarberId })
-                                 .populate('user', 'name')
-                                 .populate('shop', 'name')
-                                 .populate('services.service', 'name')
-                                 .sort({ date: -1 });
+  const formatted = history.map(entry => ({
+    _id: entry._id,
+    user: {
+      _id: entry.user?._id,
+      name: entry.user?.name || 'N/A'
+    },
+    customerName: entry.customerName || null, 
+    barber: entry.barber,
+    shop: {
+      _id: entry.shop?._id,
+      name: entry.shop?.name || 'N/A'
+    },
+    services: entry.services.map(s => ({
+      _id: s._id,
+      name: s.name,
+      price: s.price,
+      quantity: s.quantity,
+      service: s.service && typeof s.service === 'object'
+        ? {
+            _id: s.service._id,
+            name: s.service.name,
+            price: s.service.price
+          }
+        : { name: 'Unknown Service' }
+    })),
+    date: entry.date,
+    totalCost: entry.totalCost,
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt
+  }));
 
-    res.json({
-        success: true,
-        data: history,
-    });
+  res.json({
+    success: true,
+    data: formatted
+  });
 });
+
+
 
 // @desc    Get shop's overall service history
 // @route   GET /api/history/shop/:shopId

@@ -422,63 +422,110 @@ for (let i = 0; i < remainingQueue.length; i++) {
     // @route   PUT /api/queue/:id/status
     // @access  Private (Barber, Owner, Admin)
 const updateQueueStatus = asyncHandler(async (req, res) => {
-        const { id } = req.params;
-        const { status } = req.body; // Expect "in-progress" or "completed"
+    const { id } = req.params;
+    const { status, barberId } = req.body; // Get barberId from request body
 
-        if (!['in-progress', 'completed'].includes(status)) {
-            throw new ApiError('Invalid status. Must be "in-progress" or "completed".', 400);
+    if (!['in-progress', 'completed'].includes(status)) {
+        throw new ApiError('Invalid status. Must be "in-progress" or "completed".', 400);
+    }
+
+    const queueEntry = await Queue.findById(id)
+        .populate('shop', '_id name owner')
+        .populate('userId', '_id name')
+          .populate('services._id', 'name price');
+
+    if (!queueEntry) {
+        throw new ApiError('Queue entry not found', 404);
+    }
+
+    // If marking as completed, require barberId
+    if (status === 'completed') {
+        if (!barberId) {
+            throw new ApiError('Barber ID is required when completing service', 400);
         }
 
-        const queueEntry = await Queue.findById(id).populate('shop', '_id name owner').populate('barber', '_id name shopId');
-
-        if (!queueEntry) {
-            throw new ApiError('Queue entry not found', 404);
+        // Verify barber exists
+        const barber = await Barber.findById(barberId);
+        if (!barber) {
+            throw new ApiError('Barber not found', 404);
         }
+
+        // Assign barber to queue entry
+        queueEntry.barber = barberId;
+    }
+
+    const oldStatus = queueEntry.status;
+    queueEntry.status = status;
+
+    if (status === 'completed' && oldStatus !== 'completed') {
+        const servicesForHistory = queueEntry.services.map(service => ({
+            service: service._id,
+            quantity: 1,
+            name: service.name,
+            price: service.price
+        }));
+
         
-        const oldStatus = queueEntry.status;
-        queueEntry.status = status;
 
-        if (status === 'completed' && oldStatus !== 'completed') {
-            await History.create({
-                user: queueEntry.userId,
-                barber: queueEntry.barber ? queueEntry.barber._id : null,
-                shop: queueEntry.shop._id,
-                services: queueEntry.services,
-                totalCost: queueEntry.totalCost,
-                date: new Date(),
-                uniqueCode: queueEntry.uniqueCode,
-                orderOrQueueNumber: queueEntry.orderOrQueueNumber
-            });
+        const historyEntry = await History.create({
+            user: queueEntry.userId ? queueEntry.userId._id : null,
+              customerName: queueEntry.userId ? queueEntry.userId.name : queueEntry.customerName,
+            barber: barberId,  // Use the provided barberId
+            shop: queueEntry.shop._id,
+            services: servicesForHistory,
+            totalCost: queueEntry.totalCost,
+            date: new Date(),
+            uniqueCode: queueEntry.uniqueCode,
+            orderOrQueueNumber: queueEntry.orderOrQueueNumber
+        });
 
-            if (queueEntry.barber) {
-                await Barber.findByIdAndUpdate(queueEntry.barber._id, { $inc: { customersServed: 1 } });
-            }
-             // Update shop's total customers served or revenue if tracked
-        }
-        await queueEntry.save();
+        // Update barber's stats
+        await Barber.findByIdAndUpdate(barberId, { 
+            $inc: { customersServed: 1 },
+            $push: { history: historyEntry._id }
+        });
 
+        // Update user's history
         if (queueEntry.userId) {
-            const shopName = queueEntry.shop.name;
-            const barberName = queueEntry.barber ? queueEntry.barber.name : 'The barber';
-            let title = '';
-            let body = '';
-
-            if (status === 'in-progress') {
-                title = `You're up next at ${shopName}!`;
-                body = `${barberName} is now ready for you (Code: ${queueEntry.uniqueCode}).`;
-            } else if (status === 'completed') {
-                title = `Service Completed at ${shopName}!`;
-                body = `Your service with ${barberName} (Code: ${queueEntry.uniqueCode}) is complete. Thank you!`;
-                // TODO: Trigger rating prompt? -> client-side logic post-completion
-            }
-            if (title) {
-                 await sendPushNotification(queueEntry.userId, title, body, { type: `service_${status.replace('-', '_')}`, queueId: id });
-            }
+            await User.findByIdAndUpdate(queueEntry.userId._id, {
+                $push: { history: historyEntry._id }
+            });
         }
 
-        await emitQueueUpdate(queueEntry.shop._id.toString());
-        res.json({ success: true, message: `Queue entry status updated to ${status}.`, data: queueEntry });
+        // Update shop stats
+        await Shop.findByIdAndUpdate(queueEntry.shop._id, {
+            $inc: { 
+                totalServicesCompleted: 1, 
+                totalRevenue: queueEntry.totalCost 
+            }
+        });
+    }
+
+    await queueEntry.save();
+
+    // Send notifications if applicable
+    if (queueEntry.userId && status === 'completed') {
+        const shopName = queueEntry.shop.name;
+        const barberName = queueEntry.barber ? queueEntry.barber.name : 'Your barber';
+        
+        await sendPushNotification(queueEntry.userId._id, 
+            `Service Completed at ${shopName}!`,
+            `Your service with ${barberName} is complete. Thank you!`,
+            { 
+                type: 'service_completed', 
+                queueId: id 
+            }
+        );
+    }
+
+    await emitQueueUpdate(queueEntry.shop._id.toString());
+    
+    res.json({ 
+        success: true, 
+        message: `Queue entry status updated to ${status}.`, 
+        data: queueEntry 
     });
+});
 
 
     // @desc    Update services for an existing queue entry
