@@ -20,7 +20,7 @@ import { FontAwesome5 } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 
 const { width: screenWidth } = Dimensions.get("window");
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
   try {
