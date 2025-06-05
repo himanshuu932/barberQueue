@@ -11,7 +11,7 @@ import {
   Dimensions,
   StatusBar,
   PixelRatio,
-  TouchableWithoutFeedback, // Import TouchableWithoutFeedback
+  TouchableWithoutFeedback,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
@@ -23,6 +23,7 @@ const getResponsiveFontSize = (size) => size / fontScale;
 
 const responsiveHeight = (h) => height * (h / 100);
 const responsiveWidth = (w) => width * (w / 100);
+const API_BASE = "http://10.0.2.2:5000/api";
 
 export const ShopList = ({ onSelect, onClose }) => {
   const [shopRatings, setShopRatings] = useState([]);
@@ -30,14 +31,20 @@ export const ShopList = ({ onSelect, onClose }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState("");
   const [selectedShopId, setSelectedShopId] = useState(null);
-
-  const [sortCriteria, setSortCriteria] = useState([]); // [{ key: 'rating', order: 'desc' }, { key: 'queue', order: 'asc' }]
-  const [showSortOptions, setShowSortOptions] = useState(false); // Controls visibility of the sort dropdown
+  const [queueCounts, setQueueCounts] = useState({}); // { [shopId]: count }
+  const [sortCriteria, setSortCriteria] = useState([]);
+  const [showSortOptions, setShowSortOptions] = useState(false);
 
   useEffect(() => {
     fetchShops();
     loadCurrentShop();
   }, []);
+
+  useEffect(() => {
+    if (shopRatings && shopRatings.length > 0) {
+      fetchQueueCounts(shopRatings);
+    }
+  }, [shopRatings]);
 
   const loadCurrentShop = async () => {
     try {
@@ -50,9 +57,24 @@ export const ShopList = ({ onSelect, onClose }) => {
     }
   };
 
+  const fetchQueueCounts = async (shops) => {
+    const counts = {};
+    for (const shop of shops) {
+      try {
+        const res = await fetch(`${API_BASE}/queue/shop/${shop._id}`);
+        const json = await res.json();
+        counts[shop._id] = json.count || 0;
+      } catch (err) {
+        console.error(`Error fetching queue for shop ${shop._id}:`, err);
+        counts[shop._id] = 0;
+      }
+    }
+    setQueueCounts(counts);
+  };
+
   const fetchShops = async () => {
     try {
-      const shopRes = await fetch("http://10.0.2.2:5000/api/shops");
+      const shopRes = await fetch(`${API_BASE}/shops`);
       const shopsData = await shopRes.json();
       const shops = shopsData.data;
 
@@ -62,7 +84,6 @@ export const ShopList = ({ onSelect, onClose }) => {
 
       const shopsWithExtraData = shops.map(shop => ({
         ...shop,
-        queueLength: Math.floor(Math.random() * 16), // Simulate queue length
         distance: parseFloat((Math.random() * 10 + 0.5).toFixed(1)), // Simulate distance in km
       }));
 
@@ -112,7 +133,7 @@ export const ShopList = ({ onSelect, onClose }) => {
   const handleClearFilters = () => {
     setSearchQuery("");
     setSortCriteria([]);
-    setShowSortOptions(false); // Close sort dropdown
+    setShowSortOptions(false);
   };
 
   const handleSort = (criterionKey, order) => {
@@ -132,7 +153,7 @@ export const ShopList = ({ onSelect, onClose }) => {
         return [...prevCriteria, { key: criterionKey, order: order }];
       }
     });
-    setShowSortOptions(false); // Close sort options after selection
+    setShowSortOptions(false);
   };
 
   const sortedAndFilteredShops = [...shopRatings].filter((shop) => {
@@ -147,7 +168,7 @@ export const ShopList = ({ onSelect, onClose }) => {
       } else if (key === 'distance') {
         comparison = a.distance - b.distance;
       } else if (key === 'queue') {
-        comparison = a.queueLength - b.queueLength;
+        comparison = (queueCounts[a._id] || 0) - (queueCounts[b._id] || 0);
       }
 
       if (order === 'desc') {
@@ -165,6 +186,7 @@ export const ShopList = ({ onSelect, onClose }) => {
     const shop = item;
     const isSelected = shop._id === selectedShopId;
     const shopRating = shop.rating || 0;
+    const queueCount = queueCounts[shop._id] !== undefined ? queueCounts[shop._id] : 0;
 
     return (
       <TouchableOpacity
@@ -216,12 +238,10 @@ export const ShopList = ({ onSelect, onClose }) => {
               <FontAwesome5 name="clock" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
               <Text style={styles.metaText}>Open</Text>
             </View>
-            {shop.queueLength !== undefined && (
-              <View style={styles.metaItem}>
-                <FontAwesome5 name="users" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
-                <Text style={styles.metaText}>Queue: {shop.queueLength}</Text>
-              </View>
-            )}
+            <View style={styles.metaItem}>
+              <FontAwesome5 name="users" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
+              <Text style={styles.metaText}>Queue: {queueCount}</Text>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -258,9 +278,8 @@ export const ShopList = ({ onSelect, onClose }) => {
 
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={[styles.title, { flexShrink: 1 }]}>Shops</Text> {/* Added flexShrink */}
+          <Text style={[styles.title, { flexShrink: 1 }]}>Shops</Text>
           <View style={styles.headerActions}>
-            {/* Sort By Button */}
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => setShowSortOptions(!showSortOptions)}
@@ -274,7 +293,6 @@ export const ShopList = ({ onSelect, onClose }) => {
                 style={styles.actionButtonIcon}
               />
             </TouchableOpacity>
-            {/* Clear All Button */}
             <TouchableOpacity
               style={styles.actionButton}
               onPress={handleClearFilters}
@@ -304,14 +322,12 @@ export const ShopList = ({ onSelect, onClose }) => {
         </View>
       </View>
 
-      {/* Filter Summary - remains in its current position */}
       <View style={styles.controlsContainer}>
         {filterSummary ? (
           <Text style={styles.filterSummaryText}>{filterSummary}</Text>
         ) : null}
       </View>
 
-      {/* Main content area wrapped by TouchableWithoutFeedback */}
       <TouchableWithoutFeedback onPress={() => setShowSortOptions(false)}>
         <View style={{ flex: 1 }}>
           <FlatList
@@ -330,7 +346,6 @@ export const ShopList = ({ onSelect, onClose }) => {
         </View>
       </TouchableWithoutFeedback>
 
-      {/* Sort Options Dropdown - positioned absolutely on top of everything */}
       {showSortOptions && (
         <View style={styles.sortOptionsDropdown}>
           <Text style={styles.dropdownHeader}>Rating</Text>
@@ -367,9 +382,8 @@ export const ShopList = ({ onSelect, onClose }) => {
         </View>
       )}
 
-      {/* Close Button - positioned at the bottom center */}
       {onClose && (
-        <View style={styles.bottomButtonContainer}> {/* Added a container for padding */}
+        <View style={styles.bottomButtonContainer}>
           <TouchableOpacity
             style={styles.bottomCloseButton}
             onPress={onClose}
@@ -384,23 +398,23 @@ export const ShopList = ({ onSelect, onClose }) => {
 };
 
 const colors = {
-  primary: '#3182ce', // A vibrant blue
-  secondary: '#63b3ed', // Lighter blue
-  background: '#f5f7fa', // Light grey background
-  cardBackground: '#ffffff', // White cards
-  headerBackground: '#000000', // Black for app name
-  textDark: '#2d3748', // Dark grey for main text
-  textMedium: '#4a5568', // Medium grey for labels
-  textLight: '#a0aec0', // Light grey for placeholders and empty states
-  textSecondary: '#718096', // Muted grey for meta info
-  border: '#e2e8f0', // Light border
-  shadow: 'rgba(0, 0, 0, 0.08)', // Soft shadow
-  starActive: '#FFD700', // Gold
-  starInactive: '#cbd5e0', // Lighter grey for inactive stars
+  primary: '#3182ce',
+  secondary: '#63b3ed',
+  background: '#f5f7fa',
+  cardBackground: '#ffffff',
+  headerBackground: '#000000',
+  textDark: '#2d3748',
+  textMedium: '#4a5568',
+  textLight: '#a0aec0',
+  textSecondary: '#718096',
+  border: '#e2e8f0',
+  shadow: 'rgba(0, 0, 0, 0.08)',
+  starActive: '#FFD700',
+  starInactive: '#cbd5e0',
   switchInactive: '#cbd5e0',
   switchThumbInactive: '#f8f9fa',
-  error: '#e53e3e', // Red for errors
-  clearButton: '#000000', // Black for clear action
+  error: '#e53e3e',
+  clearButton: '#000000',
   white: '#ffffff',
 };
 
@@ -496,9 +510,9 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5, // Reduced gap between buttons
+    gap: 5,
   },
-  closeButton: { // This style is no longer used for the close button in the header
+  closeButton: {
     padding: responsiveWidth(2),
     borderRadius: 50,
     backgroundColor: colors.background,
@@ -535,9 +549,9 @@ const styles = StyleSheet.create({
     elevation: 3,
     zIndex: 9,
     position: 'relative',
-    alignItems: 'flex-end', // Align summary text to the right
+    alignItems: 'flex-end',
   },
-  buttonsRow: { // This style is now used for the buttons in the headerActions
+  buttonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: responsiveWidth(2.5),
@@ -546,8 +560,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    paddingVertical: responsiveHeight(0.8), // Reduced vertical padding
-    paddingHorizontal: 10, // Reduced horizontal padding
+    paddingVertical: responsiveHeight(0.8),
+    paddingHorizontal: 10,
     borderRadius: 20,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: responsiveHeight(0.2) },
@@ -559,10 +573,10 @@ const styles = StyleSheet.create({
     fontSize: getResponsiveFontSize(15),
     fontWeight: '600',
     color: colors.textDark,
-    marginLeft: 4, // Reduced margin left
+    marginLeft: 4,
   },
   actionButtonIcon: {
-    marginLeft: 4, // Reduced margin left
+    marginLeft: 4,
   },
   filterSummaryText: {
     fontSize: getResponsiveFontSize(14),
@@ -729,13 +743,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: responsiveHeight(92.8),
     width: '100%',
-    paddingHorizontal: responsiveWidth(4), // Add horizontal padding for the container
+    paddingHorizontal: responsiveWidth(4),
     zIndex: 200,
   },
   bottomCloseButton: {
-    backgroundColor: '#000000', // Changed to primary color
+    backgroundColor: '#000000',
     paddingVertical: responsiveHeight(2),
-    borderRadius: 10, // Slightly rounded corners for a button look
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: colors.shadow,

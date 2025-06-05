@@ -24,6 +24,7 @@ const { width, height } = Dimensions.get("window");
 const API_BASE = "http://10.0.2.2:5000/api";
 const API_BASE2 = "http://10.0.2.2:5000";
 export default function MenuScreen() {
+
   const [queueLength, setQueueLength] = useState(0);
   const [queueItems, setQueueItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -205,6 +206,7 @@ export default function MenuScreen() {
         }
     };
   }, [shopId, socket, fetchQueueData]); // Rerun if shopId or socket connection status changes
+
 
 
   const fetchRateList = useCallback(async () => {
