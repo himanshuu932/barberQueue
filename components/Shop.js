@@ -12,18 +12,21 @@ import {
   StatusBar,
   PixelRatio,
   TouchableWithoutFeedback,
+  Platform, // Added Platform for consistency with menu.js
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width, height } = Dimensions.get("window");
+// Get screen dimensions for responsive styling, consistent with menu.js
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const fontScale = PixelRatio.getFontScale();
+
+// Helper function for responsive font sizes
 const getResponsiveFontSize = (size) => size / fontScale;
 
-const responsiveHeight = (h) => height * (h / 100);
-const responsiveWidth = (w) => width * (w / 100);
-const API_BASE = "http://10.0.2.2:5000/api";
+// Base API URL
+const API_BASE = "https://numbr-p7zc.onrender.com/api";
 
 export const ShopList = ({ onSelect, onClose }) => {
   const [shopRatings, setShopRatings] = useState([]);
@@ -46,6 +49,7 @@ export const ShopList = ({ onSelect, onClose }) => {
     }
   }, [shopRatings]);
 
+  // Loads the currently pinned shop from AsyncStorage
   const loadCurrentShop = async () => {
     try {
       const currentShopId = await AsyncStorage.getItem("pinnedShop");
@@ -57,21 +61,24 @@ export const ShopList = ({ onSelect, onClose }) => {
     }
   };
 
+  // Fetches queue counts for all shops
   const fetchQueueCounts = async (shops) => {
     const counts = {};
-    for (const shop of shops) {
+    // Use Promise.all to fetch counts concurrently for better performance
+    await Promise.all(shops.map(async (shop) => {
       try {
         const res = await fetch(`${API_BASE}/queue/shop/${shop._id}`);
         const json = await res.json();
         counts[shop._id] = json.count || 0;
       } catch (err) {
         console.error(`Error fetching queue for shop ${shop._id}:`, err);
-        counts[shop._id] = 0;
+        counts[shop._id] = 0; // Default to 0 on error
       }
-    }
+    }));
     setQueueCounts(counts);
   };
 
+  // Fetches shop data from the API
   const fetchShops = async () => {
     try {
       const shopRes = await fetch(`${API_BASE}/shops`);
@@ -82,6 +89,7 @@ export const ShopList = ({ onSelect, onClose }) => {
         throw new Error("API did not return a list of shops.");
       }
 
+      // Simulate distance for each shop (as there's no actual distance calculation)
       const shopsWithExtraData = shops.map(shop => ({
         ...shop,
         distance: parseFloat((Math.random() * 10 + 0.5).toFixed(1)), // Simulate distance in km
@@ -95,13 +103,15 @@ export const ShopList = ({ onSelect, onClose }) => {
     }
   };
 
+  // Handles selecting a shop and saving it to AsyncStorage
   const handleSelectShop = async (shopId) => {
     setSelectedShopId(shopId);
     console.log("Selected shop ID:", shopId);
     await AsyncStorage.setItem("pinnedShop", shopId);
-    onSelect?.();
+    onSelect?.(); // Call the onSelect callback if provided
   };
 
+  // Generates a summary of active filters and sort criteria
   const getActiveFilterSummary = () => {
     const filters = [];
     if (searchQuery) {
@@ -130,35 +140,42 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   const filterSummary = getActiveFilterSummary();
 
+  // Clears all search queries and sort criteria
   const handleClearFilters = () => {
     setSearchQuery("");
     setSortCriteria([]);
-    setShowSortOptions(false);
+    setShowSortOptions(false); // Close sort options dropdown
   };
 
+  // Handles sorting based on criterion key and order (asc/desc)
   const handleSort = (criterionKey, order) => {
     setSortCriteria(prevCriteria => {
       const existingIndex = prevCriteria.findIndex(c => c.key === criterionKey);
 
       if (existingIndex !== -1) {
         const existingCriterion = prevCriteria[existingIndex];
+        // If same criterion and order, remove it (toggle off)
         if (existingCriterion.order === order) {
           return prevCriteria.filter((_, i) => i !== existingIndex);
         } else {
+          // If same criterion but different order, update the order
           const newCriteria = [...prevCriteria];
           newCriteria[existingIndex] = { key: criterionKey, order: order };
           return newCriteria;
         }
       } else {
+        // Add new criterion
         return [...prevCriteria, { key: criterionKey, order: order }];
       }
     });
-    setShowSortOptions(false);
+    setShowSortOptions(false); // Close sort options after selection
   };
 
+  // Filters and sorts shops based on current search query and sort criteria
   const sortedAndFilteredShops = [...shopRatings].filter((shop) => {
     return searchQuery ? shop.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
   }).sort((a, b) => {
+    // Apply multiple sort criteria in order of precedence
     for (let i = 0; i < sortCriteria.length; i++) {
       const { key, order } = sortCriteria[i];
       let comparison = 0;
@@ -172,16 +189,17 @@ export const ShopList = ({ onSelect, onClose }) => {
       }
 
       if (order === 'desc') {
-        comparison = -comparison;
+        comparison = -comparison; // Reverse order for descending
       }
 
       if (comparison !== 0) {
-        return comparison;
+        return comparison; // If a comparison is found, return it
       }
     }
-    return 0;
+    return 0; // If no criteria, or all criteria are equal, maintain original order
   });
 
+  // Renders each shop item in the FlatList
   const renderShopItem = ({ item }) => {
     const shop = item;
     const isSelected = shop._id === selectedShopId;
@@ -192,12 +210,13 @@ export const ShopList = ({ onSelect, onClose }) => {
       <TouchableOpacity
         style={[
           styles.shopCard,
-          isSelected && styles.selectedShopCard
+          isSelected && styles.selectedShopCard // Apply selected style if current shop is pinned
         ]}
         onPress={() => handleSelectShop(shop._id)}
-        activeOpacity={0.7}
+        activeOpacity={0.7} // Reduce opacity slightly on press
       >
         <View style={styles.shopImageContainer}>
+          {/* Using a placeholder image with random ID for variety */}
           <Image
             source={{ uri: `https://picsum.photos/300/300?random=${shop._id}` }}
             style={styles.shopImage}
@@ -216,13 +235,14 @@ export const ShopList = ({ onSelect, onClose }) => {
 
           <View style={styles.ratingContainer}>
             <View style={styles.starsContainer}>
+              {/* Render 5 star icons based on shop rating */}
               {[1, 2, 3, 4, 5].map((star) => (
                 <Icon
                   key={star}
                   name="star"
                   size={getResponsiveFontSize(14)}
                   color={star <= Math.round(shopRating) ? colors.starActive : colors.starInactive}
-                  style={{ marginRight: responsiveWidth(0.5) }}
+                  style={{ marginRight: screenWidth * 0.005 }} // Responsive margin
                 />
               ))}
             </View>
@@ -248,6 +268,7 @@ export const ShopList = ({ onSelect, onClose }) => {
     );
   };
 
+  // Display loading indicator while data is being fetched
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -257,6 +278,7 @@ export const ShopList = ({ onSelect, onClose }) => {
     );
   }
 
+  // Display error message if fetching data fails
   if (error) {
     return (
       <View style={styles.errorContainer}>
@@ -271,15 +293,19 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   return (
     <View style={styles.container}>
+      {/* App Header (Numbr title) */}
       <View style={styles.headerApp}>
         <Text style={styles.titleApp}>Numbr</Text>
       </View>
+      {/* StatusBar for iOS/Android */}
       <StatusBar backgroundColor={colors.headerBackground} barStyle="light-content" />
 
+      {/* Main Header for Shop List (Search, Sort, Clear) */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={[styles.title, { flexShrink: 1 }]}>Shops</Text>
           <View style={styles.headerActions}>
+            {/* Sort By Button */}
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => setShowSortOptions(!showSortOptions)}
@@ -293,6 +319,7 @@ export const ShopList = ({ onSelect, onClose }) => {
                 style={styles.actionButtonIcon}
               />
             </TouchableOpacity>
+            {/* Clear All Filters Button */}
             <TouchableOpacity
               style={styles.actionButton}
               onPress={handleClearFilters}
@@ -302,6 +329,7 @@ export const ShopList = ({ onSelect, onClose }) => {
           </View>
         </View>
 
+        {/* Search Input */}
         <View style={styles.searchContainer}>
           <Icon name="search" size={getResponsiveFontSize(18)} color={colors.textLight} style={styles.searchIcon} />
           <TextInput
@@ -312,9 +340,10 @@ export const ShopList = ({ onSelect, onClose }) => {
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
+            // Clear search query button
             <TouchableOpacity
               onPress={() => setSearchQuery("")}
-              hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+              hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }} // Increase touchable area
             >
               <Icon name="times-circle" size={getResponsiveFontSize(18)} color={colors.textLight} />
             </TouchableOpacity>
@@ -322,12 +351,15 @@ export const ShopList = ({ onSelect, onClose }) => {
         </View>
       </View>
 
+      {/* Filter Summary Display */}
       <View style={styles.controlsContainer}>
         {filterSummary ? (
           <Text style={styles.filterSummaryText}>{filterSummary}</Text>
         ) : null}
       </View>
 
+      {/* FlatList for displaying shops */}
+      {/* TouchableWithoutFeedback to close sort options when tapping outside */}
       <TouchableWithoutFeedback onPress={() => setShowSortOptions(false)}>
         <View style={{ flex: 1 }}>
           <FlatList
@@ -337,6 +369,7 @@ export const ShopList = ({ onSelect, onClose }) => {
             contentContainerStyle={styles.shopList}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
+              // Component to show when no shops are found
               <View style={styles.emptyContainer}>
                 <FontAwesome5 name="search" size={getResponsiveFontSize(50)} color={colors.textLight} />
                 <Text style={styles.emptyText}>No shops found matching your criteria</Text>
@@ -346,11 +379,13 @@ export const ShopList = ({ onSelect, onClose }) => {
         </View>
       </TouchableWithoutFeedback>
 
+      {/* Sort Options Dropdown */}
       {showSortOptions && (
         <View style={styles.sortOptionsDropdown}>
           <Text style={styles.dropdownHeader}>Rating</Text>
           <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('rating', 'desc')}>
             <Text style={styles.sortOptionText}>High to Low</Text>
+            {/* Checkmark if this option is currently selected */}
             {sortCriteria.some(c => c.key === 'rating' && c.order === 'desc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('rating', 'asc')}>
@@ -382,6 +417,7 @@ export const ShopList = ({ onSelect, onClose }) => {
         </View>
       )}
 
+      {/* "Back to Home" button, visible if onClose prop is provided */}
       {onClose && (
         <View style={styles.bottomButtonContainer}>
           <TouchableOpacity
@@ -418,25 +454,21 @@ const colors = {
   white: '#ffffff',
 };
 
+// Stylesheet using screen dimensions for responsive layout, consistent with menu.js
 const styles = StyleSheet.create({
   headerApp: {
-    height: responsiveHeight(9),
+    height: screenHeight * 0.10, 
     backgroundColor: "black",
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsiveWidth(4),
-    width: '100%',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: responsiveHeight(0.4) },
-    shadowOpacity: 0.2,
-    shadowRadius: responsiveWidth(1.2),
-    elevation: 8,
+    alignItems: "center", // Vertically centers content in the header
+    paddingHorizontal: screenWidth * 0.042, // Horizontal padding remains fixed, but can be percentage if desired
+    paddingTop: screenHeight * 0.03,
   },
   titleApp: {
     color: "#fff",
-    fontSize: getResponsiveFontSize(20),
-    marginLeft: responsiveWidth(4),
-    marginTop: responsiveHeight(2),
+    fontSize: screenWidth * 0.055, // Adjust font size based on screen width for responsiveness
+    marginTop: screenHeight * 0.015,
+    marginLeft: screenWidth * 0.042, // Fixed left margin, adjust if needed
   },
   container: {
     flex: 1,
@@ -449,7 +481,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   loadingText: {
-    marginTop: responsiveHeight(2),
+    marginTop: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
     fontSize: getResponsiveFontSize(16),
     color: colors.textMedium,
     fontWeight: "500",
@@ -458,21 +490,21 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: responsiveWidth(6),
+    padding: screenWidth * 0.06, // Adjusted from responsiveWidth(6)
     backgroundColor: colors.background,
   },
   errorText: {
-    marginTop: responsiveHeight(2),
+    marginTop: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
     fontSize: getResponsiveFontSize(16),
     color: colors.textMedium,
     textAlign: "center",
-    lineHeight: responsiveHeight(3),
+    lineHeight: screenHeight * 0.03, // Adjusted from responsiveHeight(3)
     fontWeight: "500",
   },
   retryButton: {
-    marginTop: responsiveHeight(3),
-    paddingVertical: responsiveHeight(1.5),
-    paddingHorizontal: responsiveWidth(6),
+    marginTop: screenHeight * 0.03, // Adjusted from responsiveHeight(3)
+    paddingVertical: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
+    paddingHorizontal: screenWidth * 0.06, // Adjusted from responsiveWidth(6)
     backgroundColor: colors.primary,
     borderRadius: 8,
     elevation: 2,
@@ -484,15 +516,15 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.cardBackground,
-    paddingTop: responsiveHeight(2),
-    paddingBottom: responsiveHeight(1.5),
-    paddingHorizontal: responsiveWidth(4),
+    paddingTop: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
+    paddingBottom: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
+    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: responsiveHeight(0.1) },
+    shadowOffset: { width: 0, height: screenHeight * 0.001 }, // Adjusted from responsiveHeight(0.1)
     shadowOpacity: 0.05,
-    shadowRadius: responsiveWidth(0.5),
+    shadowRadius: screenWidth * 0.005, // Adjusted from responsiveWidth(0.5)
     elevation: 2,
     zIndex: 10,
   },
@@ -500,7 +532,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: responsiveHeight(1.5),
+    marginBottom: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
   },
   title: {
     fontSize: getResponsiveFontSize(22),
@@ -510,10 +542,10 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: screenWidth * 0.0125, // Adjusted from responsiveWidth(2.5) / 2
   },
   closeButton: {
-    padding: responsiveWidth(2),
+    padding: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
     borderRadius: 50,
     backgroundColor: colors.background,
   },
@@ -522,12 +554,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.background,
     borderRadius: 10,
-    paddingHorizontal: responsiveWidth(4),
-    height: responsiveHeight(6),
-    marginBottom: responsiveHeight(1),
+    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
+    height: screenHeight * 0.06, // Adjusted from responsiveHeight(6)
+    marginBottom: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
   },
   searchIcon: {
-    marginRight: responsiveWidth(3),
+    marginRight: screenWidth * 0.03, // Adjusted from responsiveWidth(3)
     color: colors.textSecondary,
   },
   searchInput: {
@@ -537,15 +569,15 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   controlsContainer: {
-    paddingHorizontal: responsiveWidth(4),
-    paddingVertical: responsiveHeight(1),
+    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
+    paddingVertical: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
     backgroundColor: colors.cardBackground,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: responsiveHeight(0.1) },
+    shadowOffset: { width: 0, height: screenHeight * 0.001 }, // Adjusted from responsiveHeight(0.1)
     shadowOpacity: 0.1,
-    shadowRadius: responsiveWidth(0.5),
+    shadowRadius: screenWidth * 0.005, // Adjusted from responsiveWidth(0.5)
     elevation: 3,
     zIndex: 9,
     position: 'relative',
@@ -554,70 +586,70 @@ const styles = StyleSheet.create({
   buttonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: responsiveWidth(2.5),
+    gap: screenWidth * 0.025, // Adjusted from responsiveWidth(2.5)
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    paddingVertical: responsiveHeight(0.8),
-    paddingHorizontal: 10,
+    paddingVertical: screenHeight * 0.008, // Adjusted from responsiveHeight(0.8)
+    paddingHorizontal: screenWidth * 0.025, // Approximately 10px, adjusted for responsiveness
     borderRadius: 20,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: responsiveHeight(0.2) },
+    shadowOffset: { width: 0, height: screenHeight * 0.002 }, // Adjusted from responsiveHeight(0.2)
     shadowOpacity: 0.15,
-    shadowRadius: responsiveWidth(0.75),
+    shadowRadius: screenWidth * 0.0075, // Adjusted from responsiveWidth(0.75)
     elevation: 4,
   },
   actionButtonText: {
     fontSize: getResponsiveFontSize(15),
     fontWeight: '600',
     color: colors.textDark,
-    marginLeft: 4,
+    marginLeft: screenWidth * 0.01, // Approximately 4px, adjusted for responsiveness
   },
   actionButtonIcon: {
-    marginLeft: 4,
+    marginLeft: screenWidth * 0.01, // Approximately 4px, adjusted for responsiveness
   },
   filterSummaryText: {
     fontSize: getResponsiveFontSize(14),
     color: colors.textSecondary,
     textAlign: 'right',
-    paddingHorizontal: responsiveWidth(1.2),
+    paddingHorizontal: screenWidth * 0.012, // Adjusted from responsiveWidth(1.2)
   },
   sortOptionsDropdown: {
     position: 'absolute',
-    top: responsiveHeight(6),
-    right: responsiveWidth(4),
-    width: responsiveWidth(60),
+    top: screenHeight * 0.06, // Adjusted from responsiveHeight(6)
+    right: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
+    width: screenWidth * 0.60, // Adjusted from responsiveWidth(60)
     backgroundColor: colors.cardBackground,
     borderRadius: 10,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: responsiveHeight(0.4) },
+    shadowOffset: { width: 0, height: screenHeight * 0.004 }, // Adjusted from responsiveHeight(0.4)
     shadowOpacity: 0.25,
-    shadowRadius: responsiveWidth(1.5),
+    shadowRadius: screenWidth * 0.015, // Adjusted from responsiveWidth(1.5)
     elevation: 10,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: responsiveHeight(1),
+    paddingVertical: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
     zIndex: 100,
   },
   dropdownHeader: {
     fontSize: getResponsiveFontSize(14),
     fontWeight: '700',
     color: colors.textMedium,
-    paddingHorizontal: responsiveWidth(4),
-    paddingVertical: responsiveHeight(0.8),
+    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
+    paddingVertical: screenHeight * 0.008, // Adjusted from responsiveHeight(0.8)
     backgroundColor: colors.background,
     borderRadius: 5,
-    marginHorizontal: responsiveWidth(2),
-    marginBottom: responsiveHeight(0.5),
+    marginHorizontal: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
+    marginBottom: screenHeight * 0.005, // Adjusted from responsiveHeight(0.5)
   },
   sortOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: responsiveHeight(1.2),
-    paddingHorizontal: responsiveWidth(4),
+    paddingVertical: screenHeight * 0.012, // Adjusted from responsiveHeight(1.2)
+    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
   },
   sortOptionText: {
     fontSize: getResponsiveFontSize(15),
@@ -627,25 +659,25 @@ const styles = StyleSheet.create({
   sortOptionDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
-    marginVertical: responsiveHeight(0.5),
-    marginHorizontal: responsiveWidth(2),
+    marginVertical: screenHeight * 0.005, // Adjusted from responsiveHeight(0.5)
+    marginHorizontal: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
   },
   shopList: {
-    paddingHorizontal: responsiveWidth(4),
-    paddingTop: responsiveHeight(1.5),
-    paddingBottom: responsiveHeight(3),
+    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
+    paddingTop: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
+    paddingBottom: screenHeight * 0.03, // Adjusted from responsiveHeight(3)
   },
   shopCard: {
     backgroundColor: colors.cardBackground,
     width: '100%',
-    marginBottom: responsiveHeight(2),
+    marginBottom: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
     borderRadius: 12,
     overflow: "hidden",
     elevation: 2,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: responsiveHeight(0.2) },
+    shadowOffset: { width: 0, height: screenHeight * 0.002 }, // Adjusted from responsiveHeight(0.2)
     shadowOpacity: 0.08,
-    shadowRadius: responsiveWidth(1),
+    shadowRadius: screenWidth * 0.01, // Adjusted from responsiveWidth(1)
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -654,12 +686,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     shadowColor: colors.primary,
     shadowOpacity: 0.2,
-    shadowRadius: responsiveWidth(2),
+    shadowRadius: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
   },
   shopImageContainer: {
     position: "relative",
     width: "100%",
-    height: responsiveWidth(32),
+    height: screenWidth * 0.32, // Adjusted from responsiveWidth(32) to maintain aspect ratio and consistency
   },
   shopImage: {
     width: "100%",
@@ -668,37 +700,37 @@ const styles = StyleSheet.create({
   },
   selectedBadge: {
     position: "absolute",
-    top: responsiveHeight(1),
-    right: responsiveWidth(2),
+    top: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
+    right: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
     backgroundColor: colors.primary,
-    width: responsiveWidth(6),
-    height: responsiveWidth(6),
-    borderRadius: responsiveWidth(3),
+    width: screenWidth * 0.06, // Adjusted from responsiveWidth(6)
+    height: screenWidth * 0.06, // Adjusted from responsiveWidth(6)
+    borderRadius: screenWidth * 0.03, // Adjusted from responsiveWidth(3)
     justifyContent: "center",
     alignItems: "center",
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: responsiveHeight(0.1) },
+    shadowOffset: { width: 0, height: screenHeight * 0.001 }, // Adjusted from responsiveHeight(0.1)
     shadowOpacity: 0.2,
-    shadowRadius: responsiveWidth(0.5),
+    shadowRadius: screenWidth * 0.005, // Adjusted from responsiveWidth(0.5)
   },
   shopDetails: {
-    paddingHorizontal: responsiveWidth(4),
-    paddingVertical: responsiveHeight(1.2),
+    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
+    paddingVertical: screenHeight * 0.012, // Adjusted from responsiveHeight(1.2)
   },
   shopName: {
     fontSize: getResponsiveFontSize(18),
     fontWeight: "700",
     color: colors.textDark,
-    marginBottom: responsiveHeight(1),
+    marginBottom: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
   },
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: responsiveHeight(1.5),
+    marginBottom: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
   },
   starsContainer: {
     flexDirection: "row",
-    marginRight: responsiveWidth(2),
+    marginRight: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
   },
   ratingText: {
     fontSize: getResponsiveFontSize(16),
@@ -709,53 +741,53 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     flexWrap: 'wrap',
-    gap: responsiveWidth(2),
+    gap: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
   },
   metaItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.background,
-    paddingVertical: responsiveHeight(0.6),
-    paddingHorizontal: responsiveWidth(2),
+    paddingVertical: screenHeight * 0.006, // Adjusted from responsiveHeight(0.6)
+    paddingHorizontal: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
     borderRadius: 8,
   },
   metaText: {
     fontSize: getResponsiveFontSize(14),
     color: colors.textSecondary,
-    marginLeft: responsiveWidth(1.5),
+    marginLeft: screenWidth * 0.015, // Adjusted from responsiveWidth(1.5)
     fontWeight: "500",
   },
   emptyContainer: {
     flex: 1,
-    padding: responsiveWidth(10),
+    padding: screenWidth * 0.10, // Adjusted from responsiveWidth(10)
     alignItems: "center",
     justifyContent: "center",
   },
   emptyText: {
-    marginTop: responsiveHeight(2),
+    marginTop: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
     fontSize: getResponsiveFontSize(16),
     color: colors.textLight,
     textAlign: "center",
-    lineHeight: responsiveHeight(3),
+    lineHeight: screenHeight * 0.03, // Adjusted from responsiveHeight(3)
     fontWeight: "500",
   },
   bottomButtonContainer: {
     position: 'absolute',
-    top: responsiveHeight(92.8),
+    bottom: Platform.OS === 'ios' ? screenHeight * 0.04 : screenHeight * 0.02,
     width: '100%',
-    paddingHorizontal: responsiveWidth(4),
+    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
     zIndex: 200,
   },
   bottomCloseButton: {
     backgroundColor: '#000000',
-    paddingVertical: responsiveHeight(2),
+    paddingVertical: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: responsiveHeight(0.4) },
+    shadowOffset: { width: 0, height: screenHeight * 0.004 }, // Adjusted from responsiveHeight(0.4)
     shadowOpacity: 0.3,
-    shadowRadius: responsiveWidth(1.5),
+    shadowRadius: screenWidth * 0.015, // Adjusted from responsiveWidth(1.5)
     elevation: 10,
   },
   bottomCloseButtonText: {

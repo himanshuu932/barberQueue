@@ -1,23 +1,34 @@
 import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  Image, 
-  TouchableOpacity, 
-  Animated, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Animated,
   Alert,
   ActivityIndicator,
   Modal,
   TextInput,
   ImageBackground,
-  Linking
+  Linking,
+  Dimensions, // Import Dimensions for responsiveness
+  PixelRatio, // Import PixelRatio for responsive fonts
+  Platform,   // Import Platform for consistent structure
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
+
+// Get screen dimensions for responsive styling
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const fontScale = PixelRatio.getFontScale();
+
+// Helper function for responsive font sizes
+const getResponsiveFontSize = (size) => size / fontScale;
+
 
 export default function TabProfileScreen() {
   const router = useRouter();
@@ -113,12 +124,12 @@ export default function TabProfileScreen() {
 
   const shineTranslateX = shineAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [-200, 900],
+    outputRange: [-screenWidth * 0.5, screenWidth * 2.25], // Adjusted for responsiveness
   });
 
   const shineTranslateY = shineAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [-200, 250],
+    outputRange: [-screenHeight * 0.25, screenHeight * 0.3], // Adjusted for responsiveness
   });
 
   const handleLogout = async () => {
@@ -152,13 +163,13 @@ export default function TabProfileScreen() {
     }
     try {
       setIsUpdating(true);
-      const response = await fetch(`${API_BASE}/users/profile`, { 
-        method: "PUT", 
-        headers: { 
+      const response = await fetch(`${API_BASE}/users/profile`, {
+        method: "PUT",
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${userToken}`,
         },
-        body: JSON.stringify({ name, email }), 
+        body: JSON.stringify({ name, email }),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -202,9 +213,9 @@ export default function TabProfileScreen() {
                   setIsModalVisible(true);
                 }}
               >
-                <Image 
+                <Image
                   source={require("../image/editw.png")}
-                  style={{ width: 25, height: 25, tintColor: "white" }}
+                  style={styles.editButtonImage} // Use responsive style
                 />
               </TouchableOpacity>
               <Animated.View
@@ -228,7 +239,7 @@ export default function TabProfileScreen() {
                   ) : (
                     <View>
                       <Text style={styles.username}>{profile?.name || "User Name"}</Text>
-                      <Text style={styles.userInfo}>{profile?.email || profile?.phone || "N/A"}</Text> 
+                      <Text style={styles.userInfo}>{profile?.email || profile?.phone || "N/A"}</Text>
                       {/* Display Subscription Status */}
                       {profile?.subscription?.status && (
                         <Text style={styles.subscriptionText}>
@@ -253,7 +264,7 @@ export default function TabProfileScreen() {
         <View style={styles.serviceHistoryContainer}>
           <Text style={styles.sectionTitle}>Service History</Text>
           <View style={styles.historyBox}>
-            <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 280 }}>
+            <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={styles.historyScrollView}>
               {profile?.history?.length ? (
                 profile.history.map((item, index) => (
                   <View key={index} style={styles.historyCard}>
@@ -324,31 +335,34 @@ export default function TabProfileScreen() {
 
 const styles = StyleSheet.create({
   sectionTitle: {
-    fontSize: 20, 
-    fontWeight: "bold", 
-    marginBottom: 10, 
+    fontSize: getResponsiveFontSize(20),
+    fontWeight: "bold",
+    marginBottom: screenHeight * 0.012, // Responsive margin
     color: "#000",
   },
   serviceHistoryContainer: {
-    width: "100%", 
-    alignItems: "center", 
-    marginBottom: 20, 
+    width: "100%",
+    alignItems: "center",
+    marginBottom: screenHeight * 0.025, // Responsive margin
   },
   historyBox: {
-    backgroundColor: "#fff", 
-    borderRadius: 12, 
-    width: "90%", 
-    padding: 10, 
-    maxHeight: 300,
+    backgroundColor: "#fff",
+    borderRadius: screenWidth * 0.03, // Responsive border radius
+    width: "90%",
+    padding: screenWidth * 0.025, // Responsive padding
+    maxHeight: screenHeight * 0.35, // Responsive max height
     elevation: 5,
     overflow: "hidden",
   },
+  historyScrollView: {
+    maxHeight: '100%', // Ensure scroll view takes full height of its container
+  },
   historyCard: {
-    backgroundColor: "#F9F9F9", 
-    padding: 11, 
-    borderRadius: 10, 
-    marginBottom: 10, 
-    elevation: 3 
+    backgroundColor: "#F9F9F9",
+    padding: screenWidth * 0.027, // Responsive padding
+    borderRadius: screenWidth * 0.025, // Responsive border radius
+    marginBottom: screenHeight * 0.012, // Responsive margin
+    elevation: 3
   },
   backgroundImage: {
     flex: 1,
@@ -368,67 +382,72 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
-    width: "85%",
+    width: screenWidth * 0.85, // Responsive width
     backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 10,
+    padding: screenWidth * 0.05, // Responsive padding
+    borderRadius: screenWidth * 0.025, // Responsive border radius
     elevation: 5,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: getResponsiveFontSize(20),
     fontWeight: "bold",
-    marginBottom: 15,
+    marginBottom: screenHeight * 0.018, // Responsive margin
     textAlign: "center",
   },
   input: {
     width: "100%",
     borderWidth: 1,
     borderColor: "#ccc",
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 16,
+    borderRadius: screenWidth * 0.012, // Responsive border radius
+    padding: screenWidth * 0.025, // Responsive padding
+    marginBottom: screenHeight * 0.012, // Responsive margin
+    fontSize: getResponsiveFontSize(16), // Responsive font size
   },
   modalButtonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 10,
+    marginTop: screenHeight * 0.012, // Responsive margin
   },
   modalButton: {
     flex: 1,
     backgroundColor: "#1a1a1a",
-    padding: 10,
-    borderRadius: 5,
+    padding: screenWidth * 0.025, // Responsive padding
+    borderRadius: screenWidth * 0.012, // Responsive border radius
     alignItems: "center",
-    marginHorizontal: 5,
+    marginHorizontal: screenWidth * 0.012, // Responsive margin
   },
   modalButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16), // Responsive font size
     fontWeight: "bold",
   },
   editButton: {
     position: "absolute",
-    top: 0,
-    right: 5,
-    padding: 3,
-    borderRadius: 6,
+    top: screenHeight * 0.006, // Responsive top position
+    right: screenWidth * 0.012, // Responsive right position
+    padding: screenWidth * 0.0075, // Responsive padding
+    borderRadius: screenWidth * 0.015, // Responsive border radius
     alignItems: "center"
+  },
+  editButtonImage: {
+    width: screenWidth * 0.062, // Responsive width
+    height: screenWidth * 0.062, // Responsive height
+    tintColor: "white",
   },
   container: {
     flex: 1,
     width: "100%",
   },
   header: {
-    padding: 20,
+    padding: screenWidth * 0.05, // Responsive padding
     alignItems: "center",
   },
   profileBox: {
     width: "100%",
-    height: 150,
-    borderRadius: 10,
+    height: screenHeight * 0.18, // Responsive height
+    borderRadius: screenWidth * 0.025, // Responsive border radius
     overflow: "hidden",
-    marginBottom: 20,
+    marginBottom: screenHeight * 0.025, // Responsive margin
   },
   profileBackground: {
     width: "100%",
@@ -441,8 +460,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: 0,
-    width: 300,
-    height: "300%",
+    width: screenWidth * 0.75, // Responsive width
+    height: screenHeight * 0.5, // Responsive height
   },
   shineGradient: {
     width: "100%",
@@ -452,61 +471,62 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-    paddingHorizontal: 20,
+    paddingHorizontal: screenWidth * 0.05, // Responsive padding
   },
-  paymentRow: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center" 
+  paymentRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
   },
   profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: screenWidth * 0.2, // Responsive width
+    height: screenWidth * 0.2, // Responsive height
+    borderRadius: screenWidth * 0.1, // Responsive border radius
     borderColor: "#fff",
-    borderWidth: 2,
-    marginRight: 15,
+    borderWidth: screenWidth * 0.005, // Responsive border width
+    marginRight: screenWidth * 0.037, // Responsive margin
   },
   profileDetails: {
     flex: 1,
   },
   username: {
-    fontSize: 22,
+    fontSize: getResponsiveFontSize(22),
     fontWeight: "900",
     color: "#fff",
   },
   userInfo: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: "bold",
     color: "#fff",
-    marginTop: 2,
+    marginTop: screenHeight * 0.002, // Responsive margin
   },
   subscriptionText: { // New style for subscription info
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: "#fff",
-    marginTop: 2,
+    marginTop: screenHeight * 0.002, // Responsive margin
   },
   historyService: {
-    fontSize: 15,
+    fontSize: getResponsiveFontSize(15),
     color: "#777",
-    marginTop: 4,
+    marginTop: screenHeight * 0.005, // Responsive margin
   },
   paymentAmount: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: "bold",
     color: "rgb(16, 98, 13)",
   },
   historyDate: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: "#555",
   },
   noHistory: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: "#999",
     textAlign: "center",
+    paddingVertical: screenHeight * 0.02, // Responsive padding
   },
   footer: {
-    padding: 8,
+    padding: screenWidth * 0.02, // Responsive padding
     alignItems: "center",
     position: 'absolute',
     bottom: 0,
@@ -516,49 +536,49 @@ const styles = StyleSheet.create({
     width: "90%",
   },
   button: {
-    padding: 12,
+    padding: screenHeight * 0.015, // Responsive padding
     alignItems: "center",
-    borderRadius: 8,
+    borderRadius: screenWidth * 0.02, // Responsive border radius
   },
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: "bold",
   },
   companyContainer: {
     width: "90%",
-    borderRadius: 10,
+    borderRadius: screenWidth * 0.025, // Responsive border radius
     overflow: "hidden",
     marginLeft: "5%",
-    marginBottom: 80, // Increased margin to prevent touching logout button
+    marginBottom: screenHeight * 0.1, // Responsive margin
   },
   companyBackground: {
-    padding: 20,
-    borderRadius: 12,
+    padding: screenWidth * 0.05, // Responsive padding
+    borderRadius: screenWidth * 0.03, // Responsive border radius
   },
   companyTitle: {
-    fontSize: 24,
+    fontSize: getResponsiveFontSize(24),
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 10,
+    marginBottom: screenHeight * 0.012, // Responsive margin
     textAlign: "center",
   },
   companyTagline: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: "#ddd",
-    marginBottom: 10,
+    marginBottom: screenHeight * 0.012, // Responsive margin
     fontStyle: "italic",
     textAlign: "center",
   },
   companyDescription: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: "#ccc",
     textAlign: "justify",
-    marginBottom: 15,
-    paddingHorizontal: 15,
+    marginBottom: screenHeight * 0.018, // Responsive margin
+    paddingHorizontal: screenWidth * 0.037, // Responsive padding
   },
   companyWebsite: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: "#00aaff",
     fontWeight: "bold",
   },
@@ -566,34 +586,34 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#444",
     width: "100%",
-    marginVertical: 15,
+    marginVertical: screenHeight * 0.018, // Responsive margin
   },
   phoneContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: screenHeight * 0.012, // Responsive margin
     justifyContent: "flex-start",
   },
   numberText: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: "bold",
     color: "#00aaff",
-    marginLeft: 5,
+    marginLeft: screenWidth * 0.012, // Responsive margin
   },
   infoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: screenHeight * 0.012, // Responsive margin
   },
   infoGridItem: {
     width: '48%',
-    paddingVertical: 5,
-    marginBottom: 10,
+    paddingVertical: screenHeight * 0.006, // Responsive padding
+    marginBottom: screenHeight * 0.012, // Responsive margin
     alignItems: 'flex-start',
   },
   infoLinkText: {
-    fontSize: 13,
+    fontSize: getResponsiveFontSize(13),
     color: "#ADD8E6",
     textDecorationLine: "underline",
     textAlign: "left",

@@ -20,7 +20,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const { width, height } = Dimensions.get("window");
+const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 const API_BASE = "https://numbr-p7zc.onrender.com/api";
 const API_BASE2 = "https://numbr-p7zc.onrender.com";
 export default function MenuScreen() {
@@ -571,35 +571,42 @@ const updateUserServices = async () => {
   useEffect(() => {
     let timer;
     const updateRemainingTime = async () => {
-      if (currentUserQueueEntry && userPositionInQueue) {
-        const joinTimeStr = await AsyncStorage.getItem("joinTimestamp"); // This might be for *this* user specifically
-        const joinedAt = currentUserQueueEntry.createdAt ? new Date(currentUserQueueEntry.createdAt).getTime() : (joinTimeStr ? Number(joinTimeStr) : Date.now());
-        
-        const elapsedSinceJoin = Math.floor((Date.now() - joinedAt) / 1000); // seconds
+      if (currentUserQueueEntry && userPositionInQueue !== null) { // Ensure userPositionInQueue is not null
+        // Calculate estimated total time based on people ahead and average service time
         const peopleAhead = userPositionInQueue - 1;
-        const estimatedWaitTimeForPeopleAhead = peopleAhead * avgServiceTimePerPerson * 60; // seconds
-        
-        // This needs refinement: if user just joined, elapsed might be small.
-        // A better approach is to estimate based on queue position only, or time service started for person ahead.
-        // Simple estimation based on position:
-        let newRemainingTime = estimatedWaitTimeForPeopleAhead;
-        // If this user is #1, and their service hasn't started (status pending), this is their wait time.
-        // If their service is in-progress, remainingTime is not relevant in this way.
+        const estimatedTotalWaitTimeSeconds = peopleAhead * avgServiceTimePerPerson * 60; // seconds
+
+        // Determine the actual join time for the countdown
+        // Prioritize `currentUserQueueEntry.createdAt` from the backend for accuracy.
+        // Fallback to `joinTimestamp` from AsyncStorage if backend data is not available,
+        // otherwise, use current time as a last resort (less accurate for a countdown).
+        const joinedAt = currentUserQueueEntry.createdAt
+          ? new Date(currentUserQueueEntry.createdAt).getTime()
+          : (await AsyncStorage.getItem("joinTimestamp") ? Number(await AsyncStorage.getItem("joinTimestamp")) : Date.now());
+
+        // Calculate elapsed time since joining the queue
+        const elapsedSinceJoin = Math.floor((Date.now() - joinedAt) / 1000); // seconds
+
+        // Calculate remaining time by subtracting elapsed time from the total estimated time
+        let newRemainingTime = estimatedTotalWaitTimeSeconds - elapsedSinceJoin;
+
+        // Ensure remaining time doesn't go below zero
         setRemainingTime(newRemainingTime > 0 ? newRemainingTime : 0);
 
       } else {
-        setRemainingTime(null);
+        setRemainingTime(null); // Clear remaining time if user is not in queue
       }
     };
 
-    if (userPositionInQueue) {
-      updateRemainingTime();
-      timer = setInterval(updateRemainingTime, 5000); // Update less frequently, e.g., every 5s or when queue changes
+    // Start updating the timer only if the user is in the queue
+    if (userPositionInQueue !== null) {
+      updateRemainingTime(); // Initial call to set time immediately
+      timer = setInterval(updateRemainingTime, 1000); // Update every 1 second for a smooth countdown
     } else {
       setRemainingTime(null); // Clear if not in position
     }
-    return () => clearInterval(timer);
-  }, [userPositionInQueue, currentUserQueueEntry, avgServiceTimePerPerson]);
+    return () => clearInterval(timer); // Cleanup timer on unmount or dependency change
+  }, [userPositionInQueue, currentUserQueueEntry, avgServiceTimePerPerson]); // Dependencies to re-run effect
 
 
   const formatTime = (seconds) => {
@@ -767,56 +774,295 @@ const updateUserServices = async () => {
 
 // Styles (ensure these match your application's theme and requirements)
 const styles = StyleSheet.create({
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  backgroundImage: { flex: 1 },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(240, 240, 240, 0.8)', zIndex: 1 },
-  container: { flex: 1, paddingTop: Platform.OS === 'ios' ? 80 : 70, paddingHorizontal: 15, alignItems: 'center', zIndex: 2 },
-  header: {
-    position: 'absolute', top: Platform.OS === 'ios' ? 30 : 15, left: 15, right: 15,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 10, zIndex: 3,
+  centered: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: screenWidth * 0.056 
   },
-  chooseShopButton: { padding: 8, backgroundColor: 'rgba(0,0,200,0.7)', borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  shopName: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 'bold', color: '#333', marginHorizontal: 8, },
-  queue: { fontSize: 15, fontWeight: 'bold', backgroundColor: '#28a745', color: '#fff', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, },
-  userCode: { fontSize: Math.min(width * 0.18, 70) , fontWeight: 'bold', color: '#333', marginBottom: 15, textAlign: 'center' },
+  backgroundImage: { 
+    flex: 1 
+  },
+  overlay: { 
+    ...StyleSheet.absoluteFillObject, 
+    backgroundColor: 'rgba(240, 240, 240, 0.8)', 
+    zIndex: 1 
+  },
+  container: { 
+    flex: 1, 
+    paddingTop: Platform.OS === 'ios' ? screenHeight * 0.1 : screenHeight * 0.0875, 
+    paddingHorizontal: screenWidth * 0.04, 
+    alignItems: 'center', 
+    zIndex: 2 
+  },
+  header: {
+    position: 'absolute', 
+    top: Platform.OS === 'ios' ? screenHeight * 0.038 : screenHeight * 0.019, 
+    left: screenWidth * 0.042, 
+    right: screenWidth * 0.042,
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    paddingVertical: screenHeight * 0.0125, 
+    zIndex: 3,
+  },
+  chooseShopButton: { 
+    padding: screenWidth * 0.022, 
+    backgroundColor: 'rgba(0,0,200,0.7)', 
+    borderRadius: "20%", 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  shopName: { 
+    flex: 1, 
+    textAlign: 'center', 
+    fontSize: screenWidth * 0.06, 
+    fontWeight: 'bold', 
+    color: '#333', 
+    // marginHorizontal: 8, 
+  },
+  queue: { 
+    fontSize: screenWidth * 0.041, 
+    fontWeight: 'bold', 
+    backgroundColor: '#28a745', 
+    color: '#fff', 
+    paddingHorizontal: screenWidth * 0.027, 
+    paddingVertical: screenHeight * 0.0075, 
+    borderRadius: 8, 
+  },
+  userCode: { 
+    fontSize: Math.min(screenWidth * 0.18, screenWidth * 0.19) , 
+    fontWeight: 'bold', 
+    color: '#333', 
+    marginBottom: screenHeight * 0.02, 
+    textAlign: 'center' 
+  },
   
-  ticketContainer: { width: '100%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6, borderWidth: 1, borderColor: '#ddd' },
-  ticketHeader: { backgroundColor: '#333', paddingVertical: 10, alignItems: 'center' },
-  ticketHeaderText: { color: '#fff', fontSize: 16, fontWeight: 'bold', letterSpacing: 0.5 },
-  ticketBody: { padding: 15 },
-  positionContainer: { alignItems: 'center', marginBottom: 12 },
-  positionLabel: { fontSize: 13, color: '#555', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 1 },
-  positionValue: { fontSize: 44, fontWeight: 'bold', color: '#222' },
-  waitTimeContainer: { alignItems: 'center', marginBottom: 18 },
-  waitTimeLabel: { fontSize: 13, color: '#555', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 1 },
-  waitTimeValue: { fontSize: 22, fontWeight: 'bold', color: '#d32f2f' },
-  servicesSection: { marginBottom: 12 },
-  sectionTitle: { fontSize: 13, color: '#444', fontWeight: '600', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  servicesScroll: { maxHeight: 80 },
-  servicePill: { flexDirection: 'row', backgroundColor: '#f5f5f5', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6, marginBottom: 6, alignItems: 'center', borderWidth: 1, borderColor: '#e5e5e5' },
-  serviceName: { fontSize: 13, color: '#333', marginRight: 5 },
-  servicePrice: { fontSize: 13, fontWeight: 'bold', color: '#28a745' },
-  totalContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 12, marginTop:8 },
-  totalLabel: { fontSize: 14, color: '#444', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  totalPrice: { fontSize: 20, fontWeight: 'bold', color: '#28a745' },
-  ticketFooter: { backgroundColor: '#f9f9f9', padding: 10, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#eee' },
-  footerText: { color: '#777', fontSize: 11, fontWeight: '500' },
-  actionButtons: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 8, paddingHorizontal:5, borderTopWidth:1, borderTopColor: '#f0f0f0' },
-  button: { flex: 1, paddingVertical: 12, borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
-  modifyButton: { backgroundColor: '#5bc0de' },
-  leaveButton: { backgroundColor: '#d9534f' },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.3 },
+  ticketContainer: { 
+    width: '100%', 
+    maxWidth: 400, 
+    backgroundColor: '#fff', 
+    borderRadius: "4%", 
+    overflow: 'hidden', 
+    // marginBottom: 20, 
+    // shadowColor: '#000', 
+    // shadowOffset: { width: 0, height: 2 }, 
+    // shadowOpacity: 0.15, 
+    // shadowRadius: 8, 
+    // elevation: 6, 
+    borderWidth: 1, 
+    borderColor: '#ddd' 
+},
+  ticketHeader: { 
+    backgroundColor: '#333', 
+    paddingVertical: screenHeight * 0.012, 
+    alignItems: 'center'  
+  },
+  ticketHeaderText: { 
+    color: '#fff', 
+    fontSize: screenWidth * 0.045, 
+    fontWeight: 'bold', 
+    letterSpacing: screenWidth * 0.001 
+  },
+  ticketBody: { 
+    padding: screenWidth * 0.04 
+  },
+  positionContainer: { 
+    alignItems: 'center', 
+    marginBottom: screenHeight * 0.015
+  },
+  positionLabel: { 
+    fontSize: screenWidth * 0.037, 
+    color: '#555', 
+    fontWeight: '600', 
+    textTransform: 'uppercase', 
+    letterSpacing: screenWidth * 0.001, 
+    // marginBottom: 1 
+  },
+  positionValue: { 
+    fontSize: screenWidth * 0.12, 
+    fontWeight: 'bold', 
+    color: '#222' 
+  },
+  waitTimeContainer: { 
+    alignItems: 'center', 
+    marginBottom: screenHeight * 0.023 
+  },
+  waitTimeLabel: { 
+    fontSize: screenWidth * 0.036, 
+    color: '#555', 
+    fontWeight: '600', 
+    textTransform: 'uppercase', 
+    letterSpacing: screenWidth * 0.001, 
+    // marginBottom: 1 
+  },
+  waitTimeValue: { 
+    fontSize: screenWidth * 0.06, 
+    fontWeight: 'bold', 
+    color: '#d32f2f'
+   },
+  servicesSection: { 
+    // marginBottom: 12 
+  },
+  sectionTitle: { 
+    fontSize: screenWidth * 0.036, 
+    color: '#444', 
+    fontWeight: '600', 
+    marginBottom: 6, 
+    textTransform: 'uppercase', 
+    letterSpacing: screenWidth * 0.001, 
+  },
+  servicesScroll: { 
+    maxHeight: 80 
+  },
+  servicePill: { 
+    flexDirection: 'row', 
+    backgroundColor: '#f5f5f5', 
+    borderRadius: 14, 
+    paddingHorizontal: screenWidth * 0.03, 
+    paddingVertical: screenWidth * 0.015, 
+    marginRight: screenWidth * 0.02, 
+    marginBottom: screenHeight * 0.008, 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderColor: '#e5e5e5' 
+  },
+  serviceName: { 
+    fontSize: screenWidth * 0.035, 
+    color: '#333', 
+    marginRight: screenWidth * 0.015 
+  },
+  servicePrice: { 
+    fontSize: screenWidth * 0.035, 
+    fontWeight: 'bold', 
+    color: '#28a745' 
+  },
+  totalContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    borderTopWidth: 1, 
+    borderTopColor: '#eee', 
+    paddingTop: screenHeight * 0.015, 
+    marginTop: screenHeight * 0.006 
+  },
+  totalLabel: { 
+    fontSize: screenWidth * 0.04, 
+    color: '#444', 
+    fontWeight: '600', 
+    textTransform: 'uppercase', 
+    letterSpacing: screenWidth * 0.001 
+  },
+  totalPrice: { 
+    fontSize: screenWidth * 0.055, 
+    fontWeight: 'bold', 
+    color: '#28a745' 
+  },
+  ticketFooter: { 
+    backgroundColor: '#f9f9f9', 
+    padding: screenWidth * 0.03, 
+    alignItems: 'center', 
+    borderTopWidth: 1, 
+    borderTopColor: '#eee' 
+  },
+  footerText: { 
+    color: '#777', 
+    fontSize: screenWidth * 0.03, 
+    fontWeight: '500' 
+  },
+  actionButtons: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-around', 
+    paddingVertical: screenHeight * 0.01, 
+    paddingHorizontal: screenWidth * 0.015, 
+    borderTopWidth:1, 
+    borderTopColor: '#f0f0f0' 
+  },
+  button: { 
+    flex: 1, 
+    paddingVertical: screenHeight * 0.015, 
+    borderRadius: 6, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginHorizontal: screenWidth * 0.015 
+  },
+  modifyButton: { 
+    backgroundColor: '#5bc0de' 
+  },
+  leaveButton: { 
+    backgroundColor: '#d9534f' 
+  },
+  buttonText: { 
+    color: '#fff', 
+    fontWeight: 'bold', 
+    fontSize: screenWidth * 0.035, 
+    textTransform: 'uppercase', 
+    letterSpacing: screenWidth * 0.0015 
+  },
   
-  rateListContainer: { width: '100%', maxHeight: height * 0.45, marginBottom: 15, backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 10, padding: 15, borderWidth:1, borderColor:'#eee' },
-  servicesTitle: { fontSize: 17, fontWeight: 'bold', color: '#333', marginBottom: 8, textAlign:'center' },
-  rateItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  rateItemLast: { borderBottomWidth: 0 },
-  rateText: { fontSize: 15, color: '#444' },
-  ratePrice: { fontSize: 15, fontWeight: 'bold', color: '#28a745' },
+  rateListContainer: { 
+    width: '100%', 
+    maxHeight: screenHeight * 0.45, 
+    marginBottom: screenHeight * 0.02, 
+    backgroundColor: 'rgba(255,255,255,0.9)', 
+    borderRadius: 10, 
+    padding: screenWidth * 0.041, 
+    borderWidth:1, 
+    borderColor:'#eee' 
+  },
+  servicesTitle: { 
+    fontSize: screenWidth * 0.048, 
+    fontWeight: 'bold', 
+    color: '#333', 
+    marginBottom: screenHeight * 0.01, 
+    textAlign:'center' 
+  },
+  rateItem: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    paddingVertical: screenHeight * 0.013, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#f0f0f0' 
+  },
+  rateItemLast: { 
+    borderBottomWidth: 0 
+  },
+  rateText: { 
+    fontSize: screenWidth * 0.04, 
+    color: '#444' 
+  },
+  ratePrice: { 
+    fontSize: screenWidth * 0.04, 
+    fontWeight: 'bold', 
+    color: '#28a745' 
+  },
   
-  joinButton: { backgroundColor: '#28a745', height: 55, width: '90%', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginVertical: 15, flexDirection: 'row', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, },
-  disabledButton: { backgroundColor: '#aaa' },
-  joinButtonContent: { flexDirection: 'row', alignItems: 'center' },
-  joinButtonText: { fontSize: 17, fontWeight: 'bold', color: '#fff', marginLeft: 8 },
+  joinButton: { 
+    backgroundColor: '#28a745', 
+    height: screenHeight * 0.068, 
+    width: '90%', 
+    borderRadius: 8, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginVertical: screenHeight * 0.018, 
+    flexDirection: 'row', 
+    // elevation: 2, 
+    // shadowColor: '#000', 
+    // shadowOffset: { width: 0, height: 1 }, 
+    // shadowOpacity: 0.1, 
+    // shadowRadius: 2, 
+  },
+  disabledButton: { 
+    backgroundColor: '#aaa' 
+  },
+  joinButtonContent: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
+  joinButtonText: { 
+    fontSize: screenWidth * 0.048, 
+    fontWeight: 'bold', 
+    color: '#fff', 
+    marginLeft: screenWidth * 0.025 
+  },
 });

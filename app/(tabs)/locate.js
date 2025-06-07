@@ -8,12 +8,22 @@ import {
   Linking,
   Alert,
   Image,
+  Dimensions, // Import Dimensions for responsiveness
+  PixelRatio, // Import PixelRatio for responsive fonts
+  Platform,   // Import Platform for consistent structure
 } from "react-native";
 import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// Get screen dimensions for responsive styling
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const fontScale = PixelRatio.getFontScale();
+
+// Helper function for responsive font sizes
+const getResponsiveFontSize = (size) => size / fontScale;
 
 export default function LocateScreen() {
   const [currentRegion, setCurrentRegion] = useState(null);
@@ -241,13 +251,13 @@ export default function LocateScreen() {
 
       <View style={styles.floatingButtonContainer}>
         <TouchableOpacity style={[styles.fab, styles.locateButton]} onPress={handleLocate}>
-          <Icon name="store" size={24} color="#fff" />
+          <Icon name="store" size={getResponsiveFontSize(24)} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity style={[styles.fab, styles.navigateButton]} onPress={handleNavigate}>
-          <Icon name="navigation" size={24} color="#fff" />
+          <Icon name="navigation" size={getResponsiveFontSize(24)} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity style={[styles.fab, styles.myLocationButton]} onPress={handleCurrentLocation}>
-          <Icon name="my-location" size={24} color="#fff" />
+          <Icon name="my-location" size={getResponsiveFontSize(24)} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>
@@ -270,34 +280,34 @@ const styles = StyleSheet.create({
     backgroundColor: "#1B1B1B",
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: screenHeight * 0.012, // Responsive margin-top
     color: "#C0C0C0",
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16), // Responsive font size
   },
   errorText: {
-    marginTop: 10,
+    marginTop: screenHeight * 0.012, // Responsive margin-top
     color: "#FF6347",
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16), // Responsive font size
     fontWeight: "bold",
   },
   floatingButtonContainer: {
     position: "absolute",
-    bottom: 20,
-    right: 20,
+    bottom: screenHeight * 0.025, // Responsive bottom position (approx 20px)
+    right: screenWidth * 0.05, // Responsive right position (approx 20px)
     alignItems: "center",
   },
   fab: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: screenWidth * 0.14, // Responsive width (approx 50px)
+    height: screenWidth * 0.14, // Responsive height (approx 50px, keep square)
+    borderRadius: (screenWidth * 0.14) / 2, // Responsive border radius
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
-    elevation: 6,
+    marginBottom: screenHeight * 0.012, // Responsive margin-bottom (approx 10px)
+    elevation: 6, // Android shadow, fixed value is often acceptable here
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: screenHeight * 0.004 }, // Responsive shadow offset (approx 3px)
     shadowOpacity: 0.3,
-    shadowRadius: 3,
+    shadowRadius: screenWidth * 0.008, // Responsive shadow radius (approx 3px)
   },
   locateButton: {
     backgroundColor: "#1E90FF",
@@ -309,24 +319,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF8C00",
   },
   profileImage: {
-    width: 30,
-    height: 30,
-    borderRadius: 15, // Perfect circle for 30x30 image
-    borderWidth: 2,
+    width: screenWidth * 0.075, // Responsive width (approx 30px)
+    height: screenWidth * 0.075, // Responsive height (approx 30px)
+    borderRadius: (screenWidth * 0.075) / 2, // Responsive border radius
+    borderWidth: screenWidth * 0.005, // Responsive border width (approx 2px)
     borderColor: "#fff",
   },
   distanceContainer: {
     position: "absolute",
-    top: 20,
-    right: 20,
+    top: screenHeight * 0.025, // Responsive top position (approx 20px)
+    right: screenWidth * 0.05, // Responsive right position (approx 20px)
     backgroundColor: "rgba(0, 0, 0, 0.5)",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingVertical: screenHeight * 0.0075, // Responsive padding vertical (approx 6px)
+    paddingHorizontal: screenWidth * 0.025, // Responsive padding horizontal (approx 10px)
+    borderRadius: screenWidth * 0.02, // Responsive border radius (approx 8px)
   },
   distanceText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14), // Responsive font size
     fontWeight: "600",
   },
 });
