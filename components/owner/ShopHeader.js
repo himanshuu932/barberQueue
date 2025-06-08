@@ -23,9 +23,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { WebView } from 'react-native-webview'; // Added for Razorpay checkout
 
 const { width: screenWidth } = Dimensions.get("window");
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
 // It's recommended to use environment variables for keys.
-const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_Zm9BTiEL73IDFi'; // Replace with your actual key
+const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0'; 
 
 const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
     const [isEditShopModalVisible, setIsEditShopModalVisible] = useState(false);
@@ -288,10 +288,19 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
 
     const handleToggleShopStatusInEditModal = () => setEditedShopData(prev => ({ ...prev, isOpen: !prev.isOpen, isManuallyOverridden: true }));
 
-    const formatTrialDate = (dateString) => {
+    const formatDate = (dateString) => {
         if (!dateString) return null;
         const options = { year: 'numeric', month: 'long', day: 'numeric' };
         return new Date(dateString).toLocaleDateString(undefined, options);
+    };
+
+    const calculateDaysRemaining = (endDateString) => {
+        if (!endDateString) return 'N/A';
+        const endDate = new Date(endDateString);
+        const now = new Date();
+        const timeDiff = endDate.getTime() - now.getTime();
+        const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        return daysRemaining > 0 ? `${daysRemaining} days` : 'Expired';
     };
 
     const displayCarouselImages = isEditShopModalVisible && editedShopData ? editedShopData.carouselImages : shop?.carouselImages;
@@ -341,7 +350,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
 
             <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{shop?.name || 'Shop'} Information</Text>
+                    <Text style={styles.cardTitle}>{shop?.name || 'Shop'}</Text>
                     <TouchableOpacity
                         style={styles.actionButton}
                         onPress={handleOpenEditShopModal}
@@ -384,9 +393,32 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                     <View style={styles.infoItem}>
                         <Icon name="calendar-times-o" size={18} color="#E74C3C" style={styles.infoIcon} />
                         <Text style={styles.infoText}>
-                            Trial Ends: {formatTrialDate(shop.subscription.trialEndDate)}
+                            Trial Ends: {formatDate(shop.subscription.trialEndDate)}
                         </Text>
                     </View>
+                )}
+
+                {shop?.subscription?.status === 'active' && shop?.subscription?.lastPlanInfo && (
+                    <>
+                        <View style={styles.infoItem}>
+                            <Icon name="calendar-check-o" size={18} color="#28A745" style={styles.infoIcon} />
+                            <Text style={styles.infoText}>
+                                Last Payment Date: {formatDate(shop.subscription.lastPlanInfo.startDate)}
+                            </Text>
+                        </View>
+                        <View style={styles.infoItem}>
+                            <Icon name="calendar" size={18} color="#007BFF" style={styles.infoIcon} />
+                            <Text style={styles.infoText}>
+                                Subscription End Date: {formatDate(shop.subscription.lastPlanInfo.endDate)}
+                            </Text>
+                        </View>
+                        <View style={styles.infoItem}>
+                            <Icon name="hourglass-half" size={18} color="#F39C12" style={styles.infoIcon} />
+                            <Text style={styles.infoText}>
+                                Days Remaining: {calculateDaysRemaining(shop.subscription.lastPlanInfo.endDate)}
+                            </Text>
+                        </View>
+                    </>
                 )}
 
                 {shop?.subscription?.status === 'expired' && (
