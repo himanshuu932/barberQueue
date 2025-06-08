@@ -30,6 +30,6 @@ router.post('/payment/verify', protect(['owner']), authorize('owner'), shopContr
 // Webview callback endpoints (Razorpay redirects here)
 router.get('/payment/webview-callback/success', shopController.handleWebViewCallbackSuccessShop);
 router.get('/payment/webview-callback/failure', shopController.handleWebViewCallbackFailureShop);
-router.get('/payment/checkout-page', protect(['owner']), shopController.serveRazorpayCheckoutPageShop); // Protected as it uses req.user data
+router.get('/payment/checkout-page', shopController.serveRazorpayCheckoutPageShop); // Protected as it uses req.user data
 
 module.exports = router;

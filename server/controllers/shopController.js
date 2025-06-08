@@ -1,20 +1,20 @@
 // controllers/shopController.js
 const Shop = require('../models/Shop');
-const Owner = require('../models/Owner'); // To link shop to owner
-const Service = require('../models/Service'); // For shop services (if used as a separate model for reference)
-const Barber = require('../models/Barber'); // For shop barbers
-const Subscription = require('../models/Subscription'); // For shop subscriptions
+const Owner = require('../models/Owner');
+const Service = require('../models/Service');
+const Barber = require('../models/Barber');
+const Subscription = require('../models/Subscription');
 const { asyncHandler, ApiError } = require('../utils/errorHandler');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
 const Razorpay = require('razorpay');
 const { validateWebhookSignature } = require('razorpay/dist/utils/razorpay-utils');
-const sanitizeHtml = require('sanitize-html'); // For sanitizing HTML inputs
+const sanitizeHtml = require('sanitize-html');
 require('dotenv').config();
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
-const API_PUBLIC_URL = process.env.API_PUBLIC_URL; // IMPORTANT: Set this to your public backend URL
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_Zm9BTiEL73IDFi';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'zGCijm6aZnCDtPWFayj6BWEQ';
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-p7zc.onrender.com';
 
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({
@@ -417,7 +417,7 @@ exports.getShopSubscriptionStatus = asyncHandler(async (req, res) => {
     let statusUpdated = false;
     if (shop.subscription.status === 'trial' && shop.subscription.trialEndDate && shop.subscription.trialEndDate < now) {
         shop.subscription.status = 'expired';
-        shop.subscription.trialEndDate = undefined; // Clear trial end date
+        shop.subscription.trialEndDate = undefined;
         statusUpdated = true;
     } else if (shop.subscription.status === 'active' && shop.subscription.lastPlanInfo && shop.subscription.lastPlanInfo.endDate && shop.subscription.lastPlanInfo.endDate < now) {
         shop.subscription.status = 'expired';
@@ -496,9 +496,9 @@ exports.serveRazorpayCheckoutPageShop = asyncHandler(async (req, res) => {
               window.location.href = "${callback_url_base}/success?" + successParams;
             },
             "prefill": {
-              "name": "${s(req.user.name)}", // Use authenticated owner's name
+              "name": "${s(name)}", // Use name from query param
               "email": "${s(prefill_email)}",
-              "contact": "${s(req.user.phone)}" // Use authenticated owner's phone
+              "contact": "${s(prefill_contact)}" // Use contact from query param
             },
             "theme": {
               "color": "${safeThemeColor}"
@@ -568,41 +568,73 @@ exports.handleWebViewCallbackFailureShop = asyncHandler(async (req, res) => {
 // @access  Private (Owner)
 exports.createShopPaymentOrder = asyncHandler(async (req, res) => {
     const { amount, currency = 'INR', shopId, planId } = req.body; // planId is the Subscription ObjectId
+    console.log("createShopPaymentOrder: Incoming request body:", req.body);
 
+    // Step 1: Input Validation
     if (!amount || typeof amount !== 'number' || amount <= 0) {
+        console.error("createShopPaymentOrder: Validation Error - Invalid amount:", amount);
         throw new ApiError('A valid positive amount is required.', 400);
     }
     if (!shopId) {
+        console.error("createShopPaymentOrder: Validation Error - Shop ID is missing.");
         throw new ApiError('Shop ID is required for creating an order record.', 400);
     }
     if (!planId) {
+        console.error("createShopPaymentOrder: Validation Error - Subscription plan ID is missing.");
         throw new ApiError('Subscription plan ID is required.', 400);
     }
+    console.log("createShopPaymentOrder: Input validation passed.");
 
-    // Verify the shop belongs to the owner
+    // Step 2: Verify shop ownership
+    console.log(`createShopPaymentOrder: Verifying shop ownership for shopId: ${shopId} by owner: ${req.user._id}`);
     const shop = await Shop.findOne({ _id: shopId, owner: req.user._id });
     if (!shop) {
+        console.error("createShopPaymentOrder: Authorization Error - Shop not found or not owned by user.");
         throw new ApiError('Shop not found or you are not the owner of this shop.', 404);
     }
+    console.log("createShopPaymentOrder: Shop ownership verified. Shop details:", shop.name);
 
+    // Step 3: Prepare Razorpay order options
     const amountInPaise = Math.round(amount * 100);
+    console.log(`createShopPaymentOrder: Original amount: ${amount}, Amount in paise: ${amountInPaise}`);
+
+    // Shorten the receipt for Razorpay's 40-character limit
+    const shortShopId = shopId.slice(-10); // Take last 10 characters of shopId
+    const shortTimestamp = Date.now().toString().slice(-6); // Take last 6 characters of timestamp
+    const receiptValue = `rcpt_${shortShopId}_${shortTimestamp}`; // Example: rcpt_xxxxxxxxxx_yyyyyy
 
     const options = {
         amount: amountInPaise,
         currency,
-        receipt: `receipt_shop_${shopId}_${Date.now()}`,
+        receipt: receiptValue, // Use the shortened receipt
         notes: {
             shopId: shopId,
             planId: planId,
             description: "Shop Subscription Payment"
-        
         }
     };
+    console.log("createShopPaymentOrder: Razorpay order options prepared:", options);
 
-    const order = await razorpayInstance.orders.create(options);
-    if (!order) {
-        throw new ApiError("Razorpay order creation failed.", 500);
+    // Step 4: Create order with Razorpay
+    let order;
+    try {
+        console.log("createShopPaymentOrder: Attempting to create order with Razorpay...");
+        order = await razorpayInstance.orders.create(options);
+        console.log("createShopPaymentOrder: Razorpay order created successfully. Order ID:", order.id);
+    } catch (razorpayError) {
+        console.error("createShopPaymentOrder: Error creating Razorpay order:", razorpayError.message, razorpayError.error);
+        // Log the full Razorpay error object for detailed debugging
+        if (razorpayError.error) {
+            console.error("Razorpay API Error Details:", JSON.stringify(razorpayError.error, null, 2));
+        }
+        throw new ApiError(`Razorpay order creation failed: ${razorpayError.message || 'Unknown error'}`, 500);
     }
+
+    if (!order) {
+        console.error("createShopPaymentOrder: Razorpay order object is null/undefined after creation attempt.");
+        throw new ApiError("Razorpay order creation failed, order object is empty.", 500);
+    }
+
     res.json({ success: true, data: order });
 });
 

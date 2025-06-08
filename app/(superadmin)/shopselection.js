@@ -128,7 +128,7 @@ const ShopSelection = () => {
       }
 
       const data = await response.json();
-      console.log('Fetched owner shops:', data);
+   //   console.log('Fetched owner shops:', data);
       // Map the fetched data to match the structure expected by ShopCard
       const formattedShops = data.data.map(shop => ({
         _id: shop._id, // Use _id from MongoDB

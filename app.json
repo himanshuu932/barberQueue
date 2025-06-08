@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "barber",
-    "slug": "barber",
-    "icon": "./assets/images/logo.jpg",
+    "slug": "Numbr",
+    "icon": "./assets/images/icon.jpg",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.jpg",
@@ -32,7 +32,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       "expo-router",

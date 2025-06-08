@@ -38,9 +38,7 @@ exports.getAllSubscriptionPlans = asyncHandler(async (req, res) => {
     });
 });
 
-// @desc    Get subscription plan by ID
-// @route   GET /api/subscriptions/:id
-// @access  Public
+
 exports.getSubscriptionPlanById = asyncHandler(async (req, res) => {
     const subscriptionPlan = await Subscription.findById(req.params.id);
     if (!subscriptionPlan) {

@@ -60,7 +60,7 @@ const ShopSchema = new Schema({
         status: { // current subscription status
             type: String,
             enum: ['active', 'trial', 'expired'],
-            default: 'trial', // New shops start on trial
+            default: 'trial', 
             required: true
         },
         lastPlanInfo: { // Details of the last subscribed plan (if not trial)
