@@ -115,6 +115,6 @@ server.listen(PORT, () => { // Use `server.listen` instead of `app.listen`
   fetch('https://numbr-p7zc.onrender.com/ping')
     .then(() => console.log('Pinged self!'))
     .catch(() => console.log('Self ping failed.'));
-}, 1000); // Every 10 mins
+}, 1000 * 60 * 10); // Every 10 mins
 
 });
