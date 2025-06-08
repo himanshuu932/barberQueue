@@ -23,7 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { WebView } from 'react-native-webview'; // Added for Razorpay checkout
 
 const { width: screenWidth } = Dimensions.get("window");
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 // It's recommended to use environment variables for keys.
 const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0'; 
 

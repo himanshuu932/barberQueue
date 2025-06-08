@@ -100,6 +100,9 @@ app.use('/api/admin', adminRoutes);
 app.get('/', (req, res) => {
     res.send('API is running...');
 });
+app.get('/ping', (req, res) => {
+  res.send('pong');
+});
 
 // --- Error Handling Middleware ---
 app.use(globalErrorHandler);
@@ -108,4 +111,10 @@ app.use(globalErrorHandler);
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => { // Use `server.listen` instead of `app.listen`
     console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+    setInterval(() => {
+  fetch('https://numbr-p7zc.onrender.com/ping')
+    .then(() => console.log('Pinged self!'))
+    .catch(() => console.log('Self ping failed.'));
+}, 1000); // Every 10 mins
+
 });
