@@ -35,7 +35,7 @@ export default function Layout() {
           screenOptions={{
             tabBarStyle: {
               backgroundColor: "black",
-              height: screenHeight * 0.11, // 10% of screen height for tab bar
+              height: screenHeight * 0.10, // 10% of screen height for tab bar
               paddingBottom: 11, // Ensure no extra padding at the bottom of the tab bar
               borderTopWidth: 0, // Remove any default border top
             },
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     backgroundColor: "black", // Ensures background behind status bar is black
   },
   header: {
-    height: screenHeight * 0.10,
+    height: screenHeight * 0.08,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center", // Vertically centers content in the header

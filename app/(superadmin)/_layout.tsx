@@ -9,8 +9,7 @@ const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 
 export default function Layout() {
   return (
-    // Wrap the entire content in SafeAreaView for consistent layout across devices
-    <SafeAreaView style={styles.safeAreaContainer}>
+  <SafeAreaView style={styles.safeAreaContainer}>
       {/* Custom Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Numbr</Text>
@@ -21,7 +20,7 @@ export default function Layout() {
         screenOptions={{
           tabBarStyle: {
             backgroundColor: "black",
-            height: screenHeight * 0.12, // 10% of screen height for tab bar
+            height: screenHeight * 0.10, // 10% of screen height for tab bar
             paddingBottom: 0, // Ensure no extra padding at the bottom of the tab bar
             borderTopWidth: 0, // Remove any default border top
           },
@@ -102,7 +101,7 @@ const styles = StyleSheet.create({
     backgroundColor: "black", // Ensures background behind status bar is black
   },
   header: {
-    height: screenHeight * 0.10,
+    height: screenHeight * 0.06,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center", // Vertically centers content in the header

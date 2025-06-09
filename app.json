@@ -24,7 +24,7 @@
         }
       },
       "notification": {
-    "icon": "./assets/images/noti.png",
+    "icon": "./assets/images/ic_stat_noti.png",
     "color": "#000000"
      },
       "googleServicesFile": "./google-services.json"
@@ -41,7 +41,7 @@
         {
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
-          "resizeMode": "contain",
+          "resizeMode": "cover",
           "backgroundColor": "#f9fafb"
         }
       ]
