@@ -24,8 +24,8 @@
         }
       },
       "notification": {
-    "icon": "./assets/images/ic_stat_noti.png",
-    "color": "#000000"
+    "icon": "./assets/images/ic_stat_ic_stat_noti.png",
+    "color": "#ffffff"
      },
       "googleServicesFile": "./google-services.json"
     },
