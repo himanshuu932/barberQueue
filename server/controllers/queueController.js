@@ -20,13 +20,16 @@ module.exports = (io) => {
                 return;
             }
 
-            if (!Expo.isExpoPushToken(user.expopushtoken)) {
-                console.warn(`Invalid Expo push token for user ${userID}: ${user.expopushtoken}`);
+            const pushToken = user.expopushtoken;
+            console.log(`Attempting to send push notification to user ${userID} with token: ${pushToken}`);
+
+            if (!Expo.isExpoPushToken(pushToken)) {
+                console.warn(`Invalid Expo push token for user ${userID}: ${pushToken}`);
                 return;
             }
 
             const message = {
-                to: user.expopushtoken,
+                to: pushToken,
                 sound: "default",
                 title: title,
                 body: body,
@@ -36,8 +39,9 @@ module.exports = (io) => {
             };
 
             // Expo SDK handles chunking and sending
-            await expo.sendPushNotificationsAsync([message]);
-            console.log(`Notification sent to user ${userID}. Title: ${title}`);
+            const tickets = await expo.sendPushNotificationsAsync([message]);
+            console.log(`Push notification sent successfully to user ${userID}. Tickets:`, tickets);
+            // You might want to store these tickets to check receipts later for delivery status
         } catch (error) {
             console.error(`Error sending push notification to user ${userID}:`, error);
         }
@@ -347,18 +351,6 @@ const removeFromQueue = asyncHandler(async (req, res, next) => {
       `Found queueEntry: shop=${queueEntry.shop.name}, status=${queueEntry.status}, userId=${queueEntry.userId}`
     );
 
-    // 3. (Optional) Authorization logic placeholder
-    // Example:
-    // if (req.userType === 'User' && queueEntry.userId.toString() !== req.user._id.toString()) {
-    //   console.error(`User ${req.user._id} unauthorized to cancel queue ${id}`);
-    //   throw new ApiError('Not authorized to cancel this queue entry', 403);
-    // }
-    // if (req.userType === 'Barber' && queueEntry.barber && queueEntry.barber.toString() !== req.user._id.toString()) {
-    //   console.error(`Barber ${req.user._id} unauthorized to cancel queue ${id}`);
-    //   throw new ApiError('Not authorized to cancel this queue entry', 403);
-    // }
-
-    // 4. Check current status
     if (queueEntry.status === 'completed' || queueEntry.status === 'cancelled') {
       console.error(
         `Queue entry ${id} already in status=${queueEntry.status}, cannot cancel`

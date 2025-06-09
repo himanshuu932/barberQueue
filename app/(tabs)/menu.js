@@ -119,7 +119,7 @@ export default function MenuScreen() {
           return;
         }
         const token = (await Notifications.getExpoPushTokenAsync({ projectId: Notifications.projectId })).data;
-        console.log("Expo Push Token:", token);
+       // console.log("Expo Push Token:", token);
         // Send token to your backend
         await fetch(`${API_BASE}/users/register-push-token`, { // Ensure this endpoint exists
           method: "POST",
@@ -620,12 +620,14 @@ const updateUserServices = async () => {
   };
 
   async function getShopName(sId) {
+    console.log("Fetching shop name for shopId:", sId);
     if (!sId) return "Shop";
     try {
       const response = await fetch(`${API_BASE}/shops/${sId}`);
       if (!response.ok) throw new Error('Failed to fetch shop name');
       const data = await response.json();
-      return data.data.name || "Shop";
+      console.log("Shop name data received:", data.data.shop.name);
+      return data.data.shop.name || "Shop";
     } catch (error) {
       console.error("Error fetching shop name:", error.message);
       return "Shop";

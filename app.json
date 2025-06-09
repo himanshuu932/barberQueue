@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "barber",
-    "slug": "Numbr",
+    "name": "Numbr",
+    "slug": "barber",
     "icon": "./assets/images/icon.jpg",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -24,7 +24,7 @@
         }
       },
       "notification": {
-    "icon": "./assets/images/icon.jpg",
+    "icon": "./assets/images/noti.png",
     "color": "#000000"
      },
       "googleServicesFile": "./google-services.json"
