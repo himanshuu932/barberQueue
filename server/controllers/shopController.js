@@ -821,3 +821,28 @@ exports.getShopTodayStats = asyncHandler(async (req, res) => {
         },
     });
 });
+// controllers/shopController.js
+// ... (existing imports and utility functions)
+
+// @desc    Get shop's coordinates by ID
+// @route   GET /api/shops/:id/coordinates
+// @access  Public
+exports.getShopCoordinates = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const shop = await Shop.findById(id).select('address.coordinates'); // Only select coordinates
+
+    if (!shop) {
+        throw new ApiError('Shop not found.', 404);
+    }
+    if (!shop.address || !shop.address.coordinates) {
+        throw new ApiError('Shop coordinates not available.', 404);
+    }
+
+    res.json({
+        success: true,
+        data: shop.address.coordinates,
+    });
+});
+
+// ... (rest of your existing shopController.js functions)

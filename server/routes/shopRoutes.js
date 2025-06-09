@@ -8,6 +8,7 @@ const { protect, authorize, checkShopSubscription } = require('../middleware/aut
 router.get('/', shopController.getAllShops); // Get all shops (for discovery)
 router.get('/:id', shopController.getShopById); // Get specific shop details
 router.get('/:id/rate-list', shopController.getShopRateList); // Get shop's services and prices
+router.get('/:id/coordinates', shopController.getShopCoordinates); // NEW: Get shop's coordinates
 
 // Private routes for shop management (Owner only, with subscription check)
 router.post('/', protect(['owner']), authorize('owner'), shopController.createShop); // Create new shop

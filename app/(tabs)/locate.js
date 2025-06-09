@@ -94,26 +94,32 @@ export default function LocateScreen() {
       const shopId = await AsyncStorage.getItem("pinnedShop");
       //console.log("Fetched pinnedShop from AsyncStorage:", shopId);
       if (shopId) {
+        // Corrected URL to fetch coordinates for a specific shop
         const response = await fetch(
-          `https://numbr-p7zc.onrender.com/shop/coordinates?id=${shopId}`
+          `http://10.0.2.2:5000/api/shops/${shopId}/coordinates`
         );
         const data = await response.json();
         //console.log("Shop coordinates API response:", data);
-        if (response.ok && data.x !== undefined && data.y !== undefined) {
-          // Swap the values so that y becomes latitude and x becomes longitude.
+        if (response.ok && data.success && data.data && Array.isArray(data.data.coordinates) && data.data.coordinates.length === 2) {
+          // The backend returns coordinates as [longitude, latitude]
+          // So, for React Native Maps (which expects { latitude, longitude }), we need to swap them.
+          const [longitude, latitude] = data.data.coordinates;
           setShopDestination({
-            latitude: data.x,
-            longitude: data.y,
+            latitude: latitude, // Use latitude from backend
+            longitude: longitude, // Use longitude from backend
           });
-          //console.log("Set shop destination to:", { latitude: data.x, longitude: data.y });
+          //console.log("Set shop destination to:", { latitude: latitude, longitude: longitude });
         } else {
-          console.error("Error fetching shop coordinates:", data.message);
+          console.error("Error fetching shop coordinates or data format invalid:", data.message || data);
+          Alert.alert("Error", data.message || "Failed to fetch shop coordinates. Invalid data format.");
         }
       } else {
         console.error("Shop ID not found in AsyncStorage");
+        Alert.alert("Error", "No pinned shop found. Please select a shop first.");
       }
     } catch (error) {
       console.error("Error fetching shop coordinates:", error);
+      Alert.alert("Error", "Failed to connect to the server to fetch shop coordinates.");
     }
   };
 
@@ -210,9 +216,13 @@ export default function LocateScreen() {
   // Open Google Maps navigation with the shop destination
   const handleNavigate = () => {
     if (shopDestination) {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${shopDestination.latitude},${shopDestination.longitude}`;
+      // Corrected URL for Google Maps navigation
+      const url = Platform.select({
+        ios: `maps://app?daddr=${shopDestination.latitude},${shopDestination.longitude}&dirflg=d`,
+        android: `google.navigation:q=${shopDestination.latitude},${shopDestination.longitude}`,
+      });
       //console.log("Opening Google Maps with URL:", url);
-      Linking.openURL(url);
+      Linking.openURL(url).catch(err => Alert.alert("Error", "Could not open navigation app. Please ensure you have Google Maps installed."));
     } else {
       Alert.alert("Destination not available", "Shop coordinates not fetched yet.");
       console.error("Shop destination is not available for navigation.");
