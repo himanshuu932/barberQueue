@@ -110,7 +110,7 @@ app.use(globalErrorHandler);
 // --- Start Server ---
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => { // Use `server.listen` instead of `app.listen`
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+    console.log(`Server running in ${process.env.NODE_ENV || "local"} mode on port ${PORT}`);
     setInterval(() => {
   fetch('https://numbr-p7zc.onrender.com/ping')
     .then(() => console.log('Pinged self!'))

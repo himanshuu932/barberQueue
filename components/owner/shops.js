@@ -16,7 +16,7 @@ import ServicesList from "./ServicesList";
 import BarbersList from "./BarbersList";
 import DangerZone from "./DangerZone";
 
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
   try {
@@ -64,51 +64,94 @@ const ShopsList = ({ shopId, onClose, userToken, fetchOwnerShops }) => {
     }
   }, []);
 
-  const fetchShopDetails = useCallback(async () => {
-    if (!shopId || !userToken) {
-      setError('Shop ID or token missing.');
-      setIsLoading(false);
-      return;
+const fetchShopDetails = useCallback(async () => {
+  if (!shopId || !userToken) {
+    setError('Shop ID or token missing.');
+    setIsLoading(false);
+    return;
+  }
+
+  setIsLoading(true);
+  setError(null);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/shops/${shopId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.message || 'Failed to fetch shop details.');
     }
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_BASE_URL}/shops/${shopId}`, {
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
-      });
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.message || 'Failed to fetch shop details.');
+
+    const data = await response.json();
+    const fetchedShop = data.data.shop;
+    const history = data.data.history || [];
+
+    // 🧠 Process today's stats
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    let earnings = 0, customers = 0;
+    const serviceCounter = {}, employeeCounter = {};
+
+    history.forEach(entry => {
+      const entryDate = new Date(entry.date).toISOString().slice(0, 10);
+      if (entryDate === today) {
+        earnings += entry.totalCost || 0;
+        customers += 1;
+
+        // Count services
+        entry.services.forEach(s => {
+          const serviceName = s.name || 'Unknown';
+          serviceCounter[serviceName] = (serviceCounter[serviceName] || 0) + 1;
+        });
+
+        // Count barber
+        const barberName = entry.barber?.name || 'Unknown';
+        employeeCounter[barberName] = (employeeCounter[barberName] || 0) + 1;
       }
-      const data = await response.json();
-      const fetchedShop = data.data;
+    });
 
-      const formattedShop = {
-        _id: fetchedShop._id,
-        name: fetchedShop.name,
-        address: fetchedShop.address.fullDetails,
-        openingTime: fetchedShop.openingTime,
-        closingTime: fetchedShop.closingTime,
-        carouselImages: fetchedShop.photos || [],
-        shopRating: fetchedShop.rating ? { average: fetchedShop.rating, count: 0 } : { average: 0, count: 0 },
-        isManuallyOverridden: fetchedShop.isManuallyOverridden,
-        isOpen: fetchedShop.isManuallyOverridden ? fetchedShop.isOpen : isShopCurrentlyOpen(fetchedShop.openingTime, fetchedShop.closingTime),
-        todayStats: { earnings: 0, customers: 0, popularService: 'N/A', topEmployee: 'N/A' },
-        services: fetchedShop.services || [],
-        subscription: fetchedShop.subscription || { status: 'N/A', trialEndDate: null },
-      };
+    const mostPopularService = Object.entries(serviceCounter).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+    const topEmployee = Object.entries(employeeCounter).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
-      setCurrentShop(formattedShop);
-      await fetchBarbersForShop(fetchedShop._id, userToken);
-    } catch (err) {
-      console.error('Error fetching shop details:', err);
-      setError(err.message || 'Failed to load shop details.');
-      Alert.alert("Error", err.message || 'Failed to load shop details.');
-      onClose();
-    } finally {
-      setIsLoading(false);
-    }
-  }, [shopId, userToken, onClose, fetchBarbersForShop]);
+    // 🏪 Format shop data
+    const formattedShop = {
+      _id: fetchedShop._id,
+      name: fetchedShop.name,
+      address: fetchedShop.address.fullDetails,
+      openingTime: fetchedShop.openingTime,
+      closingTime: fetchedShop.closingTime,
+      carouselImages: fetchedShop.photos || [],
+      shopRating: fetchedShop.rating ? { average: fetchedShop.rating, count: 0 } : { average: 0, count: 0 },
+      isManuallyOverridden: fetchedShop.isManuallyOverridden,
+      isOpen: fetchedShop.isManuallyOverridden
+        ? fetchedShop.isOpen
+        : isShopCurrentlyOpen(fetchedShop.openingTime, fetchedShop.closingTime),
+      todayStats: {
+        earnings,
+        customers,
+        popularService: mostPopularService,
+        topEmployee,
+      },
+      services: fetchedShop.services || [],
+      subscription: fetchedShop.subscription || { status: 'N/A', trialEndDate: null },
+    };
+
+    setCurrentShop(formattedShop);
+    await fetchBarbersForShop(fetchedShop._id, userToken);
+
+  } catch (err) {
+    console.error('Error fetching shop details:', err);
+    setError(err.message || 'Failed to load shop details.');
+    Alert.alert("Error", err.message || 'Failed to load shop details.');
+    onClose();
+  } finally {
+    setIsLoading(false);
+  }
+}, [shopId, userToken, onClose, fetchBarbersForShop]);
 
   useEffect(() => {
     fetchShopDetails();

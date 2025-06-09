@@ -1,4 +1,3 @@
-// FileName: TodayStats.js
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
@@ -17,6 +16,19 @@ const TodayStats = ({ stats }) => {
           <Icon name="users" size={24} color="#007BFF" />
           <Text style={styles.statValue}>{stats.customers}</Text>
           <Text style={styles.statLabel}>Customers</Text>
+        </View>
+      </View>
+
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <Icon name="star" size={24} color="#FFC107" />
+          <Text style={styles.statValue}>{stats.popularService}</Text>
+          <Text style={styles.statLabel}>Popular Service</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Icon name="user" size={24} color="#17A2B8" />
+          <Text style={styles.statValue}>{stats.topEmployee}</Text>
+          <Text style={styles.statLabel}>Top Employee</Text>
         </View>
       </View>
     </View>
@@ -61,15 +73,17 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1A2A3A',
-    marginVertical: 8,
+    marginVertical: 6,
+    textAlign: 'center',
   },
   statLabel: {
     fontSize: 16,
     color: '#666',
     fontWeight: '600',
+    textAlign: 'center',
   },
 });
 

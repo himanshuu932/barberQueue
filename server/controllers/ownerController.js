@@ -1,6 +1,7 @@
 // controllers/ownerController.js
 const Owner = require('../models/Owner');
-const Shop = require('../models/Shop'); // Will need this for getOwnerShops
+const Shop = require('../models/Shop');
+const History = require('../models/History'); // Import the History model
 const { asyncHandler, ApiError } = require('../utils/errorHandler');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
@@ -118,13 +119,24 @@ exports.updateOwnerProfile = asyncHandler(async (req, res) => {
     }
 });
 
-
 exports.getOwnerShops = asyncHandler(async (req, res) => {
     // req.user contains the owner's data from the protect middleware
-    const shops = await Shop.find({ owner: req.user._id }); // Populate barber details
+    const shops = await Shop.find({ owner: req.user._id });
+
+    const shopsWithHistory = await Promise.all(shops.map(async (shop) => {
+        const history = await History.find({ shop: shop._id })
+            .populate('user', 'name') // Populate user name
+            .populate('barber', 'name') // Populate barber name
+            .populate('services.service', 'name'); // Populate service name
+
+        return {
+            ...shop.toObject(), // Convert Mongoose document to a plain JavaScript object
+            history: history,
+        };
+    }));
 
     res.json({
         success: true,
-        data: shops,
+        data: shopsWithHistory,
     });
 });

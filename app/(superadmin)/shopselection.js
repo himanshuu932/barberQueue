@@ -28,7 +28,7 @@ import ShopsList from "../../components/owner/shops";
 const { width } = Dimensions.get("window");
 
 // IMPORTANT: Replace with your actual backend API URL
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api'; 
+const API_BASE_URL = 'http://10.0.2.2:5000/api'; 
 
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {

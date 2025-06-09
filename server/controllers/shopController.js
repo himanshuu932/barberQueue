@@ -4,6 +4,7 @@ const Owner = require('../models/Owner');
 const Service = require('../models/Service');
 const Barber = require('../models/Barber');
 const Subscription = require('../models/Subscription');
+const History = require('../models/History'); // Import History model for stats
 const { asyncHandler, ApiError } = require('../utils/errorHandler');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
@@ -121,27 +122,33 @@ exports.createShop = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get shop by ID
-// @route   GET /api/shops/:id
-// @access  Public
 exports.getShopById = asyncHandler(async (req, res) => {
     const shop = await Shop.findById(req.params.id)
                            .populate('owner', 'name phone')
-                           // .populate('services.service', 'name') // Removed: 'services.service' path is likely not a ref. Service 'name' is already in the subdocument.
                            .populate('barbers', 'name phone activeTaking');
 
     if (!shop) {
         throw new ApiError('Shop not found.', 404);
     }
 
-    // Dynamic subscription status check
+    // Check and update subscription status
     const now = new Date();
     let statusUpdated = false;
 
-    if (shop.subscription.status === 'trial' && shop.subscription.trialEndDate && shop.subscription.trialEndDate < now) {
+    if (
+        shop.subscription.status === 'trial' &&
+        shop.subscription.trialEndDate &&
+        shop.subscription.trialEndDate < now
+    ) {
         shop.subscription.status = 'expired';
         shop.subscription.trialEndDate = undefined;
         statusUpdated = true;
-    } else if (shop.subscription.status === 'active' && shop.subscription.lastPlanInfo && shop.subscription.lastPlanInfo.endDate && shop.subscription.lastPlanInfo.endDate < now) {
+    } else if (
+        shop.subscription.status === 'active' &&
+        shop.subscription.lastPlanInfo &&
+        shop.subscription.lastPlanInfo.endDate &&
+        shop.subscription.lastPlanInfo.endDate < now
+    ) {
         shop.subscription.status = 'expired';
         statusUpdated = true;
     }
@@ -150,11 +157,22 @@ exports.getShopById = asyncHandler(async (req, res) => {
         await shop.save();
     }
 
+    // Fetch history associated with this shop
+    const history = await History.find({ shop: req.params.id })
+        .populate('barber', 'name phone')
+        .populate('services.service', 'name price') // populate only the service reference inside services array
+        .sort({ date: -1 }); // Optional: sort latest first
+
+    console.log("Shop details being sent:", shop);
     res.json({
         success: true,
-        data: shop, // The 'services' field in shop will contain the array of {name, price} objects directly.
+        data: {
+            shop,
+            history
+        }
     });
 });
+
 
 // @desc    Get all shops (for discovery)
 // @route   GET /api/shops
@@ -440,12 +458,6 @@ exports.getShopSubscriptionStatus = asyncHandler(async (req, res) => {
 });
 
 
-
-// --- Razorpay Payment Integration for Shops ---
-
-// @desc    Serve Razorpay checkout page for shop subscription
-// @route   GET /api/shops/payment/checkout-page
-// @access  Private (Owner)
 exports.serveRazorpayCheckoutPageShop = asyncHandler(async (req, res) => {
     const { order_id, key_id, amount, currency, name, description, prefill_email, prefill_contact, theme_color, shopId } = req.query;
 
@@ -568,9 +580,6 @@ exports.handleWebViewCallbackFailureShop = asyncHandler(async (req, res) => {
 });
 
 
-// @desc    Create a Razorpay order for shop subscription
-// @route   POST /api/shops/payment/create-order
-// @access  Private (Owner)
 exports.createShopPaymentOrder = asyncHandler(async (req, res) => {
     const { amount, currency = 'INR', shopId, planId } = req.body; // planId is the Subscription ObjectId
     console.log("createShopPaymentOrder: Incoming request body:", req.body);
@@ -643,9 +652,7 @@ exports.createShopPaymentOrder = asyncHandler(async (req, res) => {
     res.json({ success: true, data: order });
 });
 
-// @desc    Verify payment and update shop subscription status
-// @route   POST /api/shops/payment/verify
-// @access  Private (Owner)
+
 exports.verifyShopPaymentAndUpdateSubscription = asyncHandler(async (req, res) => {
     // const {
     //     razorpay_payment_id,
@@ -757,5 +764,60 @@ exports.verifyShopPaymentAndUpdateSubscription = asyncHandler(async (req, res) =
             subscriptionStartDate: shop.subscription.lastPlanInfo.startDate,
             planName: subscriptionPlan.name,
         }
+    });
+});
+
+// @desc    Get today's stats (earnings, customers) for a specific shop
+// @route   GET /api/shops/:shopId/today-stats
+// @access  Private (Owner, Admin)
+exports.getShopTodayStats = asyncHandler(async (req, res) => {
+    const { shopId } = req.params;
+
+    // Verify shop and authorization
+    const shop = await Shop.findById(shopId).select('owner');
+    if (!shop) {
+        throw new ApiError('Shop not found.', 404);
+    }
+
+    // Authorization: Only owner of the shop or Admin can view
+    if (req.user.role === 'owner' && shop.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError('Not authorized to view stats for this shop.', 403);
+    }
+    // Admin user has implicit access if req.user.role === 'admin'
+
+    // Calculate start and end of today in local time (or UTC if preferred, but usually local for "today")
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to the beginning of today
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1); // Set to the beginning of tomorrow
+
+    // Aggregate history records for today
+    const historyRecords = await History.find({
+        shop: shopId,
+        date: {
+            $gte: today, // Greater than or equal to start of today
+            $lt: tomorrow // Less than start of tomorrow
+        }
+    });
+
+    let totalEarnings = 0;
+    const uniqueCustomers = new Set();
+
+    historyRecords.forEach(record => {
+        totalEarnings += record.totalCost;
+        if (record.user) { // Assuming `user` field stores the customer's ObjectId
+            uniqueCustomers.add(record.user.toString());
+        } else if (record.customerName) { // Fallback if `user` is not always present but `customerName` is
+            uniqueCustomers.add(record.customerName);
+        }
+    });
+
+    res.json({
+        success: true,
+        data: {
+            earnings: totalEarnings,
+            customers: uniqueCustomers.size,
+        },
     });
 });
