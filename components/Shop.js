@@ -12,7 +12,7 @@ import {
   StatusBar,
   PixelRatio,
   TouchableWithoutFeedback,
-  Platform, // Added Platform for consistency with menu.js
+  Platform,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
@@ -83,10 +83,17 @@ export const ShopList = ({ onSelect, onClose }) => {
     try {
       const shopRes = await fetch(`${API_BASE}/shops`);
       const shopsData = await shopRes.json();
-      const shops = shopsData.data;
 
-      if (!Array.isArray(shops)) {
-        throw new Error("API did not return a list of shops.");
+      let shops = []; // Initialize shops as an empty array by default
+
+      // Check if shopsData exists, is an object, and has a 'data' property that is an array
+      if (shopsData && typeof shopsData === 'object' && Array.isArray(shopsData.data)) {
+        shops = shopsData.data;
+      } else {
+        console.warn("API response 'data' property is missing or not an array:", shopsData);
+        // If not an array, shops remains an empty array, which is safe.
+        // Optionally, you can throw an error here if you want to explicitly handle malformed responses.
+        // throw new Error("API response is malformed or did not return a list of shops.");
       }
 
       // Simulate distance for each shop (as there's no actual distance calculation)
@@ -98,13 +105,17 @@ export const ShopList = ({ onSelect, onClose }) => {
       setShopRatings(shopsWithExtraData);
     } catch (err) {
       setError(err.message || "Error loading shops");
+      setShopRatings([]); // Ensure shopRatings is always an array even on error
     } finally {
       setLoading(false);
     }
   };
 
   // Handles selecting a shop and saving it to AsyncStorage
-  const handleSelectShop = async (shopId) => {
+  const handleSelectShop = async (shopId, isOpen) => {
+    if (!isOpen) {
+      return; // Prevent selecting if the shop is closed
+    }
     setSelectedShopId(shopId);
     console.log("Selected shop ID:", shopId);
     await AsyncStorage.setItem("pinnedShop", shopId);
@@ -205,15 +216,18 @@ export const ShopList = ({ onSelect, onClose }) => {
     const isSelected = shop._id === selectedShopId;
     const shopRating = shop.rating || 0;
     const queueCount = queueCounts[shop._id] !== undefined ? queueCounts[shop._id] : 0;
+    const isShopOpen = shop.isOpen; // Get the isOpen status
 
     return (
       <TouchableOpacity
         style={[
           styles.shopCard,
-          isSelected && styles.selectedShopCard // Apply selected style if current shop is pinned
+          isSelected && styles.selectedShopCard, // Apply selected style if current shop is pinned
+          !isShopOpen && styles.closedShopCard, // Apply closed style if shop is closed
         ]}
-        onPress={() => handleSelectShop(shop._id)}
-        activeOpacity={0.7} // Reduce opacity slightly on press
+        onPress={() => handleSelectShop(shop._id, isShopOpen)} // Pass isOpen to handler
+        activeOpacity={isShopOpen ? 0.7 : 1} // Reduce opacity slightly on press only if open
+        disabled={!isShopOpen} // Disable touch if shop is closed
       >
         <View style={styles.shopImageContainer}>
           {/* Using a placeholder image with random ID for variety */}
@@ -224,6 +238,11 @@ export const ShopList = ({ onSelect, onClose }) => {
           {isSelected && (
             <View style={styles.selectedBadge}>
               <FontAwesome5 name="check" size={getResponsiveFontSize(12)} color={colors.white} />
+            </View>
+          )}
+          {!isShopOpen && (
+            <View style={styles.closedOverlay}>
+              <Text style={styles.closedText}>CLOSED</Text>
             </View>
           )}
         </View>
@@ -256,7 +275,7 @@ export const ShopList = ({ onSelect, onClose }) => {
             </View>
             <View style={styles.metaItem}>
               <FontAwesome5 name="clock" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
-              <Text style={styles.metaText}>Open</Text>
+              <Text style={styles.metaText}>{isShopOpen ? "Open" : "Closed"}</Text>
             </View>
             <View style={styles.metaItem}>
               <FontAwesome5 name="users" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
@@ -452,12 +471,14 @@ const colors = {
   error: '#e53e3e',
   clearButton: '#000000',
   white: '#ffffff',
+  red: '#dc3545', // Added for closed strip
+  lightGrey: '#f0f0f0', // Added for closed card background
 };
 
 // Stylesheet using screen dimensions for responsive layout, consistent with menu.js
 const styles = StyleSheet.create({
   headerApp: {
-    height: screenHeight * 0.10, 
+    height: screenHeight * 0.10,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center", // Vertically centers content in the header
@@ -688,6 +709,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
   },
+  closedShopCard: {
+    backgroundColor: colors.lightGrey, // Light grey background for closed shops
+    borderColor: colors.lightGrey,
+  },
   shopImageContainer: {
     position: "relative",
     width: "100%",
@@ -712,6 +737,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: screenHeight * 0.001 }, // Adjusted from responsiveHeight(0.1)
     shadowOpacity: 0.2,
     shadowRadius: screenWidth * 0.005, // Adjusted from responsiveWidth(0.5)
+  },
+  closedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent dark overlay
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closedText: {
+    color: colors.red,
+    fontSize: getResponsiveFontSize(24),
+    fontWeight: 'bold',
+    backgroundColor: colors.white, // White background for the text to make it stand out
+    paddingHorizontal: screenWidth * 0.04,
+    paddingVertical: screenHeight * 0.01,
+    borderRadius: 8,
+    overflow: 'hidden', // Ensure text background is contained
+    transform: [{ rotate: '-15deg' }], // Slightly rotate the "CLOSED" text
   },
   shopDetails: {
     paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)

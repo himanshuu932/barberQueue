@@ -16,10 +16,10 @@ require('dotenv').config();
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'FdhuPV1HIA5bRYAIu2gYSoXh';
 // IMPORTANT: Configure this URL based on your testing environment:
-// - For Android Emulator: 'http://10.0.2.2:5000'
+// - For Android Emulator: 'https://numbr-p7zc.onrender.com'
 // - For iOS Simulator/Device or Physical Android Device: Replace '10.0.2.2' with your computer's actual local IP address (e.g., 'http://192.168.1.X:5000')
 // - For Production/Public access: This should be your deployed backend's public URL (e.g., 'https://api.yourdomain.com')
-const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'http://10.0.2.2:5000'; 
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-p7zc.onrender.com'; 
 
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({
@@ -180,7 +180,7 @@ exports.getShopById = asyncHandler(async (req, res) => {
 exports.getAllShops = asyncHandler(async (req, res) => {
     // You can add query parameters for pagination, filtering (e.g., by location, service, rating)
     const shops = await Shop.find({ "subscription.status": { $ne: 'expired' } }) // Only show non-expired shops
-                            .select('name address rating photos subscription.status openingTime closingTime') // Select relevant fields for listing
+                            .select('name address rating photos subscription.status openingTime closingTime isOpen') // Select relevant fields for listing
                             .populate('owner', 'name'); // Optionally populate owner name
 
     res.json({
