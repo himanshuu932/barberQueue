@@ -38,7 +38,7 @@ export default function TabProfileScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ name: "", email: "" });
   const [isUpdating, setIsUpdating] = useState(false);
-  const API_BASE = "https://numbr-p7zc.onrender.com/api"; // Ensure this is correct for your setup
+  const API_BASE = "http://10.0.2.2:5000/api"; // Ensure this is correct for your setup
 
   // Fetch profile data and history
   const fetchProfileAndHistory = async () => {
@@ -234,9 +234,7 @@ export default function TabProfileScreen() {
               <View style={styles.profileContent}>
                 <Image source={require("../image/user.png")} style={styles.profileImage} />
                 <View style={styles.profileDetails}>
-                  {loading ? (
-                    <ActivityIndicator size="large" color="#fff" />
-                  ) : (
+                 
                     <View>
                       <Text style={styles.username}>{profile?.name || "User Name"}</Text>
                       <Text style={styles.userInfo}>{profile?.email || profile?.phone || "N/A"}</Text>
@@ -253,7 +251,7 @@ export default function TabProfileScreen() {
                         </Text>
                       )}
                     </View>
-                  )}
+                  
                 </View>
               </View>
             </LinearGradient>
