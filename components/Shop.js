@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -38,16 +38,65 @@ export const ShopList = ({ onSelect, onClose }) => {
   const [sortCriteria, setSortCriteria] = useState([]);
   const [showSortOptions, setShowSortOptions] = useState(false);
 
+  // Memoized fetchShops to prevent unnecessary re-creations
+  const fetchShops = useCallback(async () => {
+    setLoading(true);
+    setError(""); // Clear previous errors
+    try {
+      const shopRes = await fetch(`${API_BASE}/shops`);
+      const shopsData = await shopRes.json();
+
+      let shops = [];
+      if (shopsData && typeof shopsData === "object" && Array.isArray(shopsData.data)) {
+        shops = shopsData.data;
+      } else {
+        console.warn("API response 'data' property is missing or not an array:", shopsData);
+      }
+
+      // Simulate distance for each shop (as there's no actual distance calculation)
+      const shopsWithExtraData = shops.map((shop) => ({
+        ...shop,
+        distance: parseFloat((Math.random() * 10 + 0.5).toFixed(1)), // Simulate distance in km
+      }));
+
+      setShopRatings(shopsWithExtraData);
+    } catch (err) {
+      console.error("Error fetching shops:", err);
+      setError(err.message || "Error loading shops");
+      setShopRatings([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []); // Empty dependency array means this function is created once
+
+  // Memoized fetchQueueCounts for efficiency
+  const fetchQueueCounts = useCallback(async (shops) => {
+    const counts = {};
+    await Promise.all(
+      shops.map(async (shop) => {
+        try {
+          const res = await fetch(`${API_BASE}/queue/shop/${shop._id}`);
+          const json = await res.json();
+          counts[shop._id] = json.count || 0;
+        } catch (err) {
+          console.error(`Error fetching queue for shop ${shop._id}:`, err);
+          counts[shop._id] = 0; // Default to 0 on error
+        }
+      })
+    );
+    setQueueCounts(counts);
+  }, []); // Empty dependency array means this function is created once
+
   useEffect(() => {
     fetchShops();
     loadCurrentShop();
-  }, []);
+  }, [fetchShops]); // Dependency on fetchShops
 
   useEffect(() => {
-    if (shopRatings && shopRatings.length > 0) {
+    if (shopRatings.length > 0) {
       fetchQueueCounts(shopRatings);
     }
-  }, [shopRatings]);
+  }, [shopRatings, fetchQueueCounts]); // Dependencies on shopRatings and fetchQueueCounts
 
   // Loads the currently pinned shop from AsyncStorage
   const loadCurrentShop = async () => {
@@ -61,56 +110,6 @@ export const ShopList = ({ onSelect, onClose }) => {
     }
   };
 
-  // Fetches queue counts for all shops
-  const fetchQueueCounts = async (shops) => {
-    const counts = {};
-    // Use Promise.all to fetch counts concurrently for better performance
-    await Promise.all(shops.map(async (shop) => {
-      try {
-        const res = await fetch(`${API_BASE}/queue/shop/${shop._id}`);
-        const json = await res.json();
-        counts[shop._id] = json.count || 0;
-      } catch (err) {
-        console.error(`Error fetching queue for shop ${shop._id}:`, err);
-        counts[shop._id] = 0; // Default to 0 on error
-      }
-    }));
-    setQueueCounts(counts);
-  };
-
-  // Fetches shop data from the API
-  const fetchShops = async () => {
-    try {
-      const shopRes = await fetch(`${API_BASE}/shops`);
-      const shopsData = await shopRes.json();
-
-      let shops = []; // Initialize shops as an empty array by default
-
-      // Check if shopsData exists, is an object, and has a 'data' property that is an array
-      if (shopsData && typeof shopsData === 'object' && Array.isArray(shopsData.data)) {
-        shops = shopsData.data;
-      } else {
-        console.warn("API response 'data' property is missing or not an array:", shopsData);
-        // If not an array, shops remains an empty array, which is safe.
-        // Optionally, you can throw an error here if you want to explicitly handle malformed responses.
-        // throw new Error("API response is malformed or did not return a list of shops.");
-      }
-
-      // Simulate distance for each shop (as there's no actual distance calculation)
-      const shopsWithExtraData = shops.map(shop => ({
-        ...shop,
-        distance: parseFloat((Math.random() * 10 + 0.5).toFixed(1)), // Simulate distance in km
-      }));
-
-      setShopRatings(shopsWithExtraData);
-    } catch (err) {
-      setError(err.message || "Error loading shops");
-      setShopRatings([]); // Ensure shopRatings is always an array even on error
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Handles selecting a shop and saving it to AsyncStorage
   const handleSelectShop = async (shopId, isOpen) => {
     if (!isOpen) {
@@ -119,7 +118,7 @@ export const ShopList = ({ onSelect, onClose }) => {
     setSelectedShopId(shopId);
     console.log("Selected shop ID:", shopId);
     await AsyncStorage.setItem("pinnedShop", shopId);
-    onSelect?.(); // Call the onSelect callback if provided
+    onSelect?.(shopId); // Pass the selected shop ID to the onSelect callback
   };
 
   // Generates a summary of active filters and sort criteria
@@ -129,24 +128,24 @@ export const ShopList = ({ onSelect, onClose }) => {
       filters.push(`"${searchQuery}"`);
     }
 
-    const sortSummaries = sortCriteria.map(c => {
+    const sortSummaries = sortCriteria.map((c) => {
       const label = c.key.charAt(0).toUpperCase() + c.key.slice(1);
-      const orderLabel = c.order === 'asc' ? 'Low to High' : 'High to Low';
+      const orderLabel = c.order === "asc" ? "Low to High" : "High to Low";
       return `${label} (${orderLabel})`;
     });
 
-    let finalSummary = '';
+    let finalSummary = "";
     if (filters.length > 0) {
       finalSummary += filters.join(", ");
     }
     if (sortSummaries.length > 0) {
       if (filters.length > 0) {
-        finalSummary += '; ';
+        finalSummary += "; ";
       }
-      finalSummary += `Sorted by: ${sortSummaries.join(', ')}`;
+      finalSummary += `Sorted by: ${sortSummaries.join(", ")}`;
     }
 
-    return finalSummary ? ` (${finalSummary})` : '';
+    return finalSummary ? ` (${finalSummary})` : "";
   };
 
   const filterSummary = getActiveFilterSummary();
@@ -160,8 +159,8 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   // Handles sorting based on criterion key and order (asc/desc)
   const handleSort = (criterionKey, order) => {
-    setSortCriteria(prevCriteria => {
-      const existingIndex = prevCriteria.findIndex(c => c.key === criterionKey);
+    setSortCriteria((prevCriteria) => {
+      const existingIndex = prevCriteria.findIndex((c) => c.key === criterionKey);
 
       if (existingIndex !== -1) {
         const existingCriterion = prevCriteria[existingIndex];
@@ -183,32 +182,34 @@ export const ShopList = ({ onSelect, onClose }) => {
   };
 
   // Filters and sorts shops based on current search query and sort criteria
-  const sortedAndFilteredShops = [...shopRatings].filter((shop) => {
-    return searchQuery ? shop.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
-  }).sort((a, b) => {
-    // Apply multiple sort criteria in order of precedence
-    for (let i = 0; i < sortCriteria.length; i++) {
-      const { key, order } = sortCriteria[i];
-      let comparison = 0;
+  const sortedAndFilteredShops = [...shopRatings]
+    .filter((shop) => {
+      return searchQuery ? shop.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
+    })
+    .sort((a, b) => {
+      // Apply multiple sort criteria in order of precedence
+      for (let i = 0; i < sortCriteria.length; i++) {
+        const { key, order } = sortCriteria[i];
+        let comparison = 0;
 
-      if (key === 'rating') {
-        comparison = a.rating - b.rating;
-      } else if (key === 'distance') {
-        comparison = a.distance - b.distance;
-      } else if (key === 'queue') {
-        comparison = (queueCounts[a._id] || 0) - (queueCounts[b._id] || 0);
-      }
+        if (key === "rating") {
+          comparison = a.rating - b.rating;
+        } else if (key === "distance") {
+          comparison = a.distance - b.distance;
+        } else if (key === "queue") {
+          comparison = (queueCounts[a._id] || 0) - (queueCounts[b._id] || 0);
+        }
 
-      if (order === 'desc') {
-        comparison = -comparison; // Reverse order for descending
-      }
+        if (order === "desc") {
+          comparison = -comparison; // Reverse order for descending
+        }
 
-      if (comparison !== 0) {
-        return comparison; // If a comparison is found, return it
+        if (comparison !== 0) {
+          return comparison; // If a comparison is found, return it
+        }
       }
-    }
-    return 0; // If no criteria, or all criteria are equal, maintain original order
-  });
+      return 0; // If no criteria, or all criteria are equal, maintain original order
+    });
 
   // Renders each shop item in the FlatList
   const renderShopItem = ({ item }) => {
@@ -402,36 +403,36 @@ export const ShopList = ({ onSelect, onClose }) => {
       {showSortOptions && (
         <View style={styles.sortOptionsDropdown}>
           <Text style={styles.dropdownHeader}>Rating</Text>
-          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('rating', 'desc')}>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort("rating", "desc")}>
             <Text style={styles.sortOptionText}>High to Low</Text>
             {/* Checkmark if this option is currently selected */}
-            {sortCriteria.some(c => c.key === 'rating' && c.order === 'desc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+            {sortCriteria.some((c) => c.key === "rating" && c.order === "desc") && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('rating', 'asc')}>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort("rating", "asc")}>
             <Text style={styles.sortOptionText}>Low to High</Text>
-            {sortCriteria.some(c => c.key === 'rating' && c.order === 'asc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+            {sortCriteria.some((c) => c.key === "rating" && c.order === "asc") && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
           </TouchableOpacity>
           <View style={styles.sortOptionDivider} />
 
           <Text style={styles.dropdownHeader}>Distance</Text>
-          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('distance', 'asc')}>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort("distance", "asc")}>
             <Text style={styles.sortOptionText}>Low to High</Text>
-            {sortCriteria.some(c => c.key === 'distance' && c.order === 'asc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+            {sortCriteria.some((c) => c.key === "distance" && c.order === "asc") && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('distance', 'desc')}>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort("distance", "desc")}>
             <Text style={styles.sortOptionText}>High to Low</Text>
-            {sortCriteria.some(c => c.key === 'distance' && c.order === 'desc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+            {sortCriteria.some((c) => c.key === "distance" && c.order === "desc") && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
           </TouchableOpacity>
           <View style={styles.sortOptionDivider} />
 
           <Text style={styles.dropdownHeader}>Queue</Text>
-          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('queue', 'asc')}>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort("queue", "asc")}>
             <Text style={styles.sortOptionText}>Low to High</Text>
-            {sortCriteria.some(c => c.key === 'queue' && c.order === 'asc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+            {sortCriteria.some((c) => c.key === "queue" && c.order === "asc") && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('queue', 'desc')}>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSort("queue", "desc")}>
             <Text style={styles.sortOptionText}>High to Low</Text>
-            {sortCriteria.some(c => c.key === 'queue' && c.order === 'desc') && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+            {sortCriteria.some((c) => c.key === "queue" && c.order === "desc") && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
           </TouchableOpacity>
         </View>
       )}
