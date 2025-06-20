@@ -17,6 +17,7 @@ import {
 import Icon from "react-native-vector-icons/FontAwesome";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSafeAreaInsets } from 'react-native-safe-area-context'; // Import useSafeAreaInsets
 
 // Get screen dimensions for responsive styling, consistent with menu.js
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -28,7 +29,31 @@ const getResponsiveFontSize = (size) => size / fontScale;
 // Base API URL
 const API_BASE = "https://numbr-p7zc.onrender.com/api";
 
+// Define a consistent color palette with reverted colors for specific elements
+const colors = {
+  primary: '#3182ce', // Original primary blue
+  secondary: '#63b3ed', // Original secondary blue
+  background: '#f5f7fa', // Light grey background
+  cardBackground: '#ffffff', // White for cards
+  headerBackground: '#000000', // Reverted to black for header
+  textDark: '#2d3748', // Dark text for main content
+  textMedium: '#4a5568', // Medium grey text
+  textLight: '#a0aec0', // Light grey text for placeholders/hints
+  textSecondary: '#718096', // Muted text for meta info
+  border: '#e2e8f0', // Light grey for borders
+  shadow: 'rgba(0, 0, 0, 0.08)', // Soft shadow
+  starActive: '#FFD700', // Gold for active stars
+  starInactive: '#cbd5e0', // Light grey for inactive stars
+  error: '#e53e3e', // Red for errors
+  white: '#ffffff',
+  red: '#dc3545', // Reverted to original red for closed strip
+  lightGrey: '#f0f0f0', // Reverted to original light grey for closed card background
+  bottomButton: '#000000', // Reverted to black for bottom button
+};
+
 export const ShopList = ({ onSelect, onClose }) => {
+  const insets = useSafeAreaInsets(); // Get safe area insets
+
   const [shopRatings, setShopRatings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -311,10 +336,14 @@ export const ShopList = ({ onSelect, onClose }) => {
     );
   }
 
+  // Calculate the approximate height of the bottom button container to add padding to FlatList
+  const bottomButtonHeight = screenHeight * 0.02 + screenHeight * 0.018 * 2 + (Platform.OS === 'ios' ? insets.bottom : screenHeight * 0.02);
+  const extraPadding = bottomButtonHeight + screenHeight * 0.03; // Add some extra margin
+
   return (
     <View style={styles.container}>
       {/* App Header (Numbr title) */}
-      <View style={styles.headerApp}>
+      <View style={[styles.headerApp, { paddingTop: insets.top }]}>
         <Text style={styles.titleApp}>Numbr</Text>
       </View>
       {/* StatusBar for iOS/Android */}
@@ -386,7 +415,7 @@ export const ShopList = ({ onSelect, onClose }) => {
             data={sortedAndFilteredShops}
             renderItem={renderShopItem}
             keyExtractor={(item) => item._id}
-            contentContainerStyle={styles.shopList}
+            contentContainerStyle={[styles.shopList, { paddingBottom: extraPadding }]} // Added extra padding
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               // Component to show when no shops are found
@@ -439,7 +468,7 @@ export const ShopList = ({ onSelect, onClose }) => {
 
       {/* "Back to Home" button, visible if onClose prop is provided */}
       {onClose && (
-        <View style={styles.bottomButtonContainer}>
+        <View style={[styles.bottomButtonContainer, { paddingBottom: insets.bottom }]}>
           <TouchableOpacity
             style={styles.bottomCloseButton}
             onPress={onClose}
@@ -453,44 +482,20 @@ export const ShopList = ({ onSelect, onClose }) => {
   );
 };
 
-const colors = {
-  primary: '#3182ce',
-  secondary: '#63b3ed',
-  background: '#f5f7fa',
-  cardBackground: '#ffffff',
-  headerBackground: '#000000',
-  textDark: '#2d3748',
-  textMedium: '#4a5568',
-  textLight: '#a0aec0',
-  textSecondary: '#718096',
-  border: '#e2e8f0',
-  shadow: 'rgba(0, 0, 0, 0.08)',
-  starActive: '#FFD700',
-  starInactive: '#cbd5e0',
-  switchInactive: '#cbd5e0',
-  switchThumbInactive: '#f8f9fa',
-  error: '#e53e3e',
-  clearButton: '#000000',
-  white: '#ffffff',
-  red: '#dc3545', // Added for closed strip
-  lightGrey: '#f0f0f0', // Added for closed card background
-};
-
 // Stylesheet using screen dimensions for responsive layout, consistent with menu.js
 const styles = StyleSheet.create({
   headerApp: {
-    height: screenHeight * 0.10,
-    backgroundColor: "black",
+    backgroundColor: colors.headerBackground, // Original black
     flexDirection: "row",
-    alignItems: "center", // Vertically centers content in the header
-    paddingHorizontal: screenWidth * 0.042, // Horizontal padding remains fixed, but can be percentage if desired
-    paddingTop: screenHeight * 0.03,
+    alignItems: "center",
+    paddingHorizontal: screenWidth * 0.042,
+    // paddingTop handled by useSafeAreaInsets directly on the element
   },
   titleApp: {
-    color: "#fff",
-    fontSize: screenWidth * 0.055, // Adjust font size based on screen width for responsiveness
-    marginTop: screenHeight * 0.015,
-    marginLeft: screenWidth * 0.042, // Fixed left margin, adjust if needed
+    color: colors.white,
+    fontSize: getResponsiveFontSize(24),
+    fontWeight: 'bold',
+    paddingVertical: screenHeight * 0.02, // Consistent padding for title
   },
   container: {
     flex: 1,
@@ -503,7 +508,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   loadingText: {
-    marginTop: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
+    marginTop: screenHeight * 0.02,
     fontSize: getResponsiveFontSize(16),
     color: colors.textMedium,
     fontWeight: "500",
@@ -512,24 +517,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: screenWidth * 0.06, // Adjusted from responsiveWidth(6)
+    padding: screenWidth * 0.06,
     backgroundColor: colors.background,
   },
   errorText: {
-    marginTop: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
+    marginTop: screenHeight * 0.02,
     fontSize: getResponsiveFontSize(16),
     color: colors.textMedium,
     textAlign: "center",
-    lineHeight: screenHeight * 0.03, // Adjusted from responsiveHeight(3)
+    lineHeight: getResponsiveFontSize(24), // Using responsive font size for line height
     fontWeight: "500",
   },
   retryButton: {
-    marginTop: screenHeight * 0.03, // Adjusted from responsiveHeight(3)
-    paddingVertical: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
-    paddingHorizontal: screenWidth * 0.06, // Adjusted from responsiveWidth(6)
+    marginTop: screenHeight * 0.03,
+    paddingVertical: screenHeight * 0.015,
+    paddingHorizontal: screenWidth * 0.06,
     backgroundColor: colors.primary,
     borderRadius: 8,
     elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   retryButtonText: {
     color: colors.white,
@@ -538,15 +547,15 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.cardBackground,
-    paddingTop: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
-    paddingBottom: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
-    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
+    paddingTop: screenHeight * 0.02,
+    paddingBottom: screenHeight * 0.015,
+    paddingHorizontal: screenWidth * 0.04,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: screenHeight * 0.001 }, // Adjusted from responsiveHeight(0.1)
+    shadowOffset: { width: 0, height: screenHeight * 0.001 },
     shadowOpacity: 0.05,
-    shadowRadius: screenWidth * 0.005, // Adjusted from responsiveWidth(0.5)
+    shadowRadius: screenWidth * 0.005,
     elevation: 2,
     zIndex: 10,
   },
@@ -554,7 +563,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
+    marginBottom: screenHeight * 0.015,
   },
   title: {
     fontSize: getResponsiveFontSize(22),
@@ -564,10 +573,10 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: screenWidth * 0.0125, // Adjusted from responsiveWidth(2.5) / 2
+    gap: screenWidth * 0.025, // Increased gap for better spacing on smaller screens
   },
   closeButton: {
-    padding: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
+    padding: screenWidth * 0.02,
     borderRadius: 50,
     backgroundColor: colors.background,
   },
@@ -576,30 +585,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.background,
     borderRadius: 10,
-    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
-    height: screenHeight * 0.06, // Adjusted from responsiveHeight(6)
-    marginBottom: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
+    paddingHorizontal: screenWidth * 0.04,
+    height: screenHeight * 0.06,
+    marginBottom: screenHeight * 0.01,
+    borderWidth: 1, // Added border for better input field visibility
+    borderColor: colors.border,
   },
   searchIcon: {
-    marginRight: screenWidth * 0.03, // Adjusted from responsiveWidth(3)
+    marginRight: screenWidth * 0.03,
     color: colors.textSecondary,
   },
   searchInput: {
     flex: 1,
     fontSize: getResponsiveFontSize(16),
     color: colors.textDark,
-    paddingVertical: 0,
+    paddingVertical: 0, // Ensure no extra padding for text input
   },
   controlsContainer: {
-    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
-    paddingVertical: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
+    paddingHorizontal: screenWidth * 0.04,
+    paddingVertical: screenHeight * 0.01,
     backgroundColor: colors.cardBackground,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: screenHeight * 0.001 }, // Adjusted from responsiveHeight(0.1)
+    shadowOffset: { width: 0, height: screenHeight * 0.001 },
     shadowOpacity: 0.1,
-    shadowRadius: screenWidth * 0.005, // Adjusted from responsiveWidth(0.5)
+    shadowRadius: screenWidth * 0.005,
     elevation: 3,
     zIndex: 9,
     position: 'relative',
@@ -608,70 +619,72 @@ const styles = StyleSheet.create({
   buttonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: screenWidth * 0.025, // Adjusted from responsiveWidth(2.5)
+    gap: screenWidth * 0.025,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    paddingVertical: screenHeight * 0.008, // Adjusted from responsiveHeight(0.8)
-    paddingHorizontal: screenWidth * 0.025, // Approximately 10px, adjusted for responsiveness
+    paddingVertical: screenHeight * 0.008,
+    paddingHorizontal: screenWidth * 0.025,
     borderRadius: 20,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: screenHeight * 0.002 }, // Adjusted from responsiveHeight(0.2)
+    shadowOffset: { width: 0, height: screenHeight * 0.002 },
     shadowOpacity: 0.15,
-    shadowRadius: screenWidth * 0.0075, // Adjusted from responsiveWidth(0.75)
+    shadowRadius: screenWidth * 0.0075,
     elevation: 4,
+    minWidth: screenWidth * 0.25, // Ensure buttons don't get too small
+    justifyContent: 'center',
   },
   actionButtonText: {
     fontSize: getResponsiveFontSize(15),
     fontWeight: '600',
     color: colors.textDark,
-    marginLeft: screenWidth * 0.01, // Approximately 4px, adjusted for responsiveness
+    marginLeft: screenWidth * 0.01,
   },
   actionButtonIcon: {
-    marginLeft: screenWidth * 0.01, // Approximately 4px, adjusted for responsiveness
+    marginLeft: screenWidth * 0.01,
   },
   filterSummaryText: {
     fontSize: getResponsiveFontSize(14),
     color: colors.textSecondary,
     textAlign: 'right',
-    paddingHorizontal: screenWidth * 0.012, // Adjusted from responsiveWidth(1.2)
+    paddingHorizontal: screenWidth * 0.012,
   },
   sortOptionsDropdown: {
     position: 'absolute',
-    top: screenHeight * 0.06, // Adjusted from responsiveHeight(6)
-    right: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
-    width: screenWidth * 0.60, // Adjusted from responsiveWidth(60)
+    top: Platform.OS === 'ios' ? insets.top + (screenHeight * 0.10) + (screenHeight * 0.02) : (screenHeight * 0.10) + (screenHeight * 0.02), // Adjusted dynamic top position
+    right: screenWidth * 0.04,
+    width: screenWidth * 0.65, // Slightly wider for better readability
     backgroundColor: colors.cardBackground,
     borderRadius: 10,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: screenHeight * 0.004 }, // Adjusted from responsiveHeight(0.4)
+    shadowOffset: { width: 0, height: screenHeight * 0.004 },
     shadowOpacity: 0.25,
-    shadowRadius: screenWidth * 0.015, // Adjusted from responsiveWidth(1.5)
+    shadowRadius: screenWidth * 0.015,
     elevation: 10,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
+    paddingVertical: screenHeight * 0.01,
     zIndex: 100,
   },
   dropdownHeader: {
     fontSize: getResponsiveFontSize(14),
     fontWeight: '700',
     color: colors.textMedium,
-    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
-    paddingVertical: screenHeight * 0.008, // Adjusted from responsiveHeight(0.8)
+    paddingHorizontal: screenWidth * 0.04,
+    paddingVertical: screenHeight * 0.008,
     backgroundColor: colors.background,
     borderRadius: 5,
-    marginHorizontal: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
-    marginBottom: screenHeight * 0.005, // Adjusted from responsiveHeight(0.5)
+    marginHorizontal: screenWidth * 0.02,
+    marginBottom: screenHeight * 0.005,
   },
   sortOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: screenHeight * 0.012, // Adjusted from responsiveHeight(1.2)
-    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
+    paddingVertical: screenHeight * 0.012,
+    paddingHorizontal: screenWidth * 0.04,
   },
   sortOptionText: {
     fontSize: getResponsiveFontSize(15),
@@ -681,25 +694,25 @@ const styles = StyleSheet.create({
   sortOptionDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
-    marginVertical: screenHeight * 0.005, // Adjusted from responsiveHeight(0.5)
-    marginHorizontal: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
+    marginVertical: screenHeight * 0.005,
+    marginHorizontal: screenWidth * 0.02,
   },
   shopList: {
-    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
-    paddingTop: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
-    paddingBottom: screenHeight * 0.03, // Adjusted from responsiveHeight(3)
+    paddingHorizontal: screenWidth * 0.04,
+    paddingTop: screenHeight * 0.015,
+    // paddingBottom will be dynamically set by 'extraPadding'
   },
   shopCard: {
     backgroundColor: colors.cardBackground,
     width: '100%',
-    marginBottom: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
+    marginBottom: screenHeight * 0.02,
     borderRadius: 12,
     overflow: "hidden",
-    elevation: 2,
+    elevation: 4, // Slightly increased elevation for more pop
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: screenHeight * 0.002 }, // Adjusted from responsiveHeight(0.2)
-    shadowOpacity: 0.08,
-    shadowRadius: screenWidth * 0.01, // Adjusted from responsiveWidth(1)
+    shadowOffset: { width: 0, height: screenHeight * 0.003 }, // Adjusted shadow for depth
+    shadowOpacity: 0.15,
+    shadowRadius: screenWidth * 0.015,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -707,17 +720,18 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     borderWidth: 2,
     shadowColor: colors.primary,
-    shadowOpacity: 0.2,
-    shadowRadius: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
+    shadowOpacity: 0.3, // Increased shadow for selected card
+    shadowRadius: screenWidth * 0.025, // Increased shadow radius
   },
   closedShopCard: {
-    backgroundColor: colors.lightGrey, // Light grey background for closed shops
+    backgroundColor: colors.lightGrey,
     borderColor: colors.lightGrey,
+    opacity: 0.8, // Slightly dim the closed card
   },
   shopImageContainer: {
     position: "relative",
     width: "100%",
-    height: screenWidth * 0.32, // Adjusted from responsiveWidth(32) to maintain aspect ratio and consistency
+    height: screenWidth * 0.32,
   },
   shopImage: {
     width: "100%",
@@ -726,18 +740,18 @@ const styles = StyleSheet.create({
   },
   selectedBadge: {
     position: "absolute",
-    top: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
-    right: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
+    top: screenHeight * 0.01,
+    right: screenWidth * 0.02,
     backgroundColor: colors.primary,
-    width: screenWidth * 0.06, // Adjusted from responsiveWidth(6)
-    height: screenWidth * 0.06, // Adjusted from responsiveWidth(6)
-    borderRadius: screenWidth * 0.03, // Adjusted from responsiveWidth(3)
+    width: screenWidth * 0.07, // Slightly larger badge
+    height: screenWidth * 0.07,
+    borderRadius: screenWidth * 0.035, // Adjusted for new size
     justifyContent: "center",
     alignItems: "center",
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: screenHeight * 0.001 }, // Adjusted from responsiveHeight(0.1)
+    shadowOffset: { width: 0, height: screenHeight * 0.001 },
     shadowOpacity: 0.2,
-    shadowRadius: screenWidth * 0.005, // Adjusted from responsiveWidth(0.5)
+    shadowRadius: screenWidth * 0.005,
   },
   closedOverlay: {
     position: 'absolute',
@@ -745,39 +759,39 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent dark overlay
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Darker overlay for better contrast
     justifyContent: 'center',
     alignItems: 'center',
   },
   closedText: {
     color: colors.red,
-    fontSize: getResponsiveFontSize(24),
+    fontSize: getResponsiveFontSize(26), // Slightly larger text
     fontWeight: 'bold',
-    backgroundColor: colors.white, // White background for the text to make it stand out
+    backgroundColor: colors.white,
     paddingHorizontal: screenWidth * 0.04,
     paddingVertical: screenHeight * 0.01,
     borderRadius: 8,
-    overflow: 'hidden', // Ensure text background is contained
-    transform: [{ rotate: '-15deg' }], // Slightly rotate the "CLOSED" text
+    overflow: 'hidden',
+    transform: [{ rotate: '-15deg' }],
   },
   shopDetails: {
-    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
-    paddingVertical: screenHeight * 0.012, // Adjusted from responsiveHeight(1.2)
+    paddingHorizontal: screenWidth * 0.04,
+    paddingVertical: screenHeight * 0.015, // Increased vertical padding
   },
   shopName: {
-    fontSize: getResponsiveFontSize(18),
+    fontSize: getResponsiveFontSize(20), // Slightly larger font for name
     fontWeight: "700",
     color: colors.textDark,
-    marginBottom: screenHeight * 0.01, // Adjusted from responsiveHeight(1)
+    marginBottom: screenHeight * 0.008, // Adjusted margin
   },
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: screenHeight * 0.015, // Adjusted from responsiveHeight(1.5)
+    marginBottom: screenHeight * 0.015,
   },
   starsContainer: {
     flexDirection: "row",
-    marginRight: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
+    marginRight: screenWidth * 0.02,
   },
   ratingText: {
     fontSize: getResponsiveFontSize(16),
@@ -788,53 +802,59 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     flexWrap: 'wrap',
-    gap: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
+    gap: screenWidth * 0.025, // Increased gap
+    marginTop: screenHeight * 0.005, // Added a small top margin
   },
   metaItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.background,
-    paddingVertical: screenHeight * 0.006, // Adjusted from responsiveHeight(0.6)
-    paddingHorizontal: screenWidth * 0.02, // Adjusted from responsiveWidth(2)
+    paddingVertical: screenHeight * 0.007, // Slightly more vertical padding
+    paddingHorizontal: screenWidth * 0.025, // Slightly more horizontal padding
     borderRadius: 8,
   },
   metaText: {
     fontSize: getResponsiveFontSize(14),
     color: colors.textSecondary,
-    marginLeft: screenWidth * 0.015, // Adjusted from responsiveWidth(1.5)
+    marginLeft: screenWidth * 0.015,
     fontWeight: "500",
   },
   emptyContainer: {
     flex: 1,
-    padding: screenWidth * 0.10, // Adjusted from responsiveWidth(10)
+    padding: screenWidth * 0.10,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: screenHeight * 0.4, // Ensure it takes up sufficient space
   },
   emptyText: {
-    marginTop: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
+    marginTop: screenHeight * 0.02,
     fontSize: getResponsiveFontSize(16),
     color: colors.textLight,
     textAlign: "center",
-    lineHeight: screenHeight * 0.03, // Adjusted from responsiveHeight(3)
+    lineHeight: getResponsiveFontSize(24),
     fontWeight: "500",
   },
   bottomButtonContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? screenHeight * 0.04 : screenHeight * 0.02,
+    bottom: 0, // Align to bottom, safe area handled by paddingBottom
     width: '100%',
-    paddingHorizontal: screenWidth * 0.04, // Adjusted from responsiveWidth(4)
+    paddingHorizontal: screenWidth * 0.04,
     zIndex: 200,
+    paddingTop: screenHeight * 0.02, // Add some padding above the button
+    backgroundColor: colors.background, // Match background to blend
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   bottomCloseButton: {
-    backgroundColor: '#000000',
-    paddingVertical: screenHeight * 0.02, // Adjusted from responsiveHeight(2)
+    backgroundColor: colors.bottomButton, // Reverted to black for the button
+    paddingVertical: screenHeight * 0.02, // Reverted to original padding for button
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: screenHeight * 0.004 }, // Adjusted from responsiveHeight(0.4)
+    shadowOffset: { width: 0, height: screenHeight * 0.004 },
     shadowOpacity: 0.3,
-    shadowRadius: screenWidth * 0.015, // Adjusted from responsiveWidth(1.5)
+    shadowRadius: screenWidth * 0.015,
     elevation: 10,
   },
   bottomCloseButtonText: {
