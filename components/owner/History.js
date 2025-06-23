@@ -1,13 +1,25 @@
-// History.js (Fully Dynamic Version)
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Switch, ImageBackground, Alert, Platform, ActivityIndicator, PixelRatio
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  Switch,
+  ImageBackground,
+  Alert,
+  Platform,
+  ActivityIndicator,
+  PixelRatio,
+  Icon
 } from "react-native";
 import { Menu, Provider } from "react-native-paper";
-import { DatePickerModal, registerTranslation } from "react-native-paper-dates";
-import { en } from 'react-native-paper-dates';
+import { DatePickerModal } from "react-native-paper-dates";
 import { format, utcToZonedTime } from 'date-fns-tz';
+import { registerTranslation } from "react-native-paper-dates";
+import { en } from 'react-native-paper-dates';
+import { BarChart, LineChart } from "react-native-chart-kit";
 import { startOfMonth, endOfMonth, eachDayOfInterval, getDate, getDay } from 'date-fns';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Print from 'expo-print';
@@ -15,15 +27,19 @@ import * as Sharing from 'expo-sharing';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { BarChart, LineChart } from "react-native-chart-kit";
 
-// --- CONFIGURATION ---
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com';
+const fontScale = PixelRatio.getFontScale();
+const getResponsiveFontSize = (size) => size / fontScale;
+const responsiveHeight = (h) => screenHeight * (h / 100);
+const responsiveWidth = (w) => screenWidth * (w / 100);
+
+registerTranslation('en', en);
+
 const IST_TIMEZONE = 'Asia/Kolkata';
 const screenWidth = Dimensions.get("window").width - 32;
 
-// --- SETUP ---
-registerTranslation('en', en);
+// --- CONFIGURATION ---
+const API_BASE_URL = 'https://numbr-p7zc.onrender.com';
 
 const History = ({ onClose }) => {
   // Filter States
@@ -40,7 +56,7 @@ const History = ({ onClose }) => {
   const [filterMenuVisible, setFilterMenuVisible] = useState(false);
   const [shopMenuVisible, setShopMenuVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [showVisualizations, setShowVisualizations] = useState(true);
+  const [showVisualizations, setShowVisualizations] = useState(false);
   const [graphFlag, setGraphFlag] = useState(1);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   
@@ -92,153 +108,756 @@ const History = ({ onClose }) => {
   useFocusEffect(fetchHistoryData);
 
   const getFilteredPayments = () => {
-    // This function logic remains largely the same as it correctly filters the `allPayments` state
     const now = new Date();
     const todayIST = utcToZonedTime(now, IST_TIMEZONE);
-    const oneWeekAgoIST = new Date(todayIST); oneWeekAgoIST.setDate(todayIST.getDate() - 7);
-    const oneMonthAgoIST = new Date(todayIST); oneMonthAgoIST.setMonth(todayIST.getMonth() - 1);
+    const oneWeekAgoIST = new Date(todayIST);
+    oneWeekAgoIST.setDate(todayIST.getDate() - 7);
+    const oneMonthAgoIST = new Date(todayIST);
+    oneMonthAgoIST.setMonth(todayIST.getMonth() - 1);
 
     return allPayments.filter(payment => {
       const istPaymentDate = utcToZonedTime(payment.originalDate, IST_TIMEZONE);
-      if (filter === "Today" && format(istPaymentDate, 'yyyy-MM-dd') !== format(todayIST, 'yyyy-MM-dd')) return false;
+
+      // Apply date filters
+      if (filter === "Today" && !isSameDayIST(istPaymentDate, todayIST)) return false;
       if (filter === "ThisWeek" && istPaymentDate < oneWeekAgoIST) return false;
       if (filter === "ThisMonth" && istPaymentDate < oneMonthAgoIST) return false;
-      if (selectedDate && format(istPaymentDate, 'yyyy-MM-dd') !== format(new Date(selectedDate), 'yyyy-MM-dd')) return false;
+      if (selectedDate) {
+        const selectedIST = utcToZonedTime(new Date(selectedDate), IST_TIMEZONE);
+        if (!isSameDayIST(istPaymentDate, selectedIST)) return false;
+      }
+
+      // Apply shop filter
       if (selectedShop !== "AllShops" && payment.shopName !== selectedShop) return false;
-      if (selectedBarber !== "AllBarbers" && payment.barberName !== selectedBarber) return false;
+
+      // Apply barber filter
+      if (selectedShop !== "AllShops" && selectedBarber !== "AllBarbers" && payment.barberName !== selectedBarber) return false;
+      if (selectedShop === "AllShops" && selectedBarber !== "AllBarbers" && payment.barberName !== selectedBarber) return false;
+
       return true;
     });
+  };
+
+  // Helper function to check if two dates are the same day in IST
+  const isSameDayIST = (date1, date2) => {
+    return format(date1, 'yyyy-MM-dd', { timeZone: IST_TIMEZONE }) === format(date2, 'yyyy-MM-dd', { timeZone: IST_TIMEZONE });
   };
 
   const createAndSavePdf = async () => {
     setIsPdfLoading(true);
     try {
-        const filtered = getFilteredPayments();
-        let shopData = { name: "All Shops", address: { textData: "Multiple Locations" } };
+      const filtered = getFilteredPayments();
+      let shopData = { name: "All Shops", address: { textData: "Multiple Locations" } };
 
-        if (selectedShop !== "AllShops") {
-            const currentShop = shops.find(s => s.name === selectedShop);
-            if (currentShop) {
-                shopData = { name: currentShop.name, address: { textData: currentShop.address?.textData || 'No address provided' } };
-            }
+      if (selectedShop !== "AllShops") {
+        const currentShop = shops.find(s => s.name === selectedShop);
+        if (currentShop) {
+          shopData = { 
+            name: currentShop.name, 
+            address: { textData: currentShop.address?.textData || 'No address provided' } 
+          };
         }
-        
-        const htmlContent = generatePdfContent(filtered, shopData);
-        const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      }
 
-        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Download Report' });
+      const htmlContent = generatePdfContent(filtered, shopData);
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+
+      const currentDate = format(new Date(), 'yyyy-MM-dd', { timeZone: IST_TIMEZONE });
+      const fileName = `Transactions_${shopData.name.replace(/\s+/g, '_')}_${currentDate}.pdf`;
+
+      if (Platform.OS === "android") {
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(uri, {
+            mimeType: "application/pdf",
+            dialogTitle: "Download Transaction Report",
+            UTI: "com.adobe.pdf",
+            filename: fileName,
+          });
+          Alert.alert("Success", "File ready to be saved to your device.");
+        } else {
+          Alert.alert("Error", "Sharing is not supported on this device.");
+        }
+      } else {
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          UTI: "com.adobe.pdf",
+          filename: fileName,
+        });
+        Alert.alert("Success", "PDF shared successfully.");
+      }
     } catch (error) {
-        Alert.alert("Error", "Failed to create or share PDF.");
-        console.error("PDF generation error:", error);
+      console.error("Error creating/sharing PDF:", error);
+      Alert.alert("Error", "Failed to create or save the PDF.");
     } finally {
-        setIsPdfLoading(false);
+      setIsPdfLoading(false);
     }
   };
 
   const generatePdfContent = (transactions, shopData) => {
+    const currentDate = format(utcToZonedTime(new Date(), IST_TIMEZONE), 'MMMM dd, yyyy', { timeZone: IST_TIMEZONE });
+    const currentTime = format(utcToZonedTime(new Date(), IST_TIMEZONE), 'HH:mm:ss', { timeZone: IST_TIMEZONE });
     const totalRevenue = transactions.reduce((sum, p) => sum + p.totalCost, 0);
-    const tableRows = transactions.map(p =>
-      `<tr>
-        <td>${p.barberName}</td>
-        <td>₹${p.totalCost}</td>
-        <td>${(p.services || []).map(s => s.name).join(", ")}</td>
-        <td>${p.date} • ${p.time}</td>
-      </tr>`
+    const totalCustomers = transactions.length;
+
+    const formatAddress = (address) => {
+      if (!address) return '';
+      const maxLength = 30;
+      let lines = [];
+      let remaining = address;
+      while (remaining.length > 0) {
+        let breakPoint = Math.min(maxLength, remaining.length);
+        if (breakPoint < remaining.length) {
+          const lastSpace = remaining.substring(0, breakPoint).lastIndexOf(' ');
+          if (lastSpace > 0) {
+            breakPoint = lastSpace;
+          }
+        }
+        lines.push(remaining.substring(0, breakPoint));
+        remaining = remaining.substring(breakPoint).trim();
+      }
+      return lines.join('<br>');
+    };
+
+    const tableRows = transactions.map(payment =>
+      `<tr><td>${payment.barberName}</td><td>₹${payment.totalCost}</td><td>${(payment.services || []).map(s => s.name).join(", ")}</td><td>${payment.date} • ${payment.time}</td></tr>`
     ).join('');
 
     return `
-        <html><body>
-            <h1>Transaction Report for ${shopData.name}</h1>
-            <p>${shopData.address.textData}</p>
-            <h3>Total Revenue: ₹${totalRevenue} | Total Customers: ${transactions.length}</h3>
-            <table border="1" style="width:100%; border-collapse: collapse;">
-                <thead><tr><th>Barber</th><th>Amount</th><th>Services</th><th>Date & Time</th></tr></thead>
-                <tbody>${tableRows}</tbody>
-            </table>
-        </body></html>
+      <html>
+      <head>
+          <style>
+              body { font-family: 'Helvetica', sans-serif; padding: 20px; }
+              h1 { text-align: center; color: #333; margin-bottom: 30px; }
+              .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+              .shop-name { font-size: 18px; font-weight: bold; margin: 0; }
+              .report-date { text-align: right; color: #666; margin: 0; }
+              .shop-id { color: #666; margin: 5px 0; }
+              .address { color: #666; max-width: 50%; margin: 5px 0; }
+              .time-info { text-align: right; color: #666; margin: 5px 0; }
+              .summary { display: flex; justify-content: space-between; margin: 30px 0; }
+              .summary-card { padding: 15px; border-radius: 8px; width: 45%; }
+              .revenue { background-color: #00b894; color: white; }
+              .customers { background-color: #0984e3; color: white; }
+              .card-title { margin: 0 0 10px 0; font-size: 16px; }
+              .card-value { margin: 0; font-size: 24px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f2f2f2; }
+              tr:nth-child(even) { background-color: #f9f9f9; }
+              .transactions-title { margin: 30px 0 10px 0; }
+              .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #999; }
+          </style>
+      </head>
+      <body>
+          <h1>Transaction Report</h1>
+          <div class="header-row">
+              <p class="shop-name">${shopData.name}</p>
+              <p class="report-date">Report Generated: ${currentDate}</p>
+          </div>
+          <div class="header-row">
+              <div>
+                  <p class="shop-id">Shop Address</p>
+                  <p class="address">${formatAddress(shopData.address.textData || '')}</p>
+              </div>
+              <p class="time-info">Time: ${currentTime} IST</p>
+          </div>
+          <div class="summary">
+              <div class="summary-card revenue">
+                  <h3 class="card-title">Total Revenue</h3>
+                  <p class="card-value">₹${totalRevenue}</p>
+              </div>
+              <div class="summary-card customers">
+                  <h3 class="card-title">Total Customers</h3>
+                  <p class="card-value">${totalCustomers}</p>
+              </div>
+          </div>
+          <h2 class="transactions-title">Transactions (${filter} - ${selectedShop}${selectedBarber !== "AllBarbers" ? ` - ${selectedBarber}` : ""})</h2>
+          <table>
+              <thead>
+                  <tr>
+                      <th>Barber</th>
+                      <th>Amount</th>
+                      <th>Services</th>
+                      <th>Date & Time</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${tableRows}
+              </tbody>
+          </table>
+          <div class="footer">
+              <p>Numbr - Automated Report</p>
+          </div>
+      </body>
+      </html>
     `;
   };
 
-  // All other helper functions (getBarberContributionData, getRevenueTimelineData, etc.)
-  // and rendering logic (renderCalendar, JSX return) can remain largely the same,
-  // as they are designed to work off the `filteredPayments` array, which is now dynamic.
-  // The below is a placeholder for the full component JSX.
+  // Handler for date selection from date picker
+  const handleDateSelect = (params) => {
+    if (params.date) {
+      const selectedIST = utcToZonedTime(params.date, IST_TIMEZONE);
+      setSelectedDate(selectedIST.toISOString());
+      setFilter("CustomDate");
+    }
+    setDatePickerVisible(false);
+  };
+
+  // Calendar Navigation handlers
+  const previousMonth = () => {
+    const newDate = new Date(calendarMonth);
+    newDate.setMonth(calendarMonth.getMonth() - 1);
+    setCalendarMonth(newDate);
+  };
+
+  const nextMonth = () => {
+    const newDate = new Date(calendarMonth);
+    newDate.setMonth(calendarMonth.getMonth() + 1);
+    setCalendarMonth(newDate);
+  };
+
+  // Generate Business Activity Heat Map Data for Calendar
+  const getBusinessActivityData = () => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const dailyTransactions = {};
+
+    let filteredForCalendar = allPayments;
+    // Apply shop and barber filters to calendar data
+    if (selectedShop !== "AllShops") {
+      filteredForCalendar = filteredForCalendar.filter(p => p.shopName === selectedShop);
+    }
+    if (selectedBarber !== "AllBarbers") {
+      filteredForCalendar = filteredForCalendar.filter(p => p.barberName === selectedBarber);
+    }
+
+    filteredForCalendar.forEach(payment => {
+      const paymentDate = payment.date; // already in 'yyyy-MM-dd' format
+      if (dailyTransactions[paymentDate]) {
+        dailyTransactions[paymentDate].count += 1;
+        dailyTransactions[paymentDate].revenue += payment.totalCost;
+      } else {
+        dailyTransactions[paymentDate] = { count: 1, revenue: payment.totalCost };
+      }
+    });
+
+    const counts = Object.values(dailyTransactions).map(day => day.count);
+    const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
+
+    return { dailyData: dailyTransactions, maxCount: maxCount, daysInMonth: daysInMonth, monthStart: monthStart };
+  };
+
+  // Get color intensity for calendar cells based on activity count
+  const getColorIntensity = (count, maxCount) => {
+    if (!count) return '#f5f5f5'; // Light grey for no activity
+    const intensity = Math.max(0.2, Math.min(1, count / maxCount)); // Scale from 0.2 to 1
+
+    // Interpolate between light green and dark green
+    const r = Math.floor(255 - (200 * intensity));
+    const g = Math.floor(255 - (100 * intensity));
+    const b = Math.floor(255 - (200 * intensity));
+    return `rgb(${r},${g},${b})`;
+  };
+
+  // Navigation handlers for the graphs using wrap-around logic
+  const handleLeft = () => {
+    setGraphFlag(prev => (prev === 1 ? 3 : prev - 1));
+  };
+
+  const handleRight = () => {
+    setGraphFlag(prev => (prev === 3 ? 1 : prev + 1));
+  };
+
+  // Prepare data for visualizations
+  const getBarberContributionData = () => {
+    const revenueData = {};
+    // Get all barbers from the selected shop, or all barbers if "AllShops" is selected
+    let relevantBarbers = [];
+    if (selectedShop === "AllShops") {
+      relevantBarbers = shops.flatMap(shop => shop.barbers || []);
+    } else {
+      const currentShop = shops.find(s => s.name === selectedShop);
+      if (currentShop) {
+        relevantBarbers = currentShop.barbers || [];
+      }
+    }
+
+    relevantBarbers.forEach(b => {
+      revenueData[b.name] = 0;
+    });
+
+    const filteredPayments = getFilteredPayments();
+    filteredPayments.forEach(payment => {
+      revenueData[payment.barberName] = (revenueData[payment.barberName] || 0) + payment.totalCost;
+    });
+
+    const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8AC926', '#1982C4', '#6A4C93', '#F94144'];
+    return Object.entries(revenueData).map(([name, revenue], index) => ({
+      name,
+      revenue,
+      color: colors[index % colors.length],
+      legendFontColor: '#7F7F7F',
+      legendFontSize: 12,
+    }));
+  };
+
+  // Prepare data for Revenue Timeline Line Chart
+  const getRevenueTimelineData = () => {
+    const now = new Date();
+    const todayIST = utcToZonedTime(now, IST_TIMEZONE);
+
+    let dateKeys = [];
+    if (filter === "Today" || filter === "CustomDate") {
+      dateKeys = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+    } else if (filter === "ThisWeek") {
+      dateKeys = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    } else if (filter === "ThisMonth" || filter === "All") {
+      const daysInMonth = new Date(todayIST.getFullYear(), todayIST.getMonth() + 1, 0).getDate();
+      dateKeys = Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'));
+    }
+
+    const dailyRevenue = {};
+    const dailyCompare = {};
+    dateKeys.forEach(key => {
+      dailyRevenue[key] = 0;
+      dailyCompare[key] = 0;
+    });
+
+    const filteredPayments = getFilteredPayments();
+    filteredPayments.forEach(payment => {
+      const paymentDate = utcToZonedTime(payment.originalDate, IST_TIMEZONE);
+      let dateKey;
+      if (filter === "Today" || filter === "CustomDate") {
+        dateKey = format(paymentDate, 'HH:00', { timeZone: IST_TIMEZONE });
+      } else if (filter === "ThisWeek") {
+        dateKey = format(paymentDate, 'EEE', { timeZone: IST_TIMEZONE });
+      } else if (filter === "ThisMonth" || filter === "All") {
+        dateKey = format(paymentDate, 'dd', { timeZone: IST_TIMEZONE });
+      }
+      if (dailyRevenue[dateKey] !== undefined) {
+        dailyRevenue[dateKey] += payment.totalCost;
+      }
+    });
+
+    // Calculate data for previous period comparison
+    const previousPeriodPayments = allPayments.filter(payment => {
+      const istPaymentDate = utcToZonedTime(payment.originalDate, IST_TIMEZONE);
+      if (selectedShop !== "AllShops" && payment.shopName !== selectedShop) return false;
+      if (selectedBarber !== "AllBarbers" && payment.barberName !== selectedBarber) return false;
+
+      if (filter === "Today") {
+        const yesterdayIST = new Date(todayIST);
+        yesterdayIST.setDate(todayIST.getDate() - 1);
+        return isSameDayIST(istPaymentDate, yesterdayIST);
+      } else if (filter === "ThisWeek") {
+        const oneWeekAgoIST = new Date(todayIST);
+        oneWeekAgoIST.setDate(todayIST.getDate() - 7);
+        const twoWeeksAgoIST = new Date(todayIST);
+        twoWeeksAgoIST.setDate(todayIST.getDate() - 14);
+        return istPaymentDate >= twoWeeksAgoIST && istPaymentDate < oneWeekAgoIST;
+      } else if (filter === "ThisMonth") {
+        const oneMonthAgoIST = new Date(todayIST);
+        oneMonthAgoIST.setMonth(todayIST.getMonth() - 1);
+        const twoMonthsAgoIST = new Date(todayIST);
+        twoMonthsAgoIST.setMonth(todayIST.getMonth() - 2);
+        return istPaymentDate >= twoMonthsAgoIST && istPaymentDate < oneMonthAgoIST;
+      }
+      return false;
+    });
+
+    previousPeriodPayments.forEach(payment => {
+      const paymentDate = utcToZonedTime(payment.originalDate, IST_TIMEZONE);
+      let dateKey;
+      if (filter === "Today" || filter === "CustomDate") {
+        dateKey = format(paymentDate, 'HH:00', { timeZone: IST_TIMEZONE });
+      } else if (filter === "ThisWeek") {
+        dateKey = format(paymentDate, 'EEE', { timeZone: IST_TIMEZONE });
+      } else if (filter === "ThisMonth" || filter === "All") {
+        dateKey = format(paymentDate, 'dd', { timeZone: IST_TIMEZONE });
+      }
+      if (dateKey && dailyCompare[dateKey] !== undefined) {
+        dailyCompare[dateKey] += payment.totalCost;
+      }
+    });
+
+    const displayedKeys = dateKeys.filter(key => dailyRevenue[key] > 0 || dailyCompare[key] > 0);
+    if (displayedKeys.length === 0 && dateKeys.length > 0) {
+      displayedKeys.push(dateKeys[0]);
+      dailyRevenue[dateKeys[0]] = 0;
+      dailyCompare[dateKeys[0]] = 0;
+    }
+
+    return {
+      labels: displayedKeys,
+      datasets: [
+        {
+          data: displayedKeys.map(key => dailyRevenue[key]),
+          color: (opacity = 1) => `rgba(0,184,148,${opacity})`,
+          strokeWidth: 2
+        },
+        {
+          data: displayedKeys.map(key => dailyCompare[key] || 0),
+          color: (opacity = 1) => `rgba(9,132,227,${opacity})`,
+          strokeWidth: 2,
+          strokeDashArray: [5, 5]
+        }
+      ],
+      legend: ["Current Period", "Previous Period"]
+    };
+  };
+
+  // Render calendar view
+  const renderCalendar = () => {
+    const { dailyData, maxCount, daysInMonth, monthStart } = getBusinessActivityData();
+    const firstDayOfMonth = getDay(monthStart);
+    const emptyStartCells = Array(firstDayOfMonth).fill(null);
+    const allCells = [...emptyStartCells, ...daysInMonth];
+
+    const weeks = [];
+    for (let i = 0; i < allCells.length; i += 7) {
+      weeks.push(allCells.slice(i, i + 7));
+    }
+
+    return (
+      <View style={styles.calendarInnerContainer}>
+        <View style={styles.calendarHeader}>
+          <TouchableOpacity onPress={previousMonth} style={styles.calendarNavButton}>
+            <Text style={styles.calendarNavButtonText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.calendarTitle}>{format(calendarMonth, 'MMMM yyyy')}</Text>
+          <TouchableOpacity onPress={nextMonth} style={styles.calendarNavButton}>
+            <Text style={styles.calendarNavButtonText}>→</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.calendarDaysHeader}>
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <Text key={day} style={styles.calendarDayHeaderText}>{day}</Text>
+          ))}
+        </View>
+
+        <View style={styles.calendarGrid}>
+          {weeks.map((week, weekIndex) => (
+            <View key={`week-${weekIndex}`} style={styles.calendarRow}>
+              {Array.from({ length: 7 }).map((_, dayIndex) => {
+                const day = week[dayIndex];
+                if (!day) {
+                  return <View key={`empty-${dayIndex}`} style={styles.calendarEmptyCell} />;
+                }
+                const dateString = format(day, 'yyyy-MM-dd');
+                const dayData = dailyData[dateString];
+                const backgroundColor = getColorIntensity(dayData ? dayData.count : 0, maxCount);
+                return (
+                  <TouchableOpacity
+                    key={`day-${dateString}`}
+                    style={[styles.calendarCell, { backgroundColor }]}
+                    onPress={() => {
+                      setSelectedDate(day.toISOString());
+                      setFilter("CustomDate");
+                    }}
+                  >
+                    <Text style={styles.calendarDayText}>{getDate(day)}</Text>
+                    {dayData && <Text style={styles.calendarDayCount}>{dayData.count}</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.calendarLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#f5f5f5' }]} />
+            <Text style={styles.legendText}>No activity</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#c5e1a5' }]} />
+            <Text style={styles.legendText}>Low</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#8bc34a' }]} />
+            <Text style={styles.legendText}>Medium</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#003B23' }]} />
+            <Text style={styles.legendText}>High</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" />
-            <Text>Loading History...</Text>
-        </View>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+        <Text>Loading History...</Text>
+      </View>
     );
   }
 
   if (error) {
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-            <Text style={{ color: 'red', marginBottom: 10 }}>Error: {error}</Text>
-            <TouchableOpacity onPress={fetchHistoryData} style={{ padding: 10, backgroundColor: 'lightblue' }}>
-                <Text>Retry</Text>
-            </TouchableOpacity>
-        </View>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ color: 'red', marginBottom: 10 }}>Error: {error}</Text>
+        <TouchableOpacity onPress={fetchHistoryData} style={{ padding: 10, backgroundColor: 'lightblue' }}>
+          <Text>Retry</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
   const filteredPayments = getFilteredPayments();
-  // Ensure the rest of the component (the return statement with all the UI) is here,
-  // it was omitted for brevity as the core logic change is the data fetching.
-  // The original UI structure you had is fine.
+  const totalRevenue = filteredPayments.reduce((sum, p) => sum + p.totalCost, 0);
+  const totalCustomers = filteredPayments.length;
+  const barberContributionData = getBarberContributionData();
+  const revenueTimelineData = getRevenueTimelineData();
+
   return (
-    <ImageBackground source={require("../../app/image/bglogin.png")} style={styles.backgroundImage}>
-      <View style={styles.header}><Text style={styles.title}>Numbr</Text></View>
+    <ImageBackground
+      source={require("../../app/image/bglogin.png")}
+      style={styles.backgroundImage}
+    >
+      <View style={styles.header}>
+        <Text style={styles.title}>Numbr</Text>
+      </View>
       <View style={styles.overlay} />
       <Provider>
         <View style={styles.fullscreenContainer}>
-          <ScrollView contentContainerStyle={styles.scrollContentContainer}>
-            <View style={styles.fixedHeader}><Text style={styles.headerTitle}>STATISTICS</Text></View>
-            
-            {/* Filter UI - No logical changes needed here */}
+          <ScrollView
+            style={styles.scrollableContent}
+            contentContainerStyle={styles.scrollContentContainer}
+          >
+            <View style={styles.fixedHeader}>
+              <Text style={styles.headerTitle}>STATISTICS</Text>
+            </View>
+
             <View style={styles.outerContainer}>
               <View style={styles.filterGroup}>
-                <Menu visible={filterMenuVisible} onDismiss={() => setFilterMenuVisible(false)} anchor={<TouchableOpacity onPress={() => setFilterMenuVisible(true)} style={styles.filterButton}><Text style={styles.filterButtonText}>📅 {filter}</Text></TouchableOpacity>}>
-                  {["All", "Today", "ThisWeek", "ThisMonth", "CustomDate"].map(f => <Menu.Item key={f} onPress={() => { setFilter(f); setFilterMenuVisible(false); if (f === "CustomDate") setDatePickerVisible(true); }} title={f} />)}
+                <Menu
+                  visible={filterMenuVisible}
+                  onDismiss={() => setFilterMenuVisible(false)}
+                  anchor={
+                    <TouchableOpacity onPress={() => setFilterMenuVisible(true)} style={styles.filterButton}>
+                      <Text style={styles.filterButtonText}>📅 {filter}</Text>
+                    </TouchableOpacity>
+                  }
+                >
+                  {["All", "Today", "ThisWeek", "ThisMonth", "CustomDate"].map(f => (
+                    <Menu.Item
+                      key={f}
+                      onPress={() => {
+                        setFilter(f);
+                        setFilterMenuVisible(false);
+                        if (f === "CustomDate") setDatePickerVisible(true);
+                      }}
+                      title={f}
+                    />
+                  ))}
                 </Menu>
-                <Menu visible={shopMenuVisible} onDismiss={() => setShopMenuVisible(false)} anchor={<TouchableOpacity onPress={() => setShopMenuVisible(true)} style={styles.filterButton}><Text style={styles.filterButtonText}>🏢 {selectedShop === "AllShops" ? "All Shops" : selectedShop}{selectedShop !== "AllShops" && selectedBarber !== "AllBarbers" ? ` / ${selectedBarber}` : ""}</Text></TouchableOpacity>}>
-                  <Menu.Item onPress={() => { setSelectedShop("AllShops"); setSelectedBarber("AllBarbers"); setShopMenuVisible(false); }} title="All Shops" />
+
+                <Menu
+                  visible={shopMenuVisible}
+                  onDismiss={() => setShopMenuVisible(false)}
+                  anchor={
+                    <TouchableOpacity onPress={() => setShopMenuVisible(true)} style={styles.filterButton}>
+                      <Text style={styles.filterButtonText}>
+                        🏢 {selectedShop === "AllShops" ? "All Shops" : selectedShop}
+                        {selectedShop !== "AllShops" && selectedBarber !== "AllBarbers" ? ` / ${selectedBarber}` : ""}
+                      </Text>
+                    </TouchableOpacity>
+                  }
+                >
+                  <ScrollView style={styles.xyz}>
+                    <Menu.Item
+                    onPress={() => {
+                      setSelectedShop("AllShops");
+                      setSelectedBarber("AllBarbers");
+                      setShopMenuVisible(false);
+                    }}
+                    title="All Shops"
+                  />
                   {shops.map(shop => (
                     <View key={shop._id}>
-                      <Menu.Item onPress={() => { setSelectedShop(shop.name); setSelectedBarber("AllBarbers"); setShopMenuVisible(false); }} title={`• ${shop.name}`} style={styles.shopMenuItem} />
+                      <Menu.Item
+                        onPress={() => {
+                          setSelectedShop(shop.name);
+                          setSelectedBarber("AllBarbers");
+                          setShopMenuVisible(false);
+                        }}
+                        title={`• ${shop.name}`}
+                        style={styles.shopMenuItem}
+                      />
+                      <Menu.Item
+                        onPress={() => {
+                          setSelectedShop(shop.name);
+                          setSelectedBarber("AllBarbers");
+                          setShopMenuVisible(false);
+                        }}
+                        title={`    - All Barbers`}
+                        style={styles.barberMenuItem}
+                      />
                       {(shop.barbers || []).map(barber => (
-                        <Menu.Item key={barber._id} onPress={() => { setSelectedShop(shop.name); setSelectedBarber(barber.name); setShopMenuVisible(false); }} title={`    - ${barber.name}`} style={styles.barberMenuItem} />
+                        <Menu.Item
+                          key={barber._id}
+                          onPress={() => {
+                            setSelectedShop(shop.name);
+                            setSelectedBarber(barber.name);
+                            setShopMenuVisible(false);
+                          }}
+                          title={`    - ${barber.name}`}
+                          style={styles.barberMenuItem}
+                        />
                       ))}
                     </View>
                   ))}
+                  </ScrollView>
                 </Menu>
               </View>
+
               <View style={styles.visualizeGroup}>
                 <Text style={styles.toggleLabel}>Visualize</Text>
-                <Switch value={showVisualizations} onValueChange={setShowVisualizations} trackColor={{ false: "rgb(0,0,0)", true: "#0984e3" }} thumbColor={"#fff"}/>
+                <Switch
+                  value={showVisualizations}
+                  onValueChange={setShowVisualizations}
+                  trackColor={{ false: "rgb(0,0,0)", true: "#0984e3" }}
+                  thumbColor={showVisualizations ? "#ffffff" : "#f4f3f4"}
+                />
               </View>
             </View>
 
-            {/* Summary Cards, Charts, and Transaction List - No logical changes needed */}
-            {/* These will now reflect the dynamic data automatically */}
             <View style={styles.summaryContainer}>
-              <View style={[styles.summaryCard, styles.revenueCard]}><Text style={styles.summaryTitle}>Total Revenue</Text><Text style={styles.summaryValue}>₹{filteredPayments.reduce((s, p) => s + p.totalCost, 0)}</Text></View>
-              <View style={[styles.summaryCard, styles.customersCard]}><Text style={styles.summaryTitle}>Total Customers</Text><Text style={styles.summaryValue}>{filteredPayments.length}</Text></View>
+              <View style={[styles.summaryCard, styles.revenueCard]}>
+                <Text style={styles.summaryTitle}>Total Revenue</Text>
+                <Text style={styles.summaryValue}>₹{totalRevenue}</Text>
+              </View>
+              <View style={[styles.summaryCard, styles.customersCard]}>
+                <Text style={styles.summaryTitle}>Total Customers</Text>
+                <Text style={styles.summaryValue}>{totalCustomers}</Text>
+              </View>
             </View>
 
-            {/* ... rest of your JSX for charts and transaction list ... */}
+            <DatePickerModal
+              locale="en"
+              mode="single"
+              visible={datePickerVisible}
+              onDismiss={() => setDatePickerVisible(false)}
+              date={selectedDate ? new Date(selectedDate) : undefined}
+              onConfirm={handleDateSelect}
+            />
+
+            {showVisualizations && (
+              <View>
+                <View style={styles.chartContainer}>
+                  {graphFlag === 1 && filteredPayments.length > 0 && (
+                    <>
+                      <Text style={styles.revenueText}>Revenue Timeline</Text>
+                      <LineChart
+                        data={revenueTimelineData}
+                        width={screenWidth * 0.9}
+                        height={300}
+                        chartConfig={{
+                          backgroundColor: '#ffffff',
+                          backgroundGradientFrom: '#ffffff',
+                          backgroundGradientTo: '#ffffff',
+                          decimalPlaces: 0,
+                          color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+                          labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+                          style: { borderRadius: 16 },
+                          propsForDots: { r: "5", strokeWidth: "2", stroke: "#ffa726" },
+                          propsForLabels: { fontSize: 10 },
+                        }}
+                        bezier
+                        style={[styles.chart, { marginLeft: -10 }]}
+                        yAxisLabel="₹"
+                        yAxisInterval={1}
+                        verticalLabelRotation={30}
+                        segments={5}
+                      />
+                    </>
+                  )}
+                  {graphFlag === 2 && barberContributionData.length > 0 && (
+                    <>
+                      <Text style={styles.revenueText}>Barber Contribution</Text>
+                      <View style={styles.centeredChartContainer}>
+                        <BarChart
+                          data={{
+                            labels: barberContributionData.map(item => item.name),
+                            datasets: [{ data: barberContributionData.map(item => item.revenue) }]
+                          }}
+                          width={screenWidth * 0.9}
+                          height={350}
+                          fromZero
+                          verticalLabelRotation={50}
+                          chartConfig={{
+                            backgroundColor: '#ffffff',
+                            backgroundGradientFrom: '#ffffff',
+                            backgroundGradientTo: '#ffffff',
+                            decimalPlaces: 0,
+                            color: (opacity = 1) => `rgba(34,128,176,${opacity})`,
+                            labelColor: (opacity = 1) => `rgba(34,34,34,${opacity})`,
+                            style: { borderRadius: 16 },
+                          }}
+                          style={styles.chart}
+                        />
+                      </View>
+                    </>
+                  )}
+                  {graphFlag === 3 && (
+                    <View style={styles.calendarWrapper}>
+                      <Text style={styles.revenueText}>Business Activity Heatmap</Text>
+                      {renderCalendar()}
+                    </View>
+                  )}
+                  {filteredPayments.length === 0 && (graphFlag === 1 || graphFlag === 2) && (
+                    <Text style={styles.noChartDataText}>No data available for this chart with current filters.</Text>
+                  )}
+                </View>
+
+                <View style={styles.navigationContainer}>
+                  <TouchableOpacity onPress={handleLeft} style={styles.navButton}>
+                    <Text style={styles.navButtonText}>{"<"}</Text>
+                  </TouchableOpacity>
+                  <View style={styles.paginationContainer}>
+                    {[1, 2, 3].map((value, index) => (
+                      <View
+                        key={index}
+                        style={[styles.paginationDot, graphFlag === value && styles.paginationDotActive]}
+                      />
+                    ))}
+                  </View>
+                  <TouchableOpacity onPress={handleRight} style={styles.navButton}>
+                    <Text style={styles.navButtonText}>{">"}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             <View style={styles.controlsContainer}>
               <Text style={styles.sectionTitle}>Recent Transactions</Text>
-              <TouchableOpacity style={styles.buttonContainer} onPress={createAndSavePdf} disabled={isPdfLoading}>
-                <LinearGradient colors={["#e63946", "#d62828"]} style={styles.pdfButton}>
-                  {isPdfLoading ? <ActivityIndicator size="small" color="white" /> : <MaterialCommunityIcons name="file-export" size={25} color="white" />}
+              <TouchableOpacity
+                style={styles.buttonContainer}
+                onPress={createAndSavePdf}
+                activeOpacity={0.7}
+                disabled={isPdfLoading}
+              >
+                <LinearGradient
+                  colors={["#e63946", "#d62828"]}
+                  style={styles.pdfButton}
+                >
+                  {isPdfLoading ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <MaterialCommunityIcons name="file-export" size={25} color="white" />
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
 
             <View style={styles.recentTransactionsContainer}>
+              <ScrollView style={styles.recentTransactionsScroll} nestedScrollEnabled={true}>
                 {filteredPayments.length > 0 ? (
                   filteredPayments.map((payment, index) => (
                     <View key={payment._id || index} style={styles.transactionCard}>
@@ -253,54 +872,425 @@ const History = ({ onClose }) => {
                 ) : (
                   <Text style={styles.noTransactionsText}>No transactions found for the selected filters.</Text>
                 )}
+              </ScrollView>
             </View>
-
           </ScrollView>
-          <TouchableOpacity onPress={onClose} style={styles.fixedCloseButton}><MaterialCommunityIcons name="close-circle" size={30} color="#2d3436" /></TouchableOpacity>
+          <TouchableOpacity 
+            onPress={onClose} 
+            style={styles.fixedCloseButton}
+          >
+            <MaterialCommunityIcons name="close-circle" size={30} color="#2d3436" />
+          </TouchableOpacity>
         </View>
       </Provider>
     </ImageBackground>
   );
 };
 
-
-// Your full styles object should be here. It's omitted for brevity.
 const styles = StyleSheet.create({
-  header: { height: "8%", backgroundColor: "black", flexDirection: "row", alignItems: "center", paddingHorizontal: 20 },
-  title: { color: "#fff", fontSize: 20, marginLeft: 15 },
-  backgroundImage: { flex: 1, resizeMode: "cover", position: "absolute", width: "100%", height: "100%" },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(237,236,236,0.77)", top: "8%" },
-  fullscreenContainer: { flex: 1, position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: "transparent" },
-  fixedHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingBottom: 15, position: "relative", zIndex: 10 },
-  headerTitle: { fontSize: 40, fontWeight: "900", color: "#2d3436", textAlign: "center", flex: 1 },
-  fixedCloseButton: { position: 'absolute', bottom: 20, alignSelf: 'center', zIndex: 100, backgroundColor: 'white', borderRadius: 20, padding: 5, elevation: 5 },
-  scrollContentContainer: { padding: 16, paddingBottom: 60 },
-  buttonContainer: { borderRadius: 15, overflow: "hidden" },
-  pdfButton: { padding: 7, borderRadius: 15, alignItems: "center", justifyContent: "center", elevation: 6, width: 40, height: 40 },
-  recentTransactionsContainer: { maxHeight: 550, backgroundColor: "#ffffff", borderRadius: 12, padding: 15, elevation: 4, marginBottom: 20 },
-  controlsContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 5, marginBottom: 15 },
-  sectionTitle: { fontSize: 22, fontWeight: "bold", color: "#333" },
-  outerContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", paddingHorizontal: 0, marginBottom: 20 },
-  filterGroup: { flexDirection: "row", alignItems: "center", flexWrap: 'wrap', rowGap: 10, columnGap: 10, flexShrink: 1 },
-  filterButton: { paddingVertical: 12, paddingHorizontal: 15, backgroundColor: "#ffffff", borderRadius: 10, alignItems: "center", elevation: 3 },
-  filterButtonText: { color: "#2d3436", fontWeight: "600", fontSize: 15 },
-  shopMenuItem: { paddingLeft: 10 },
-  barberMenuItem: { paddingLeft: 30 },
-  visualizeGroup: { flexDirection: "row", alignItems: "center" },
-  toggleLabel: { fontWeight: "900", marginRight: 8, color: "#333", fontSize: 16 },
-  summaryContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 20 },
-  summaryCard: { flex: 1, padding: 15, borderRadius: 12, elevation: 4 },
-  revenueCard: { backgroundColor: '#00b894' },
-  customersCard: { backgroundColor: '#0984e3' },
-  summaryTitle: { color: '#fff', fontSize: 17, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
-  summaryValue: { color: '#fff', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
-  transactionCard: { backgroundColor: "#f9f9f9", borderRadius: 10, padding: 15, marginBottom: 10, elevation: 2 },
-  transactionHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 5 },
-  barberName: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  transactionAmount: { fontSize: 16, fontWeight: "bold", color: "#00b894" },
-  servicesList: { fontSize: 14, color: "#555", marginBottom: 5 },
-  transactionDate: { fontSize: 12, color: "#777", textAlign: "right" },
-  noTransactionsText: { textAlign: 'center', marginTop: 20, fontSize: 16, color: '#666' },
+  xyz:{
+    height : 400
+  },
+  header: {
+    height: "6%",
+    backgroundColor: "black",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 15,
+  },
+  title: {
+    color: "#fff",
+    fontSize: 20,
+    marginLeft: 15,
+  },
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(237,236,236,0.77)",
+    top: "6%",
+  },
+  fullscreenContainer: {
+    flex: 1,
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "transparent",
+  },
+  fixedHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    position: "relative",
+    zIndex: 10,
+  },
+  headerTitle: {
+    fontSize: 40,
+    fontWeight: "900",
+    color: "#2d3436",
+    textAlign: "center",
+    flex: 1,
+  },
+  fixedCloseButton: {
+    position: 'absolute',
+    bottom: 20,
+    alignSelf: 'center',
+    zIndex: 100,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 5,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  scrollableContent: {
+    flex: 1,
+    padding: 16,
+  },
+  scrollContentContainer: {
+    paddingBottom: 20,
+  },
+  buttonContainer: {
+    borderRadius: 15,
+    overflow: "hidden",
+  },
+  pdfButton: {
+    padding: 7,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    width: 40,
+    height: 40,
+  },
+  recentTransactionsContainer: {
+    maxHeight: 550,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 15,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    marginBottom: 20,
+  },
+  recentTransactionsScroll: {
+    maxHeight: 450,
+  },
+  controlsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 5,
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  outerContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 0,
+    marginBottom: 20,
+  },
+  filterGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: 'wrap',
+    rowGap: 10,
+    columnGap: 10,
+    flexShrink: 1,
+  },
+  filterButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    alignItems: "center",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  filterButtonText: {
+    color: "#2d3436",
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  shopMenuItem: {
+    paddingLeft: 10,
+  },
+  barberMenuItem: {
+    paddingLeft: 30,
+  },
+  visualizeGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  toggleLabel: {
+    fontWeight: "900",
+    marginRight: 8,
+    color: "#333",
+    fontSize: 16,
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 20,
+  },
+  summaryCard: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 12,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+  },
+  revenueCard: {
+    backgroundColor: '#00b894',
+  },
+  customersCard: {
+    backgroundColor: '#0984e3',
+  },
+  summaryTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  summaryValue: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  chartContainer: {
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 20,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    paddingVertical: 15,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+  },
+  revenueText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#333",
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+  },
+  centeredChartContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navigationContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  navButton: {
+    padding: 10,
+    backgroundColor: "#ddd",
+    borderRadius: 8,
+    elevation: 2,
+  },
+  navButtonText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#0984e3",
+  },
+  paginationContainer: {
+    flexDirection: "row",
+  },
+  paginationDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#ccc",
+    marginHorizontal: 5,
+  },
+  paginationDotActive: {
+    backgroundColor: "#0984e3",
+  },
+  calendarWrapper: {
+    width: "100%",
+    padding: 10,
+  },
+  calendarInnerContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 15,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  calendarNavButton: {
+    padding: 8,
+  },
+  calendarNavButtonText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  calendarTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  calendarDaysHeader: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 10,
+  },
+  calendarDayHeaderText: {
+    fontWeight: "bold",
+    width: `${100 / 7}%`,
+    textAlign: "center",
+    color: "#555",
+  },
+  calendarGrid: {
+    width: "100%",
+  },
+  calendarRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 2,
+  },
+  calendarCell: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 0.5,
+    borderColor: "#eee",
+    borderRadius: 5,
+  },
+  calendarEmptyCell: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
+  },
+  calendarDayText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  calendarDayCount: {
+    fontSize: 10,
+    color: "#666",
+  },
+  calendarLegend: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 20,
+    flexWrap: "wrap",
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 5,
+    marginBottom: 5,
+  },
+  legendColor: {
+    width: 15,
+    height: 15,
+    borderRadius: 3,
+    marginRight: 5,
+    borderWidth: 0.5,
+    borderColor: "#ccc",
+  },
+  legendText: {
+    fontSize: 12,
+    color: "#555",
+  },
+  transactionCard: {
+    backgroundColor: "#f9f9f9",
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  transactionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 5,
+  },
+  barberName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#00b894",
+  },
+  servicesList: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 5,
+  },
+  transactionDate: {
+    fontSize: 12,
+    color: "#777",
+    textAlign: "right",
+  },
+  noTransactionsText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: '#666',
+  },
+  noChartDataText: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+    color: '#666',
+    paddingHorizontal: 20,
+  }
 });
 
 export default History;

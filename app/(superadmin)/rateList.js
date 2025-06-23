@@ -14,32 +14,33 @@ import {
   Platform 
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Picker } from '@react-native-picker/picker';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
-// Use the API_BASE_URL consistent with your backend setup
 const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 
- const RateList = () => {
+const RateList = () => {
   const [ownerId, setOwnerId] = useState(null);
   const [authToken, setAuthToken] = useState(null);
   const [ownerShops, setOwnerShops] = useState([]);
   const [selectedShopId, setSelectedShopId] = useState(null);
+  const [selectedShopName, setSelectedShopName] = useState("");
   const [rateList, setRateList] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingShops, setIsLoadingShops] = useState(true);
+  const [showShopPicker, setShowShopPicker] = useState(false);
 
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isConfirmVisible, setIsConfirmVisible] = useState(false);
-  const [selectedRateItem, setSelectedRateItem] = useState(null); // This is the service item
+  const [selectedRateItem, setSelectedRateItem] = useState(null);
   const [newServiceData, setNewServiceData] = useState({ name: "", price: "" });
   const [updatedServiceData, setUpdatedServiceData] = useState({ name: "", price: "" });
 
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const storedOwnerId = await AsyncStorage.getItem("uid"); // Assuming 'uid' stores owner's ID
-        const storedToken = await AsyncStorage.getItem("userToken"); // Assuming 'userToken' stores the auth token
+        const storedOwnerId = await AsyncStorage.getItem("uid");
+        const storedToken = await AsyncStorage.getItem("userToken");
 
         if (storedOwnerId && storedToken) {
           setOwnerId(storedOwnerId);
@@ -61,11 +62,7 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
   const fetchOwnerShops = useCallback(async (token) => {
     setIsLoadingShops(true);
     try {
-      //  This endpoint /api/owners/me/shops is assumed.
-      //  You might need to adjust it based on your actual owner routes.
-      //  Alternatively, if you have a route like /api/shops and can filter by owner on the backend,
-      //  or fetch all and filter client-side (not ideal for many shops).
-      const response = await fetch(`${API_BASE_URL}/owners/me/shops`, { // Placeholder: Replace with your actual endpoint
+      const response = await fetch(`${API_BASE_URL}/owners/me/shops`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -75,12 +72,8 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
         throw new Error(errorData.message || "Failed to fetch owner's shops");
       }
       const data = await response.json();
-      setOwnerShops(data.data || []); // Assuming shops are in data.data array
-      if (data.data && data.data.length > 0) {
-        setSelectedShopId(data.data[0]._id); // Select the first shop by default
-      } else {
-        setRateList([]); // No shops, so no rates to show
-      }
+      setOwnerShops(data.data || []);
+      // Removed the automatic selection of first shop
     } catch (error) {
       console.error("Error fetching owner's shops:", error);
       Alert.alert("Error", error.message || "Could not fetch your shops.");
@@ -91,7 +84,6 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
     }
   }, []);
 
-
   const fetchRateList = useCallback(async (shopIdToFetch) => {
     if (!shopIdToFetch || !authToken) {
       setRateList([]);
@@ -99,14 +91,14 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/shops/${shopIdToFetch}/rate-list`, { //
+      const response = await fetch(`${API_BASE_URL}/shops/${shopIdToFetch}/rate-list`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
       });
       const data = await response.json();
       if (response.ok) {
-        setRateList(data.data || []); // Assuming services are in data.data
+        setRateList(data.data || []);
       } else {
         Alert.alert("Error", data.message || "Failed to fetch rate list for the selected shop.");
         setRateList([]);
@@ -120,15 +112,19 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
     }
   }, [authToken]);
 
-  // Fetch rate list when selectedShopId changes
   useEffect(() => {
     if (selectedShopId) {
       fetchRateList(selectedShopId);
     } else {
-      setRateList([]); // Clear rate list if no shop is selected
+      setRateList([]);
     }
   }, [selectedShopId, fetchRateList]);
 
+  const handleShopSelect = (shopId, shopName) => {
+    setSelectedShopId(shopId);
+    setSelectedShopName(shopName);
+    setShowShopPicker(false);
+  };
 
   const handleAddServiceItem = async () => {
     if (!selectedShopId || !authToken) {
@@ -146,11 +142,11 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/shops/${selectedShopId}/services`, { //
+      const response = await fetch(`${API_BASE_URL}/shops/${selectedShopId}/services`, {
         method: "POST",
         headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({
-          name: newServiceData.name, // API expects 'name'
+          name: newServiceData.name,
           price: price
         })
       });
@@ -185,11 +181,11 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/shops/${selectedShopId}/services/${selectedRateItem._id}`, { //
+      const response = await fetch(`${API_BASE_URL}/shops/${selectedShopId}/services/${selectedRateItem._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({
-          name: updatedServiceData.name, // API expects 'name'
+          name: updatedServiceData.name,
           price: price
         })
       });
@@ -213,18 +209,16 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
       return;
     }
     try {
-      const response = await fetch(`${API_BASE_URL}/shops/${selectedShopId}/services/${selectedRateItem._id}`, { //
+      const response = await fetch(`${API_BASE_URL}/shops/${selectedShopId}/services/${selectedRateItem._id}`, {
         method: "DELETE",
         headers: { 'Authorization': `Bearer ${authToken}` }
-        // No body typically needed for DELETE with URL params
       });
-      const data = await response.json(); // Even if no content, response.json() might be attempted.
+      const data = await response.json();
       if (response.ok) {
         Alert.alert("Success", data.message || "Service deleted successfully!");
-        setIsEditModalVisible(false); // Close edit modal if delete was from there
+        setIsEditModalVisible(false);
         fetchRateList(selectedShopId);
       } else {
-         // Try to parse error message from backend
         Alert.alert("Error", data.message || "Failed to delete service.");
       }
     } catch (error) {
@@ -237,7 +231,7 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
     <View style={styles.card}>
       <View style={styles.infoContainer}>
         <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.detail}>Price: ${item.price ? item.price.toFixed(2) : 'N/A'}</Text>
+        <Text style={styles.detail}>Price: ₹{item.price ? item.price.toFixed(2) : 'N/A'}</Text>
       </View>
       <TouchableOpacity
         style={styles.editButton}
@@ -265,43 +259,76 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
       <View style={styles.overlay} />
       <View style={styles.container}>
-        <Text style={styles.pageHeading}>Manage Services</Text>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.shopSelectButton}
+            onPress={() => setShowShopPicker(true)}
+          >
+            <Icon name="store" size={30} color="#000" />
+          </TouchableOpacity>
+          
+          <Text style={styles.shopName} numberOfLines={1} ellipsizeMode="tail">
+            {selectedShopName || "Select a Shop"}
+          </Text>
+          
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => setIsAddModalVisible(true)}
+            disabled={!selectedShopId}
+          >
+            <Icon name="add" size={30} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-        {ownerShops.length > 0 ? (
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={selectedShopId}
-              onValueChange={(itemValue) => setSelectedShopId(itemValue)}
-              style={styles.picker}
-              dropdownIconColor="#000000"
-            >
-              {ownerShops.map(shop => (
-                <Picker.Item key={shop._id} label={shop.name} value={shop._id} />
-              ))}
-            </Picker>
-          </View>
-        ) : (
-          <Text style={styles.noShopsText}>You don't have any shops yet. Add a shop to manage services.</Text>
+        {showShopPicker && (
+          <Modal visible={showShopPicker} transparent animationType="fade">
+            <View style={styles.pickerModalContainer}>
+              <View style={styles.pickerModalContent}>
+                <Text style={styles.pickerTitle}>Select Shop</Text>
+                {ownerShops.length > 0 ? (
+                  <FlatList
+                    data={ownerShops}
+                    keyExtractor={(item) => item._id.toString()}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.shopItem}
+                        onPress={() => handleShopSelect(item._id, item.name)}
+                      >
+                        <Text style={styles.shopItemText}>{item.name}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                ) : (
+                  <Text style={styles.noShopsText}>You don't have any shops yet.</Text>
+                )}
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setShowShopPicker(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         )}
 
-        {isLoading ? (
+        {!selectedShopId ? (
+          <View style={styles.selectShopMessageContainer}>
+            <Text style={styles.selectShopMessage}>
+              Please select a shop to view its services
+            </Text>
+          </View>
+        ) : isLoading ? (
           <ActivityIndicator size="large" color="#0000ff" style={{marginTop: 20}}/>
-        ) : selectedShopId && rateList.length > 0 ? (
+        ) : rateList.length > 0 ? (
           <FlatList
             data={rateList}
             keyExtractor={(item) => item._id.toString()}
             renderItem={({ item }) => <ServiceCard item={item} />}
             style={{marginTop: 10}}
           />
-        ) : selectedShopId ? (
-            <Text style={styles.noDataText}>No services found for this shop. Add some!</Text>
-        ): null}
-
-
-        {selectedShopId && (
-          <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
-            <Text style={styles.buttonText}>+</Text>
-          </TouchableOpacity>
+        ) : (
+          <Text style={styles.noDataText}>No services found for this shop. Add some!</Text>
         )}
 
         {/* Add Service Modal */}
@@ -361,7 +388,7 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.deleteButton]}
-                  onPress={() => setIsConfirmVisible(true)} // Open confirmation
+                  onPress={() => setIsConfirmVisible(true)}
                 >
                   <Text style={styles.modalButtonText}>Delete</Text>
                 </TouchableOpacity>
@@ -386,7 +413,7 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
                   onPress={() => {
                     handleDeleteServiceItem();
                     setIsConfirmVisible(false);
-                    setIsEditModalVisible(false); // Close edit modal as item is deleted
+                    setIsEditModalVisible(false);
                   }}
                 >
                   <Text style={styles.confirmButtonText}>Delete</Text>
@@ -401,23 +428,22 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 };
 
 const styles = StyleSheet.create({
-  loadingView: {
+
+  selectShopMessageContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pickerContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 8,
-    marginBottom: 15,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    overflow: 'hidden', // Ensures the border radius is respected by the Picker
+  selectShopMessage: {
+    fontSize: 18,
+    color: '#555',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
-  picker: {
-    height: 50,
-    width: '100%',
-    color: '#333', // Text color of picker items
+
+  loadingView: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   noShopsText: {
     textAlign: 'center',
@@ -459,7 +485,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: "rgb(80,80,80)", // Darker gray for cancel
+    backgroundColor: "rgb(80,80,80)",
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
@@ -470,14 +496,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   confirmDeleteButton: {
-    backgroundColor: "#dc3545", // Standard delete red
+    backgroundColor: "#dc3545",
   },
   backgroundImage: {
     flex: 1,
     resizeMode: "cover",
     width: "100%",
     height: "100%",
-    // position: "absolute", // Keep for background behavior if needed, or remove if container handles flex
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -487,7 +512,74 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingLeft: 15,
     paddingRight: 15,
-    paddingTop: Platform.OS === 'android' ? 25 : 40, // Adjust for status bar
+    paddingTop: Platform.OS === 'android' ? 25 : 40,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  shopSelectButton: {
+    padding: 5, 
+    backgroundColor: 'rgba(0,0,200,0.7)', 
+    borderRadius: "20%", 
+    justifyContent: 'center', 
+    alignItems: 'center'
+  },
+  shopName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 10,
+  },
+  addButton: {
+    backgroundColor: "rgb(51, 154, 28)",
+    borderRadius: 10,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+  },
+  pickerModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  pickerModalContent: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    maxHeight: '60%',
+  },
+  pickerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  shopItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  shopItemText: {
+    fontSize: 16,
+  },
+  cancelButton: {
+    marginTop: 15,
+    padding: 10,
+    backgroundColor: 'rgb(0, 0, 0)',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: 'rgb(255, 255, 255)',
   },
   card: {
     backgroundColor: "#fff",
@@ -496,8 +588,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     flexDirection: "row",
     alignItems: "center",
-    elevation: 3, // Android shadow
-    shadowColor: '#000', // iOS shadow
+    elevation: 3,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -515,49 +607,10 @@ const styles = StyleSheet.create({
     color: "#555",
     marginVertical: 2,
   },
-  pageHeading: {
-    fontSize: 48, // Slightly reduced for better fit
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "black",
-    letterSpacing: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.5,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 10, // Add some margin below heading
-  },
   editButton: {
-    // position: "absolute", // No longer absolute for better flow
-    // top: 10,
-    // right: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.26)", // Can be removed or made more subtle
-    padding: 8, // Increased padding
-    borderRadius: 20, // Make it circular
+    padding: 8,
+    borderRadius: 20,
     alignItems: "center",
-  },
-  addButton: {
-    position: "absolute",
-    bottom: 30,
-    right: 15,
-    backgroundColor: "rgb(51, 154, 28)",
-    width: 60,
-    height: 60,
-    borderRadius: 30, // Make it circular
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000", // Darker shadow for better visibility
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 5,
-    elevation: 6,
-    // padding: 4, // Padding is managed by centering content
-  },
-  buttonText: {
-    color: "rgb(255,255,255)",
-    fontWeight: "bold",
-    fontSize: 30,
   },
   modalContainer: {
     flex: 1,
@@ -585,28 +638,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
-    backgroundColor: '#f9f9f9', // Light background for input
+    backgroundColor: '#f9f9f9',
   },
   modalButtonContainer: {
     flexDirection: "row",
     justifyContent: "space-evenly",
     width: "100%",
-    marginTop: 10, // Add some top margin
+    marginTop: 10,
   },
   modalButton: {
-    backgroundColor: "#007bff", // Primary button color
+    backgroundColor: "#007bff",
     paddingVertical: 12,
-    paddingHorizontal: 10, // Adjust padding for button width
+    paddingHorizontal: 10,
     borderRadius: 8,
     alignItems: "center",
-    // marginVertical: 10, // Handled by container
-    // shadowColor: "#000", // Using elevation mostly for Android
-    // shadowOpacity: 0.2,
-    // shadowOffset: { width: 0, height: 2 },
-    // shadowRadius: 3,
     elevation: 3,
-    minWidth: "30%", // Ensure buttons have some minimum width
-    marginHorizontal: 5, // Space between buttons
+    minWidth: "30%",
+    marginHorizontal: 5,
   },
   modalButtonText: {
     color: "#fff",
@@ -614,7 +662,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   deleteButton: {
-    backgroundColor: "#dc3545", // Standard delete red
+    backgroundColor: "#dc3545",
   },
 });
 
