@@ -27,6 +27,10 @@ import * as Sharing from 'expo-sharing';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BarChart, LineChart } from "react-native-chart-kit";
+
+// --- CONFIGURATION ---
+const API_BASE_URL = 'http://10.0.2.2:5000';
 
 const fontScale = PixelRatio.getFontScale();
 const getResponsiveFontSize = (size) => size / fontScale;

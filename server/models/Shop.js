@@ -30,9 +30,17 @@ const ShopSchema = new Schema({
             }
         }
     },
-    photos: [{ // Array of URLs or references to image assets
-        type: String // Assuming URLs for now
-    }],
+
+photos: [{
+  url: {
+    type: String,
+    required: true
+  },
+  public_id: {
+    type: String,
+    required: true
+  }
+}],
     rating: { // Overall rating of the shop
         type: Number,
         min: 0,

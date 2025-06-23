@@ -23,7 +23,7 @@ export default function SignupScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
 
   // Updated API_BASE URL
-  const API_BASE = "https://numbr-p7zc.onrender.com";
+  const API_BASE = "http://10.0.2.2:5000";
 
   // Simple phone number validation (basic check for digits)
   const isValidPhone = (phone) => {

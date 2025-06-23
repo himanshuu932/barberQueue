@@ -26,7 +26,7 @@ Notifications.setNotificationHandler({
 });
 
 // Updated API_BASE URL
-const API_BASE = "https://numbr-p7zc.onrender.com";
+const API_BASE = "http://10.0.2.2:5000";
 
 // Function to register push notifications
 async function registerForPushNotifications(uid, token) {
@@ -76,7 +76,7 @@ async function registerForPushNotifications(uid, token) {
     }
 
     try {
-      // Send the expoPushToken to your backend's user profile update endpoint
+      // Send the expoPushToken to your backend's user profile update 
       const response = await fetch(`${API_BASE}/api/users/profile`, { // Updated endpoint
         method: "PUT", // Use PUT for updating profile
         headers: {
