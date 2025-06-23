@@ -8,8 +8,8 @@ const TodayStats = ({ stats }) => {
       <Text style={styles.cardTitle}>Today's Stats</Text>
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
-          <Icon name="dollar" size={24} color="#28A745" />
-          <Text style={styles.statValue}>${stats.earnings}</Text>
+          <Icon name="rupee" size={24} color="#28A745" />
+          <Text style={styles.statValue}>₹{stats.earnings}</Text>
           <Text style={styles.statLabel}>Earnings</Text>
         </View>
         <View style={styles.statItem}>
