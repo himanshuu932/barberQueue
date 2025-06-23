@@ -9,7 +9,7 @@ import {
   Image,
   TouchableOpacity,
   Animated,
-  Alert,
+  Alert, // Keep Alert for other alerts, not for rating submission anymore
   ActivityIndicator,
   Modal,
   TextInput,
@@ -19,8 +19,9 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
+import RatingModal from "../../components/user/RatingModal"; // Import the new RatingModal
 
-const { width } = Dimensions.get('window');
+const { height,width } = Dimensions.get('window');
 const API_BASE = "https://numbr-p7zc.onrender.com/api";
 
 export default function TabProfileScreen() {
@@ -32,6 +33,9 @@ export default function TabProfileScreen() {
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ name: "", email: "" });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isHistoryDetailModalVisible, setIsHistoryDetailModalVisible] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
+  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false); // New state for rating modal
 
   const fetchProfileAndHistory = async () => {
     setLoading(true);
@@ -150,13 +154,17 @@ export default function TabProfileScreen() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
+  const showHistoryDetail = (item) => {
+    setSelectedHistoryItem(item);
+    setIsHistoryDetailModalVisible(true);
+  };
+
+  // Updated handleRateService to show the rating modal
+  const handleRateService = () => {
+    setIsHistoryDetailModalVisible(false); // Close history detail modal first
+    setIsRatingModalVisible(true); // Open the rating modal
+  };
+
 
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
@@ -182,8 +190,8 @@ export default function TabProfileScreen() {
                 />
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.logoutButton} 
+              <TouchableOpacity
+                style={styles.logoutButton}
                 onPress={() => setIsLogoutModalVisible(true)}
               >
                 <Icon name="sign-out" size={25} color="white" />
@@ -214,14 +222,14 @@ export default function TabProfileScreen() {
                 <View style={styles.profileDetails}>
                   <Text style={styles.username}>{profile?.name || "User Name"}</Text>
                   <Text style={styles.userInfo}>{profile?.email || profile?.phone || "N/A"}</Text>
-                  
+
                   {profile?.subscription?.status && (
                     <Text style={styles.subscriptionText}>
-                      Subscription: {profile.subscription.status === 'trial' ? 'Trial' : 
+                      Subscription: {profile.subscription.status === 'trial' ? 'Trial' :
                       profile.subscription.status.charAt(0).toUpperCase() + profile.subscription.status.slice(1)}
                     </Text>
                   )}
-                  
+
                   {profile?.subscription?.status === 'trial' && profile?.subscription?.trialEndDate && (
                     <Text style={styles.subscriptionText}>
                       Trial Ends: {formatTrialEndDate(profile.subscription.trialEndDate)}
@@ -236,10 +244,10 @@ export default function TabProfileScreen() {
           <View style={styles.serviceHistoryContainer}>
             <Text style={styles.sectionTitle}>Service History</Text>
             <View style={styles.historyBox}>
-              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 280 }}>
+              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} >
                 {profile?.history?.length ? (
                   profile.history.map((item, index) => (
-                    <View key={index} style={styles.historyCard}>
+                    <TouchableOpacity key={index} style={styles.historyCard} onPress={() => showHistoryDetail(item)}>
                       <View style={styles.paymentRow}>
                         <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
                         <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
@@ -247,9 +255,7 @@ export default function TabProfileScreen() {
                       <Text style={styles.historyService}>
                         {item.services?.map(s => s.name || 'Unknown Service').join(', ')}
                       </Text>
-                      <Text style={styles.historyService}>Barber: {item.barber?.name || 'N/A'}</Text>
-                      <Text style={styles.historyService}>Shop: {item.shop?.name || 'N/A'}</Text>
-                    </View>
+                    </TouchableOpacity>
                   ))
                 ) : (
                   <Text style={styles.noHistory}>No service history available.</Text>
@@ -257,38 +263,17 @@ export default function TabProfileScreen() {
               </ScrollView>
             </View>
           </View>
-
-          {/* Company Info */}
-          <View style={styles.companyContainer}>
-            <LinearGradient colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} style={styles.companyBackground}>
-              <Text style={styles.companyTitle}>Bludgers Technologies</Text>
-              <Text style={styles.companyTagline}>Innovating Daily Living</Text>
-              <Text style={styles.companyDescription}>
-                Bludgers Technologies is dedicated to crafting seamless and intuitive mobile applications,
-                ensuring the best user experience with cutting-edge solutions.
-              </Text>
-              <View style={styles.divider} />
-              <TouchableOpacity style={styles.contactItem} onPress={() => Linking.openURL("mailto:bludgers52@gmail.com")}>
-                <Text style={styles.companyWebsite}>📧 Mail: bludgers52@gmail.com</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.contactItem} onPress={() => Linking.openURL("tel:8601346652")}>
-                <View style={styles.phoneContainer}>
-                  <Icon name="phone" size={18} color="#00aaff" />
-                  <Text style={styles.numberText}>Phone: 8601346652</Text>
-                </View>
-              </TouchableOpacity>
-              <View style={styles.divider} />
-              <View style={styles.infoGrid}>
-                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/terms")}>
-                  <Text style={styles.infoLinkText}>Terms and Conditions</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/privacy")}>
-                  <Text style={styles.infoLinkText}>Privacy Policy</Text>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
         </ScrollView>
+
+        {/* Terms and Privacy Policy - STICK TO BOTTOM */}
+        <View style={styles.infoGrid}>
+          <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/terms")}>
+            <Text style={styles.infoLinkText}>Terms and Conditions</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/privacy")}>
+            <Text style={styles.infoLinkText}>Privacy Policy</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Edit Profile Modal */}
@@ -318,8 +303,8 @@ export default function TabProfileScreen() {
               <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsModalVisible(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.saveButton]} 
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
                 onPress={handleSaveProfile}
                 disabled={isUpdating}
               >
@@ -341,14 +326,14 @@ export default function TabProfileScreen() {
             <Text style={styles.modalTitle}>Confirm Logout</Text>
             <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
             <View style={styles.modalButtonContainer}>
-              <TouchableOpacity 
-                style={[styles.modalButton, { backgroundColor: '#FF6347' }]} 
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#FF6347' }]}
                 onPress={() => setIsLogoutModalVisible(false)}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, { backgroundColor: '#1a1a1a' }]} 
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#1a1a1a' }]}
                 onPress={confirmLogout}
               >
                 <Text style={styles.modalButtonText}>Logout</Text>
@@ -357,6 +342,74 @@ export default function TabProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* History Detail Modal */}
+      <Modal visible={isHistoryDetailModalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Service Details</Text>
+            {selectedHistoryItem && (
+              <ScrollView>
+                <Text style={styles.detailText}>
+                  <Text style={styles.detailLabel}>Date:</Text> {new Date(selectedHistoryItem.date).toLocaleDateString()}
+                </Text>
+                <Text style={styles.detailText}>
+                  <Text style={styles.detailLabel}>Total Cost:</Text> ₹{selectedHistoryItem.totalCost?.toFixed(2) || '0.00'}
+                </Text>
+                <Text style={styles.detailLabel}>Services:</Text>
+                {selectedHistoryItem.services?.length > 0 ? (
+                  selectedHistoryItem.services.map((s, idx) => (
+                    <Text key={idx} style={styles.detailServiceItem}>
+                      - {s.name || 'Unknown Service'} (₹{s.price?.toFixed(2) || 'N/A'}) x {s.quantity || 1}
+                    </Text>
+                  ))
+
+                 ) : (
+                  <Text style={styles.detailServiceItem}>No services listed.</Text>
+                )}
+                 <Text style={styles.detailServiceItem}>Barber: {selectedHistoryItem.barber?.name || 'Unknown'}</Text>
+                <Text style={styles.detailServiceItem}>Shop: {selectedHistoryItem.shop?.name || 'Unknown'}</Text>
+                {/* Conditional rendering for Rate Service button or rating display */}
+                {selectedHistoryItem.isRated ? (
+                  <Text style={styles.detailText}>
+                    <Text style={styles.detailLabel}>Your Rating:</Text> {selectedHistoryItem.rating} <Icon name="star" size={16} color="#FFD700" />
+                  </Text>
+                ) : (
+                  <View style={styles.modalButtonContainer}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.saveButton]}
+                      onPress={handleRateService}
+                    >
+                      <Text style={styles.modalButtonText}>Rate Service</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </ScrollView>
+            )}
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setIsHistoryDetailModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Rating Modal Component */}
+      <RatingModal
+        isVisible={isRatingModalVisible}
+        onClose={() => {setIsRatingModalVisible(false);
+        fetchProfileAndHistory();
+          
+        }} // RatingModal now calls onClose directly after submission
+        // Removed onSubmit prop since RatingModal handles submission internally
+        shopId={selectedHistoryItem?.shop?._id || null}
+        barberId={selectedHistoryItem?.barber?._id || null}
+        historyId={selectedHistoryItem?._id || null}
+      />
     </ImageBackground>
   );
 }
@@ -376,11 +429,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: "100%",
+    // No flexGrow here, let children manage
   },
   scrollViewContent: {
     padding: 20,
-    paddingBottom: 20,
+    paddingBottom: 20, // Adjust this as needed to account for the infoGrid at the bottom
     alignItems: "center",
+    // Remove justifyContent: 'space-between' and flexGrow, as infoGrid is absolute
   },
   loadingContainer: {
     flex: 1,
@@ -474,9 +529,10 @@ const styles = StyleSheet.create({
   },
   // Service History Styles
   serviceHistoryContainer: {
+    flex: 1, // Crucial: This makes the history container fill available space
     width: "100%",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 20, // Add margin to separate from bottom elements, adjust as needed
   },
   sectionTitle: {
     fontSize: width * 0.055,
@@ -491,7 +547,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     width: "95%",
     padding: 15,
-    maxHeight: 280,
+    maxHeight:height * 0.47,// Let the inner box also take available space within its container
     elevation: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -538,88 +594,32 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontStyle: 'italic',
   },
-  // Company Info Styles
-  companyContainer: {
-    width: "95%",
-    borderRadius: 15,
-    overflow: "hidden",
-    marginBottom: 20,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-  },
-  companyBackground: {
-    padding: 20,
-    borderRadius: 15,
-  },
-  companyTitle: {
-    fontSize: width * 0.065,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  companyTagline: {
-    fontSize: width * 0.045,
-    color: "#ddd",
-    marginBottom: 15,
-    fontStyle: "italic",
-    textAlign: "center",
-  },
-  companyDescription: {
-    fontSize: width * 0.04,
-    color: "#ccc",
-    textAlign: "justify",
-    marginBottom: 20,
-    paddingHorizontal: 10,
-  },
-  companyWebsite: {
-    fontSize: width * 0.04,
-    color: "#00c0ff",
-    fontWeight: "bold",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#555",
-    width: "80%",
-    marginVertical: 18,
-    alignSelf: 'center',
-  },
-  contactItem: {
-    alignSelf: 'flex-start',
-    marginBottom: 5,
-  },
-  phoneContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
-  },
-  numberText: {
-    fontSize: width * 0.04,
-    fontWeight: "bold",
-    color: "#00c0ff",
-    marginLeft: 8,
-  },
+  // Company Info Styles (now for T&C and Privacy)
   infoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-around',
-    marginTop: 15,
     paddingHorizontal: 10,
+    // Styles to stick to the bottom
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    paddingBottom: 20, // Padding from the very bottom of the screen
+    backgroundColor: 'transparent', // Ensure it doesn't obscure content above
+    zIndex: 10, // Ensure it's above other elements if there's overlap
   },
   infoGridItem: {
     width: '45%',
     paddingVertical: 8,
     marginBottom: 10,
-    alignItems: 'flex-start',
+    alignItems: 'center', // Center text within each item
   },
   infoLinkText: {
     fontSize: width * 0.035,
-    color: "#ADD8E6",
+    fontWeight: "bold",
+    color: "#000000",
     textDecorationLine: "underline",
-    textAlign: "left",
+    textAlign: "center",
   },
   // Modal Styles
   modalContainer: {
@@ -693,5 +693,20 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: "#28a745",
+  },
+  detailText: {
+    fontSize: width * 0.042,
+    marginBottom: 8,
+    color: '#333',
+  },
+  detailLabel: {
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  detailServiceItem: {
+    fontSize: width * 0.038,
+    marginLeft: 10,
+    marginBottom: 3,
+    color: '#555',
   },
 });
