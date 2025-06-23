@@ -1070,10 +1070,10 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: "#28A745",
+    marginTop: 10
   },
   cancelButton: {
     backgroundColor: "#6C757D",
-    flex: 0,
     marginTop: 10
   },
   payNowButton: {
