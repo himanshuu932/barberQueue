@@ -27,7 +27,7 @@ import ShopsList from "../../components/owner/shops";
 const { width } = Dimensions.get("window");
 
 // IMPORTANT: Replace with your actual backend API URL
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
   try {
@@ -126,7 +126,7 @@ const ShopSelection = () => {
         isManuallyOverridden: shop.isManuallyOverridden,
         openingTime: shop.openingTime,
         closingTime: shop.closingTime,
-        carouselImages: shop.photos || [],
+        photos: shop.photos || [],
         shopRating: shop.rating ? { average: shop.rating, count: 0 } : { average: 0, count: 0 },
         todayStats: { earnings: 0, customers: 0, popularService: 'N/A', topEmployee: 'N/A' },
         barbers: shop.barbers || [],
@@ -297,13 +297,61 @@ const ShopSelection = () => {
       );
     }
   };
-
-  const handleRemoveCarouselImage = (indexToRemove) => {
-    setNewShopData((prevData) => ({
-      ...prevData,
-      carouselImages: prevData.carouselImages.filter((_, index) => index !== indexToRemove),
-    }));
-  };
+const handleRemoveCarouselImage = (photo, index) => {
+  Alert.alert(
+    "Confirm Removal",
+    "Are you sure you want to remove this image?",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        onPress: async () => {
+          try {
+            setLoading(true);
+            // For newly added images (not yet uploaded)
+            if (typeof photo === 'string') {
+              setNewShopData(prev => ({
+                ...prev,
+                carouselImages: prev.carouselImages.filter((_, i) => i !== index),
+              }));
+              return;
+            }
+            
+            // For uploaded images
+            if (!selectedShopIdForDetails) {
+              throw new Error('Shop ID not found');
+            }
+            
+            const response = await fetch(
+              `${API_BASE_URL}/shops/${selectedShopIdForDetails}/photos/${photo.public_id}`,
+              {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${userToken}` },
+              }
+            );
+            
+            if (!response.ok) throw new Error('Failed to delete image');
+            
+            // Update UI state
+            setNewShopData(prev => ({
+              ...prev,
+              carouselImages: prev.carouselImages.filter(img => 
+                typeof img === 'object' ? img.public_id !== photo.public_id : true
+              ),
+            }));
+            
+            Alert.alert('Success', 'Image removed successfully');
+          } catch (error) {
+            console.error('Error deleting image:', error);
+            Alert.alert('Error', error.message);
+          } finally {
+            setLoading(false);
+          }
+        },
+      }
+    ]
+  );
+};
 
   const handleAddNewShop = async () => {
     if (!newShopData.name || !newShopData.address || !newShopData.openingTime || !newShopData.closingTime) {
@@ -368,8 +416,8 @@ const ShopSelection = () => {
           <Image
             source={{
               uri:
-                shop.carouselImages && shop.carouselImages.length > 0
-                  ? shop.carouselImages[0]
+               shop.photos && shop.photos.length > 0 
+      ? (typeof shop.photos[0] === 'string' ? shop.photos[0] : shop.photos[0].url)
                   : `https://placehold.co/300x200/F5F5F5/888888?text=${shop.name.charAt(0)}`,
             }}
             style={styles.shopImage}
@@ -551,14 +599,20 @@ const ShopSelection = () => {
                 <Icon name="plus" size={30} color="#007bff" />
                 <Text style={styles.addImageButtonText}>Add Image</Text>
               </TouchableOpacity>
-              {newShopData.carouselImages.map((imageUri, index) => (
-                <View key={index} style={styles.carouselEditImageContainer}>
-                  <Image source={{ uri: imageUri }} style={styles.carouselEditImage} />
-                  <TouchableOpacity style={styles.removeImageButton} onPress={() => handleRemoveCarouselImage(index)}>
-                    <Icon name="times-circle" size={24} color="#dc3545" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+{newShopData.carouselImages.map((image, index) => (
+  <View key={index} style={styles.carouselEditImageContainer}>
+    <Image 
+      source={{ uri: typeof image === 'string' ? image : image.url }} 
+      style={styles.carouselEditImage} 
+    />
+    <TouchableOpacity 
+      style={styles.removeImageButton} 
+      onPress={() => handleRemoveCarouselImage(image, index)}
+    >
+      <Icon name="times-circle" size={24} color="#dc3545" />
+    </TouchableOpacity>
+  </View>
+))}
             </ScrollView>
 
             <View style={styles.modalButtonContainer}>

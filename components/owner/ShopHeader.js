@@ -1,4 +1,3 @@
-// FileName: ShopHeader.js
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -14,35 +13,48 @@ import {
   Dimensions,
   Platform,
   ActionSheetIOS,
-  ActivityIndicator, // Added for loading states
-  FlatList, // Added for subscription plans
+  ActivityIndicator,
+  FlatList,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { FontAwesome5 } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
-import { WebView } from 'react-native-webview'; // Added for Razorpay checkout
+import { WebView } from 'react-native-webview';
+import * as FileSystem from 'expo-file-system';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 const { width: screenWidth } = Dimensions.get("window");
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
-// It's recommended to use environment variables for keys.
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
 const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0'; 
 
 const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
+
+
+    useEffect(() => {
+  console.log("🧩 ShopHeader mounted");
+  console.log("➡️ shop prop:", shop);
+  console.log("➡️ shop.photos:", shop?.photos);
+}, []);
+
+
+
     const [isEditShopModalVisible, setIsEditShopModalVisible] = useState(false);
     const [editedShopData, setEditedShopData] = useState(null);
     const [carouselIndex, setCarouselIndex] = useState(0);
     const carouselScrollViewRef = useRef(null);
-
-    // --- State for the entire subscription renewal flow ---
     const [isSubscriptionModalVisible, setIsSubscriptionModalVisible] = useState(false);
     const [subscriptionPlans, setSubscriptionPlans] = useState([]);
-    const [isLoading, setIsLoading] = useState(false); // General loading state for API calls
-    const [checkoutUrl, setCheckoutUrl] = useState(null); // URL for the WebView
-    const [currentPlan, setCurrentPlan] = useState(null); // To store the selected plan during payment
+    const [isLoading, setIsLoading] = useState(false);
+    const [checkoutUrl, setCheckoutUrl] = useState(null);
+    const [currentPlan, setCurrentPlan] = useState(null);
+
+
+    console.log("ShopHeader received shop:", shop);
+
 
     useEffect(() => {
         let interval;
-        const images = isEditShopModalVisible && editedShopData ? editedShopData.carouselImages : shop?.carouselImages;
+        const images = isEditShopModalVisible && editedShopData ? editedShopData.photos : shop?.photos;
         if (images && images.length > 1) {
             interval = setInterval(() => {
                 setCarouselIndex(prevIndex => {
@@ -57,14 +69,213 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
 
     const handleScroll = (event) => {
         const contentOffsetX = event.nativeEvent.contentOffset.x;
-        const images = isEditShopModalVisible && editedShopData ? editedShopData.carouselImages : shop?.carouselImages;
+        const images = isEditShopModalVisible && editedShopData ? editedShopData.photos : shop?.photos;
         if (images && images.length > 0) {
             const newIndex = Math.round(contentOffsetX / (screenWidth - 40));
             setCarouselIndex(newIndex);
         }
     };
+
+    const handleOpenEditShopModal = () => {
+        setEditedShopData(shop ? { 
+            ...shop, 
+            photos: [...(shop.photos || [])], 
+            address: shop.address?.fullDetails || '' 
+        } : null);
+        setIsEditShopModalVisible(true);
+    };
+// ShopHeader.js - updated pickShopImage function
+const pickShopImage = async () => {
+    console.log("pickShopImage is being executed");
+    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+    if (mediaStatus !== 'granted' || cameraStatus !== 'granted') {
+        Alert.alert('Permission Required', 'Please enable camera and media library permissions.');
+        return;
+    }
+
+    const options = ['Take Photo', 'Choose from Gallery', 'Cancel'];
     
-    // --- Subscription & Payment Functions ---
+    const handleSelection = async (idx) => {
+        let result;
+        try {
+            setIsLoading(true);
+            
+            if (idx === 0) {
+                result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    aspect: [4, 3],
+                    quality: 0.7,
+                    base64: true
+                });
+            } else if (idx === 1) {
+                result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    aspect: [4, 3],
+                    quality: 0.7,
+                    base64: true
+                });
+            }
+
+            if (result && !result.canceled && result.assets && result.assets.length > 0) {
+                console.log('Selected image:', result.assets[0]);
+
+                // Create FormData
+                const formData = new FormData();
+                formData.append('photos', {
+                    uri: result.assets[0].uri,
+                    name: `photo_${Date.now()}.jpg`,
+                    type: 'image/jpeg'
+                });
+
+                console.log('FormData created:', formData);
+
+                // Upload to backend
+                const response = await fetch(`${API_BASE_URL}/shops/${shop._id}/photos`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${userToken}`,
+                        'Content-Type': 'multipart/form-data',
+                    },
+                    body: formData,
+                });
+
+                console.log('Upload response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Upload failed:', errorText);
+                    throw new Error(errorText || 'Upload failed');
+                }
+
+                const responseData = await response.json();
+                console.log('Upload successful:', responseData);
+                
+                setEditedShopData(prev => ({
+                    ...prev,
+                    photos: [...(prev.photos || []), ...responseData.data]
+                }));
+                
+                Alert.alert('Success', 'Image uploaded successfully');
+            }
+        } catch (error) {
+            console.error('Full upload error:', {
+                message: error.message,
+                stack: error.stack,
+                response: error.response
+            });
+            Alert.alert('Upload Error', `Failed to upload image: ${error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 2 }, handleSelection);
+    } else {
+        Alert.alert('Add Image', 'Choose an option:', options.map((title, i) => ({
+            text: title,
+            onPress: () => handleSelection(i),
+            style: i === 2 ? 'cancel' : 'default'
+        })), { cancelable: true });
+    }
+};
+
+const handleRemoveShopCarouselImage = async (public_id) => {
+    Alert.alert(
+        "Confirm Removal",
+        "Are you sure you want to remove this image?",
+        [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Remove",
+                onPress: async () => {
+                    try {
+                        setIsLoading(true);
+                        const response = await fetch(
+                            `${API_BASE_URL}/shops/${shop._id}/photos/${public_id}`,
+                            {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${userToken}` },
+                            }
+                        );
+                        if (!response.ok) throw new Error('Failed to delete image');
+                        
+                        // Update UI by filtering out the deleted photo
+                        setEditedShopData(prev => ({
+                            ...prev,
+                            photos: prev.photos.filter(photo => photo.public_id !== public_id),
+                        }));
+                        Alert.alert('Success', 'Image removed successfully');
+                    } catch (error) {
+                        Alert.alert('Error', error.message);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                },
+            }
+        ]
+    );
+};
+
+
+
+    const handleSaveShopChanges = async () => {
+        if (!editedShopData || !userToken) return;
+        
+        if (!editedShopData.name || !editedShopData.address || !editedShopData.openingTime || !editedShopData.closingTime) {
+            Alert.alert("Validation Error", "All shop fields are required.");
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            
+            const shopToUpdate = {
+                name: editedShopData.name,
+                address: { 
+                    fullDetails: editedShopData.address, 
+                    coordinates: editedShopData.coordinates || shop?.address?.coordinates || { type: 'Point', coordinates: [-74.0060, 40.7128] } 
+                },
+                openingTime: editedShopData.openingTime,
+                closingTime: editedShopData.closingTime,
+                isManuallyOverridden: editedShopData.isManuallyOverridden,
+                isOpen: editedShopData.isOpen,
+            };
+
+            const response = await fetch(`${API_BASE_URL}/shops/${shop._id}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${userToken}` 
+                },
+                body: JSON.stringify(shopToUpdate),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || 'Failed to update shop.');
+            }
+
+            Alert.alert("Success", "Shop details updated!");
+            setIsEditShopModalVisible(false);
+            if (onShopUpdate) await onShopUpdate();
+        } catch (err) {
+            console.error('Error saving shop:', err);
+            Alert.alert("Error", err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleToggleShopStatusInEditModal = () => setEditedShopData(prev => ({ 
+        ...prev, 
+       
+        isOpen: !prev.isOpen, 
+        isManuallyOverridden: true 
+    }));
 
     const handlePayNowPress = async () => {
         setIsLoading(true);
@@ -73,7 +284,6 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                 headers: { 'Authorization': `Bearer ${userToken}` },
             });
             const data = await response.json();
-            console.log('ShopHeader: Fetched Subscription Plans:', data);
             if (!response.ok) throw new Error(data.message || 'Could not fetch subscription plans.');
             setSubscriptionPlans(data.data);
             setIsSubscriptionModalVisible(true);
@@ -88,7 +298,6 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
         setIsLoading(true);
         setCurrentPlan(plan);
 
-        // Essential validation for shop and plan
         if (!shop?._id) {
             Alert.alert('Payment Error', 'Shop information is missing. Cannot proceed with payment.');
             setIsLoading(false);
@@ -113,19 +322,14 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
             });
 
             const orderData = await orderResponse.json();
-            console.log('ShopHeader: Order Creation Response:', orderData);
             if (!orderResponse.ok) {
-                // If the backend returns an error message, use it. Otherwise, a generic message.
-                throw new Error(orderData.message || 'Failed to create payment order. Check server logs.');
+                throw new Error(orderData.message || 'Failed to create payment order.');
             }
 
             const { id: order_id, amount, currency } = orderData.data;
-
-            // Prepare prefill data safely, using existing shop data or sensible defaults
             const prefill_name = shop?.name || 'Shop Owner';
-            const prefill_email_val = shop?.owner?.email || 'owner@example.com'; // Assuming owner's email is in shop.owner.email
-            const prefill_contact_val = shop?.owner?.phone || '9999999999'; // Assuming owner's phone is in shop.owner.phone
-
+            const prefill_email_val = shop?.owner?.email || 'owner@example.com';
+            const prefill_contact_val = shop?.owner?.phone || '9999999999';
 
             const checkoutPageUrl = `${API_BASE_URL}/shops/payment/checkout-page`;
             const params = new URLSearchParams({
@@ -133,18 +337,18 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                 key_id: RAZORPAY_KEY_ID,
                 amount,
                 currency,
-                name: prefill_name, // Use safely obtained name
-                description: `Subscription for ${plan.name || 'Selected Plan'}`, // Use plan name or fallback
-                prefill_email: prefill_email_val, // Use safely obtained email
-                prefill_contact: prefill_contact_val, // Use safely obtained contact
+                name: prefill_name,
+                description: `Subscription for ${plan.name || 'Selected Plan'}`,
+                prefill_email: prefill_email_val,
+                prefill_contact: prefill_contact_val,
                 theme_color: '#007BFF',
                 shopId: shop._id,
             }).toString();
             
             setCheckoutUrl(`${checkoutPageUrl}?${params}`);
-            setIsSubscriptionModalVisible(false); // Close plan selection modal, open WebView
+            setIsSubscriptionModalVisible(false);
         } catch (error) {
-            console.error('ShopHeader: Payment Error in handleSelectPlan:', error);
+            console.error('Payment Error in handleSelectPlan:', error);
             Alert.alert('Payment Initiation Error', error.message);
         } finally {
             setIsLoading(false);
@@ -155,10 +359,8 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
         const { url } = navState;
         if (!url) return;
 
-        console.log('ShopHeader: WebView Navigating to:', url);
-
         if (url.includes('/shops/payment/webview-callback/success')) {
-            setCheckoutUrl(null); // Close WebView immediately on success callback
+            setCheckoutUrl(null);
             
             const urlParams = new URLSearchParams(url.split('?')[1]);
             const paymentDetails = {
@@ -166,22 +368,19 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                 razorpay_order_id: urlParams.get('razorpay_order_id'),
                 razorpay_signature: urlParams.get('razorpay_signature'),
                 shopId: urlParams.get('shop_id'),
-                planId: currentPlan?._id, // Use the stored currentPlan ID
+                planId: currentPlan?._id,
             };
 
             if (paymentDetails.razorpay_payment_id && paymentDetails.planId) {
-                console.log('ShopHeader: Calling verifyPayment with details:', paymentDetails);
                 await verifyPayment(paymentDetails);
             } else {
-                console.error('ShopHeader: Success callback missing crucial payment or plan details.', paymentDetails);
                 Alert.alert('Payment Issue', 'Successful payment but missing verification details. Please contact support.');
             }
         } else if (url.includes('/shops/payment/webview-callback/failure')) {
-            setCheckoutUrl(null); // Close WebView on failure callback
+            setCheckoutUrl(null);
             const urlParams = new URLSearchParams(url.split('?')[1]);
             const errorMessage = urlParams.get('description') || 'Payment failed or was cancelled.';
             Alert.alert('Payment Failed', errorMessage);
-            console.warn('ShopHeader: WebView Payment Failed:', url);
         }
     };
 
@@ -195,98 +394,20 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
             });
             
             const data = await response.json();
-            console.log('ShopHeader: Payment Verification Response:', data);
-
             if (!response.ok) {
                 throw new Error(data.message || 'Payment verification failed on the server.');
             }
 
             Alert.alert('Success', 'Subscription updated successfully!');
-            // IMPORTANT: Call onShopUpdate to refresh the parent component's shop data
             if (onShopUpdate) await onShopUpdate();
         } catch (error) {
-            console.error('ShopHeader: Verification Error:', error);
+            console.error('Verification Error:', error);
             Alert.alert('Verification Error', error.message);
         } finally {
             setIsLoading(false);
-            setCurrentPlan(null); // Clear the current plan state
+            setCurrentPlan(null);
         }
     };
-    
-    // --- Original Functions from your provided file ---
-
-    const handleOpenEditShopModal = () => {
-        setEditedShopData(shop ? { ...shop, carouselImages: [...(shop.carouselImages || [])], address: shop.address?.fullDetails || '' } : null);
-        setIsEditShopModalVisible(true);
-    };
-
-    const handleSaveShopChanges = async () => {
-        if (!editedShopData || !userToken) return;
-        if (!editedShopData.name || !editedShopData.address || !editedShopData.openingTime || !editedShopData.closingTime) {
-            Alert.alert("Validation Error", "All shop fields are required.");
-            return;
-        }
-        try {
-            const shopToUpdate = {
-                name: editedShopData.name,
-                address: { fullDetails: editedShopData.address, coordinates: editedShopData.coordinates || shop?.address?.coordinates || { type: 'Point', coordinates: [-74.0060, 40.7128] } },
-                photos: editedShopData.carouselImages,
-                openingTime: editedShopData.openingTime,
-                closingTime: editedShopData.closingTime,
-                isManuallyOverridden: editedShopData.isManuallyOverridden,
-                isOpen: editedShopData.isOpen,
-            };
-            const response = await fetch(`${API_BASE_URL}/shops/${shop._id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
-                body: JSON.stringify(shopToUpdate),
-            });
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.message || 'Failed to update shop.');
-            }
-            Alert.alert("Success", "Shop details updated!");
-            setIsEditShopModalVisible(false);
-            if (onShopUpdate) await onShopUpdate();
-        } catch (err) {
-            console.error('Error saving shop:', err);
-            Alert.alert("Error", err.message);
-        }
-    };
-
-    const pickShopImage = async () => {
-        const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-        if (mediaStatus !== 'granted' || cameraStatus !== 'granted') {
-            Alert.alert('Permission Required', 'Please enable camera and media library permissions.');
-            return;
-        }
-        const options = ['Take Photo', 'Choose from Gallery', 'Cancel'];
-        const handleSelection = async (idx) => {
-            let result;
-            if (idx === 0) {
-                result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 1 });
-            } else if (idx === 1) {
-                result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 1 });
-            }
-            if (result && !result.canceled && result.assets && result.assets.length > 0) {
-                setEditedShopData(prev => ({ ...prev, carouselImages: [result.assets[0].uri, ...(prev.carouselImages || [])] }));
-            }
-        };
-
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 2 }, handleSelection);
-        } else {
-            Alert.alert('Add Image', 'Choose an option:', options.map((title, i) => ({ text: title, onPress: () => handleSelection(i), style: i === 2 ? 'cancel' : 'default' })), { cancelable: true });
-        }
-    };
-
-    const handleRemoveShopCarouselImage = (idx) => Alert.alert("Confirm Removal", "Are you sure you want to remove this image?", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Remove", onPress: () => setEditedShopData(prev => ({ ...prev, carouselImages: prev.carouselImages.filter((_, i) => i !== idx) })), style: "destructive" }
-    ]);
-
-    const handleToggleShopStatusInEditModal = () => setEditedShopData(prev => ({ ...prev, isOpen: !prev.isOpen, isManuallyOverridden: true }));
 
     const formatDate = (dateString) => {
         if (!dateString) return null;
@@ -303,12 +424,12 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
         return daysRemaining > 0 ? `${daysRemaining} days` : 'Expired';
     };
 
-    const displayCarouselImages = isEditShopModalVisible && editedShopData ? editedShopData.carouselImages : shop?.carouselImages;
-    
+    const displayPhotos = isEditShopModalVisible && editedShopData ? editedShopData.photos : shop?.photos;
+
     return (
         <>
             <View style={styles.card}>
-                {displayCarouselImages && displayCarouselImages.length > 0 ? (
+                {displayPhotos && displayPhotos.length > 0 ? (
                     <>
                         <ScrollView
                             ref={carouselScrollViewRef}
@@ -319,17 +440,28 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                             onScroll={handleScroll}
                             scrollEventThrottle={16}
                         >
-                            {displayCarouselImages.map((imgUrl, idx) => (
-                                <Image
-                                    key={idx.toString()}
-                                    source={{ uri: imgUrl }}
-                                    style={[styles.carouselImage, { width: screenWidth - 40 }]}
-                                    resizeMode="cover"
-                                />
-                            ))}
+
+
+{(displayPhotos || []).map((img, idx) => {
+  const uri = typeof img === 'string' ? img : img?.url;
+  if (!uri) return null;
+
+  return (
+    <Image
+      key={idx.toString()}
+      source={{ uri }}
+      style={[styles.carouselImage, { width: screenWidth - 40 }]}
+      resizeMode="cover"
+    />
+  );
+})}
+
+
+
+
                         </ScrollView>
                         <View style={styles.paginationDotsContainer}>
-                            {displayCarouselImages.map((_, idx) => (
+                            {displayPhotos.map((_, idx) => (
                                 <View
                                     key={idx.toString()}
                                     style={[
@@ -466,14 +598,13 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                             onError={(syntheticEvent) => {
                                 const { nativeEvent } = syntheticEvent;
                                 console.error('WebView error: ', nativeEvent);
-                                setCheckoutUrl(null); // Close WebView on error
+                                setCheckoutUrl(null);
                                 Alert.alert("WebView Error", `Failed to load payment page: ${nativeEvent.description || 'Unknown error'}`);
                             }}
                              onHttpError={(syntheticEvent) => {
                                 const { nativeEvent } = syntheticEvent;
                                 console.error('WebView HTTP error: ', nativeEvent);
-                                // This might catch issues like 401/403 if the backend route was protected
-                                setCheckoutUrl(null); // Close WebView on HTTP error
+                                setCheckoutUrl(null);
                                 Alert.alert("WebView HTTP Error", `Failed to load payment page (Status: ${nativeEvent.statusCode}). Please try again.`);
                             }}
                         />
@@ -508,14 +639,25 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                                     <Icon name="plus" size={30} color="#007BFF" />
                                     <Text>Add</Text>
                                 </TouchableOpacity>
-                                {editedShopData?.carouselImages.map((img, idx) => (
-                                    <View key={idx.toString()} style={styles.carouselEditImageContainer}>
-                                        <Image source={{ uri: img }} style={styles.carouselEditImage} />
-                                        <TouchableOpacity style={styles.removeImageButton} onPress={() => handleRemoveShopCarouselImage(idx)}>
-                                            <Icon name="times-circle" size={24} color="#DC3545" />
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
+{(editedShopData?.photos || []).map((img, idx) => {
+  const uri = img?.url;
+  if (!uri) return null;
+
+  return (
+    <View key={idx.toString()} style={styles.carouselEditImageContainer}>
+      <Image source={{ uri }} style={styles.carouselEditImage} />
+      <TouchableOpacity
+        style={styles.removeImageButton}
+        onPress={() => handleRemoveShopCarouselImage(img.public_id)}
+      >
+        <Icon name="times-circle" size={24} color="#DC3545" />
+      </TouchableOpacity>
+    </View>
+  );
+})}
+
+
+
                             </View>
                         </ScrollView>
                         <View style={styles.modalButtonContainer}>
@@ -534,7 +676,6 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
 };
 
 const styles = StyleSheet.create({
-
     card: {
         backgroundColor: '#FFFFFF',
         borderRadius: 15,
@@ -774,7 +915,6 @@ const styles = StyleSheet.create({
         flex: 0,
         marginTop: 10
     },
-    // --- New and Adjusted Styles ---
     payNowButton: {
         backgroundColor: '#DC3545',
         borderRadius: 10,

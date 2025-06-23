@@ -7,10 +7,13 @@ const Subscription = require('../models/Subscription');
 const History = require('../models/History'); // Import History model for stats
 const { asyncHandler, ApiError } = require('../utils/errorHandler');
 const generateToken = require('../utils/generateToken');
+const { uploadMultipleImages } = require('../utils/cloudinaryUpload');
 const bcrypt = require('bcryptjs');
 const Razorpay = require('razorpay');
 const { validateWebhookSignature } = require('razorpay/dist/utils/razorpay-utils');
 const sanitizeHtml = require('sanitize-html');
+const cloudinary = require('cloudinary').v2;
+
 require('dotenv').config();
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0';
@@ -182,11 +185,11 @@ exports.getAllShops = asyncHandler(async (req, res) => {
     const shops = await Shop.find({ "subscription.status": { $ne: 'expired' } }) // Only show non-expired shops
                             .select('name address rating photos subscription.status openingTime closingTime isOpen') // Select relevant fields for listing
                             .populate('owner', 'name'); // Optionally populate owner name
-
     res.json({
         success: true,
         data: shops,
     });
+   
 });
 
 // @desc    Update shop details (by Owner)
@@ -413,6 +416,136 @@ console.log("reached to rate-list controller");
         data: shop.services, // This will be an array of {name, price, _id} objects
     });
 });
+
+
+
+// @desc    Upload shop photos
+// @route   POST /api/shops/:id/photos
+// @access  Private (Owner)
+// controllers/shopController.js
+exports.uploadShopPhotos = [
+    uploadMultipleImages('photos'),
+    asyncHandler(async (req, res) => {
+        console.log('Upload request received:', {
+            files: req.files,
+            body: req.body,
+            params: req.params,
+            user: req.user
+        });
+
+        const { id } = req.params;
+        
+        const shop = await Shop.findById(id);
+        if (!shop) {
+            console.error('Shop not found with ID:', id);
+            throw new ApiError('Shop not found.', 404);
+        }
+
+        // Authorization
+        if (shop.owner.toString() !== req.user._id.toString()) {
+            console.error('Unauthorized access attempt by user:', req.user._id);
+            throw new ApiError('Not authorized to update this shop.', 403);
+        }
+
+        if (!req.files || req.files.length === 0) {
+            console.error('No files were uploaded');
+            throw new ApiError('No photos uploaded.', 400);
+        }
+
+        console.log('Files received:', req.files.map(f => ({
+            originalname: f.originalname,
+            size: f.size,
+            mimetype: f.mimetype
+        })));
+
+        try {
+            // Map uploaded files to photo objects
+          const uploadedPhotos = req.files.map(file => ({
+  url: file.path,
+   public_id: file.filename
+}));
+
+
+            console.log('Processed photos:', uploadedPhotos);
+
+            // Add new photos to the shop
+            shop.photos = [...shop.photos, ...uploadedPhotos];
+            await shop.save();
+
+            console.log('Shop updated successfully with new photos');
+            
+            res.status(201).json({
+                success: true,
+                message: 'Photos uploaded successfully',
+                data: uploadedPhotos
+            });
+        } catch (error) {
+            console.error('Error processing upload:', {
+                message: error.message,
+                stack: error.stack
+            });
+            throw new ApiError('Failed to process upload', 500);
+        }
+    })
+];
+
+// @desc    Delete a shop photo
+// @route   DELETE /api/shops/:id/photos/:photoId
+// @access  Private (Owner)
+
+exports.deleteShopPhoto = asyncHandler(async (req, res) => {
+    const { id, photoId } = req.params;
+    console.log("Deleting photo:", { shopId: id, photoId });
+
+    const shop = await Shop.findById(id);
+    if (!shop) throw new ApiError("Shop not found.", 404);
+
+    // Authorization
+    if (shop.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError("Not authorized to update this shop.", 403);
+    }
+
+    // Find the photo by public_id or index (for backward compatibility)
+    let photoToDelete;
+    if (shop.photos[photoId] && typeof shop.photos[photoId] === 'object') {
+        // If photoId is an index and exists
+        photoToDelete = shop.photos[photoId];
+    } else {
+        // Try to find by public_id
+        photoToDelete = shop.photos.find(p => p.public_id === photoId);
+    }
+
+    if (!photoToDelete) throw new ApiError("Photo not found.", 404);
+
+    // Delete from Cloudinary using the public_id
+    try {
+        const cloudinaryResult = await cloudinary.uploader.destroy(photoToDelete.public_id);
+        console.log("Cloudinary deletion result:", cloudinaryResult);
+
+        if (cloudinaryResult.result !== "ok") {
+            throw new Error(`Cloudinary deletion failed: ${cloudinaryResult.result}`);
+        }
+
+        // Remove from MongoDB array
+        shop.photos = shop.photos.filter(photo => 
+            typeof photo === 'object' ? photo.public_id !== photoToDelete.public_id : true
+        );
+        
+        await shop.save();
+
+        res.json({
+            success: true,
+            message: "Photo deleted successfully.",
+        });
+    } catch (error) {
+        console.error("Error deleting photo:", error);
+        throw new ApiError("Failed to delete photo.", 500);
+    }
+});
+
+
+
+
 
 // @desc    Get a shop's current subscription status
 // @route   GET /api/shops/:id/subscription-status

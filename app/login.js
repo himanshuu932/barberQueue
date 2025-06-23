@@ -76,7 +76,7 @@ async function registerForPushNotifications(uid, token) {
     }
 
     try {
-      // Send the expoPushToken to your backend's user profile update endpoint
+      // Send the expoPushToken to your backend's user profile update 
       const response = await fetch(`${API_BASE}/api/users/profile`, { // Updated endpoint
         method: "PUT", // Use PUT for updating profile
         headers: {
