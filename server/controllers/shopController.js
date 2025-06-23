@@ -19,10 +19,10 @@ require('dotenv').config();
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'FdhuPV1HIA5bRYAIu2gYSoXh';
 // IMPORTANT: Configure this URL based on your testing environment:
-// - For Android Emulator: 'https://numbr-p7zc.onrender.com'
+// - For Android Emulator: 'http://10.0.2.2:5000'
 // - For iOS Simulator/Device or Physical Android Device: Replace '10.0.2.2' with your computer's actual local IP address (e.g., 'http://192.168.1.X:5000')
 // - For Production/Public access: This should be your deployed backend's public URL (e.g., 'https://api.yourdomain.com')
-const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-p7zc.onrender.com'; 
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'http://10.0.2.2:5000'; 
 
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({
@@ -130,9 +130,12 @@ exports.getShopById = asyncHandler(async (req, res) => {
                            .populate('owner', 'name phone')
                            .populate('barbers', 'name phone activeTaking');
 
+                        
+
     if (!shop) {
         throw new ApiError('Shop not found.', 404);
     }
+    //console.log("Fetched shop details:", shop);
 
     // Check and update subscription status
     const now = new Date();
@@ -166,7 +169,7 @@ exports.getShopById = asyncHandler(async (req, res) => {
         .populate('services.service', 'name price') // populate only the service reference inside services array
         .sort({ date: -1 }); // Optional: sort latest first
 
-    console.log("Shop details being sent:", shop);
+
     res.json({
         success: true,
         data: {
@@ -492,44 +495,37 @@ exports.uploadShopPhotos = [
 // @desc    Delete a shop photo
 // @route   DELETE /api/shops/:id/photos/:photoId
 // @access  Private (Owner)
-
 exports.deleteShopPhoto = asyncHandler(async (req, res) => {
-    const { id, photoId } = req.params;
-    console.log("Deleting photo:", { shopId: id, photoId });
+    console.log("reached in delete shop photo controller");
+    const { id, photoId } = req.params; // photoId is the public_id from the URL
+    console.log("Deleting photo:", { shopId: id, photoId: photoId });
 
     const shop = await Shop.findById(id);
-    if (!shop) throw new ApiError("Shop not found.", 404);
+    if (!shop) {
+        throw new ApiError("Shop not found.", 404);
+    }
 
     // Authorization
     if (shop.owner.toString() !== req.user._id.toString()) {
         throw new ApiError("Not authorized to update this shop.", 403);
     }
 
-    // Find the photo by public_id or index (for backward compatibility)
-    let photoToDelete;
-    if (shop.photos[photoId] && typeof shop.photos[photoId] === 'object') {
-        // If photoId is an index and exists
-        photoToDelete = shop.photos[photoId];
-    } else {
-        // Try to find by public_id
-        photoToDelete = shop.photos.find(p => p.public_id === photoId);
+    // Find the photo by its public_id in the array
+    const photoToDelete = shop.photos.find(p => p.public_id === photoId);
+
+    if (!photoToDelete) {
+        throw new ApiError("Photo not found in this shop's records.", 404);
     }
 
-    if (!photoToDelete) throw new ApiError("Photo not found.", 404);
-
-    // Delete from Cloudinary using the public_id
+    // Wrap Cloudinary and DB operations in a try-catch block
     try {
-        const cloudinaryResult = await cloudinary.uploader.destroy(photoToDelete.public_id);
-        console.log("Cloudinary deletion result:", cloudinaryResult);
+        // 1. Delete the image from Cloudinary
+        console.log(`Attempting to delete from Cloudinary with public_id: ${photoToDelete.public_id}`);
+        await cloudinary.uploader.destroy(photoToDelete.public_id);
+        console.log("Successfully deleted from Cloudinary (or it didn't exist there).");
 
-        if (cloudinaryResult.result !== "ok") {
-            throw new Error(`Cloudinary deletion failed: ${cloudinaryResult.result}`);
-        }
-
-        // Remove from MongoDB array
-        shop.photos = shop.photos.filter(photo => 
-            typeof photo === 'object' ? photo.public_id !== photoToDelete.public_id : true
-        );
+        // 2. Remove the photo from the MongoDB array
+        shop.photos = shop.photos.filter(p => p.public_id !== photoId);
         
         await shop.save();
 
@@ -538,8 +534,9 @@ exports.deleteShopPhoto = asyncHandler(async (req, res) => {
             message: "Photo deleted successfully.",
         });
     } catch (error) {
-        console.error("Error deleting photo:", error);
-        throw new ApiError("Failed to delete photo.", 500);
+        console.error("Error during photo deletion process:", error);
+        // This could be an error from Cloudinary or from saving the shop document
+        throw new ApiError("Failed to delete photo due to a server error.", 500);
     }
 });
 

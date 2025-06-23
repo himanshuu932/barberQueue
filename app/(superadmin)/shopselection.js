@@ -14,13 +14,11 @@ import {
   FlatList,
   Dimensions,
   Platform,
-  ActionSheetIOS,
   ActivityIndicator,
 } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from "react-native-vector-icons/FontAwesome";
 import { FontAwesome5 } from "@expo/vector-icons";
-import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 // --- NEW IMPORTS ---
 import MapView, { Marker } from 'react-native-maps';
@@ -31,7 +29,7 @@ import ShopsList from "../../components/owner/shops";
 const { width } = Dimensions.get("window");
 
 // IMPORTANT: Replace with your actual backend API URL
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
 
 // This function remains unchanged
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
@@ -68,7 +66,6 @@ const ShopSelection = () => {
     address: '',
     openingTime: '',
     closingTime: '',
-    carouselImages: [],
     coordinates: null, // To hold { latitude, longitude }
   });
   const [userToken, setUserToken] = useState(null);
@@ -254,7 +251,6 @@ const ShopSelection = () => {
             coordinates: [newShopData.coordinates.longitude, newShopData.coordinates.latitude],
           },
         },
-        photos: newShopData.carouselImages,
         openingTime: newShopData.openingTime,
         closingTime: newShopData.closingTime,
       };
@@ -276,7 +272,7 @@ const ShopSelection = () => {
       Alert.alert("Success", data.message || "New shop added successfully!");
       setIsAddModalVisible(false);
       // Reset state including coordinates
-      setNewShopData({ name: '', address: '', openingTime: '', closingTime: '', carouselImages: [], coordinates: null });
+      setNewShopData({ name: '', address: '', openingTime: '', closingTime: '', coordinates: null });
       await fetchOwnerShops(userToken);
     } catch (err) {
       console.error('Error adding new shop:', err);
@@ -346,171 +342,6 @@ const ShopSelection = () => {
     } catch (err) {
       console.error('Error toggling shop status:', err);
       Alert.alert("Error", err.message || "Failed to toggle shop status. Please try again.");
-    }
-  };
-
-  const pickImage = async () => {
-    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-
-    if (mediaStatus !== 'granted' || cameraStatus !== 'granted') {
-      Alert.alert('Permission Required', 'Please enable camera and media library permissions in your device settings to add images.');
-      return;
-    }
-
-    const options = ['Take Photo', 'Choose from Gallery', 'Cancel'];
-    const cancelButtonIndex = 2;
-
-    const handleSelection = async (buttonIndex) => {
-      let result;
-      if (buttonIndex === 0) {
-        result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [4, 3],
-          quality: 1,
-        });
-      } else if (buttonIndex === 1) {
-        result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [4, 3],
-          quality: 1,
-        });
-      }
-
-      if (result && !result.canceled) {
-        const newImageUri = result.assets[0].uri;
-        setNewShopData((prevData) => ({
-          ...prevData,
-          carouselImages: [newImageUri, ...prevData.carouselImages],
-        }));
-      }
-    };
-
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options,
-          cancelButtonIndex,
-        },
-        handleSelection
-      );
-    } else {
-      Alert.alert(
-        'Add Image',
-        'Choose an option to add an image:',
-        options.map((title, index) => ({
-          text: title,
-          onPress: () => handleSelection(index),
-          style: index === cancelButtonIndex ? 'cancel' : 'default',
-        })),
-        { cancelable: true }
-      );
-    }
-  };
-const handleRemoveCarouselImage = (photo, index) => {
-  Alert.alert(
-    "Confirm Removal",
-    "Are you sure you want to remove this image?",
-    [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        onPress: async () => {
-          try {
-            setLoading(true);
-            // For newly added images (not yet uploaded)
-            if (typeof photo === 'string') {
-              setNewShopData(prev => ({
-                ...prev,
-                carouselImages: prev.carouselImages.filter((_, i) => i !== index),
-              }));
-              return;
-            }
-            
-            // For uploaded images
-            if (!selectedShopIdForDetails) {
-              throw new Error('Shop ID not found');
-            }
-            
-            const response = await fetch(
-              `${API_BASE_URL}/shops/${selectedShopIdForDetails}/photos/${photo.public_id}`,
-              {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${userToken}` },
-              }
-            );
-            
-            if (!response.ok) throw new Error('Failed to delete image');
-            
-            // Update UI state
-            setNewShopData(prev => ({
-              ...prev,
-              carouselImages: prev.carouselImages.filter(img => 
-                typeof img === 'object' ? img.public_id !== photo.public_id : true
-              ),
-            }));
-            
-            Alert.alert('Success', 'Image removed successfully');
-          } catch (error) {
-            console.error('Error deleting image:', error);
-            Alert.alert('Error', error.message);
-          } finally {
-            setLoading(false);
-          }
-        },
-      }
-    ]
-  );
-};
-
-  const handleAddNewShop = async () => {
-    if (!newShopData.name || !newShopData.address || !newShopData.openingTime || !newShopData.closingTime) {
-      Alert.alert("Error", "Please fill in all required fields (Name, Address, Opening/Closing Times).");
-      return;
-    }
-    if (!userToken) {
-      Alert.alert("Error", "Authentication token not found. Please login again.");
-      return;
-    }
-    try {
-      const dummyCoordinates = [-74.0060, 40.7128]; // Example: New York City (longitude, latitude)
-      const shopToCreate = {
-        name: newShopData.name,
-        address: {
-          fullDetails: newShopData.address,
-          coordinates: {
-            type: 'Point',
-            coordinates: dummyCoordinates,
-          },
-        },
-        photos: newShopData.carouselImages,
-        openingTime: newShopData.openingTime,
-        closingTime: newShopData.closingTime,
-      };
-
-      const response = await fetch(`${API_BASE_URL}/shops`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userToken}`,
-        },
-        body: JSON.stringify(shopToCreate),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.message || 'Failed to add new shop.');
-      }
-      const data = await response.json();
-      Alert.alert("Success", data.message || "New shop added successfully!");
-      setIsAddModalVisible(false);
-      setNewShopData({ name: '', address: '', openingTime: '', closingTime: '', carouselImages: [] });
-      await fetchOwnerShops(userToken);
-    } catch (err) {
-      console.error('Error adding new shop:', err);
-      Alert.alert("Error", err.message || "Failed to add new shop. Please try again.");
     }
   };
 
@@ -716,28 +547,6 @@ const handleRemoveCarouselImage = (photo, index) => {
               />
             )}
             
-            <Text style={styles.carouselImagesTitle}>Carousel Images:</Text>
-            <ScrollView horizontal style={styles.carouselEditScrollHorizontal} contentContainerStyle={styles.carouselImagesGrid}>
-              <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
-                <Icon name="plus" size={30} color="#007bff" />
-                <Text style={styles.addImageButtonText}>Add Image</Text>
-              </TouchableOpacity>
-{newShopData.carouselImages.map((image, index) => (
-  <View key={index} style={styles.carouselEditImageContainer}>
-    <Image 
-      source={{ uri: typeof image === 'string' ? image : image.url }} 
-      style={styles.carouselEditImage} 
-    />
-    <TouchableOpacity 
-      style={styles.removeImageButton} 
-      onPress={() => handleRemoveCarouselImage(image, index)}
-    >
-      <Icon name="times-circle" size={24} color="#dc3545" />
-    </TouchableOpacity>
-  </View>
-))}
-            </ScrollView>
-
             <View style={styles.modalButtonContainer}>
               <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddModalVisible(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>

@@ -23,7 +23,8 @@ router.delete('/:id/services/:serviceItemId', protect(['owner']), authorize('own
 
 //Shop photo upload and delete fro owner 
 router.post('/:id/photos',(req,res,next)=>{console.log("reached here"); next();}, protect(['owner']), authorize('owner'), checkShopSubscription,  shopController.uploadShopPhotos);
-router.delete('/:id/photos/:photoId', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.deleteShopPhoto);
+router.delete('/:id/photos/:photoId(*)', protect(['owner']), authorize('owner'), checkShopSubscription, shopController.deleteShopPhoto);
+
 
 
 // Shop Subscription status (Owner/Admin only)

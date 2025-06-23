@@ -16,7 +16,7 @@ import ServicesList from "./ServicesList";
 import BarbersList from "./BarbersList";
 import DangerZone from "./DangerZone";
 
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
   try {
@@ -121,7 +121,7 @@ const fetchShopDetails = useCallback(async () => {
     const formattedShop = {
       _id: fetchedShop._id,
       name: fetchedShop.name,
-      address: fetchedShop.address.fullDetails,
+      address: fetchedShop.address,
       openingTime: fetchedShop.openingTime,
       closingTime: fetchedShop.closingTime,
      photos: fetchedShop.photos || [], 

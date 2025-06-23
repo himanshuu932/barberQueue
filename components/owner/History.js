@@ -18,7 +18,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BarChart, LineChart } from "react-native-chart-kit";
 
 // --- CONFIGURATION ---
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com';
+const API_BASE_URL = 'http://10.0.2.2:5000';
 const IST_TIMEZONE = 'Asia/Kolkata';
 const screenWidth = Dimensions.get("window").width - 32;
 
