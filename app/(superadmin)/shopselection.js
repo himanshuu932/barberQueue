@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -20,7 +20,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from "react-native-vector-icons/FontAwesome";
 import { FontAwesome5 } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
-// --- NEW IMPORTS ---
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 
@@ -29,7 +28,7 @@ import ShopsList from "../../components/owner/shops";
 const { width } = Dimensions.get("window");
 
 // IMPORTANT: Replace with your actual backend API URL
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 
 // This function remains unchanged
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
@@ -54,6 +53,77 @@ const isShopCurrentlyOpen = (openingTime, closingTime) => {
         console.error("Error parsing time:", e);
         return false;
     }
+};
+
+// --- NEW: ImageCarousel Component ---
+const ImageCarousel = ({ photos }) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const flatListRef = useRef(null);
+
+  useEffect(() => {
+    let interval = setInterval(() => {
+      if (photos.length > 0) {
+        setActiveIndex((prevIndex) => {
+          const newIndex = (prevIndex + 1) % photos.length;
+          flatListRef.current?.scrollToIndex({ index: newIndex, animated: true });
+          return newIndex;
+        });
+      }
+    }, 5000); // Auto-scroll every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [photos]);
+
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      setActiveIndex(viewableItems[0].index || 0);
+    }
+  }).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50, // Consider item visible if 50% of it is in view
+  }).current;
+
+  // Handle cases where photos might be an empty array or null
+  if (!photos || photos.length === 0) {
+    return (
+      <View style={styles.carouselPlaceholder}>
+        <Text style={styles.carouselPlaceholderText}>No Images Available</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.carouselContainer}>
+      <FlatList
+        ref={flatListRef}
+        data={photos}
+        renderItem={({ item }) => (
+          <Image
+            source={{ uri: typeof item === 'string' ? item : item.url }} // Handle both string and object formats
+            style={styles.carouselImage}
+          />
+        )}
+        keyExtractor={(item, index) => (typeof item === 'string' ? item : item.public_id || index.toString())}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+      />
+      <View style={styles.pagination}>
+        {photos.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.paginationDot,
+              index === activeIndex ? styles.paginationDotActive : {},
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
 };
 
 
@@ -356,15 +426,8 @@ const ShopSelection = () => {
         activeOpacity={0.8}
       >
         <View style={styles.shopImageContainer}>
-          <Image
-            source={{
-              uri:
-               shop.photos && shop.photos.length > 0 
-      ? (typeof shop.photos[0] === 'string' ? shop.photos[0] : shop.photos[0].url)
-                  : `https://placehold.co/300x200/F5F5F5/888888?text=${shop.name.charAt(0)}`,
-            }}
-            style={styles.shopImage}
-          />
+          {/* --- MODIFIED: Replaced Image with ImageCarousel --- */}
+          <ImageCarousel photos={shop.photos} />
           <View style={[styles.statusBadge, displayIsOpen ? styles.statusOpenBackground : styles.statusClosedBackground]}>
             <Text style={styles.statusText}>
               {displayIsOpen ? "Open" : "Closed"}
@@ -576,7 +639,7 @@ const ShopSelection = () => {
   );
 };
 
-// --- ADDED: New styles for map and location button ---
+// --- ADDED/MODIFIED: New styles for carousel, map and location button ---
 const styles = StyleSheet.create({
     // ... (All existing styles)
     mapContainer: {
@@ -618,7 +681,51 @@ const styles = StyleSheet.create({
       backgroundColor: "rgba(0,0,0,0.7)",
       paddingVertical: 50 // Add padding for better scroll view appearance
     },
-
+    // --- NEW CAROUSEL STYLES ---
+    carouselContainer: {
+      width: "100%",
+      height: 180, // Same height as original shopImage
+      position: 'relative',
+    },
+    carouselImage: {
+      width: width - 40, // width of the screen minus horizontal padding of the card
+      height: "100%",
+      resizeMode: "cover",
+    },
+    carouselPlaceholder: {
+      width: "100%",
+      height: "100%",
+      backgroundColor: '#f5f5f5',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    carouselPlaceholderText: {
+      color: '#888',
+      fontSize: 16,
+    },
+    pagination: {
+      position: 'absolute',
+      bottom: 10,
+      width: '100%',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    paginationDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: 'rgba(255,255,255,0.6)',
+      marginHorizontal: 4,
+      borderColor: '#333',
+      borderWidth: 0.5,
+    },
+    paginationDotActive: {
+      backgroundColor: '#007bff',
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+    },
     // Paste the rest of your original styles here
       backgroundImage: {
     flex: 1,
@@ -710,6 +817,7 @@ const styles = StyleSheet.create({
     minWidth: 70, 
     alignItems: 'center', 
     justifyContent: 'center',
+    zIndex: 1, // Ensure badge is above carousel
   },
   statusText: {
     fontSize: 14,
@@ -727,6 +835,7 @@ const styles = StyleSheet.create({
     top: 10,
     right: 10,
     transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
+    zIndex: 1, // Ensure toggle is above carousel
   },
   shopDetails: {
     padding: 15,

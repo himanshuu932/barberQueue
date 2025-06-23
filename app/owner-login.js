@@ -62,7 +62,7 @@ async function registerForPushNotifications(ownerId, token) {
       }
 
       const response = await fetch(
-        "http://10.0.2.2:5000/api/owners/profile", // Correct route for updating owner profile
+        "https://numbr-p7zc.onrender.com/api/owners/profile", // Correct route for updating owner profile
         {
           method: "PUT", // Use PUT for updating profile
           headers: {
@@ -126,7 +126,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const response = await fetch(
-        "http://10.0.2.2:5000/api/owners/login", // Corrected endpoint
+        "https://numbr-p7zc.onrender.com/api/owners/login", // Corrected endpoint
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
