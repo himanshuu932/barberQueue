@@ -528,12 +528,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: screenWidth * 0.042,
+    height: screenHeight * 0.1
   },
   titleApp: {
     color: colors.white,
-    fontSize: getResponsiveFontSize(24),
-    fontWeight: 'bold',
-    paddingVertical: screenHeight * 0.02,
+    fontSize: screenWidth * 0.055,
+    // fontWeight: 'bold',
+    marginLeft: screenWidth * 0.042,
   },
   container: {
     flex: 1,

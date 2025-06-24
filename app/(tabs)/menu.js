@@ -656,7 +656,7 @@ const updateUserServices = async () => {
             <FontAwesome5 name="store" solid size={20} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.shopName} numberOfLines={1}>{shopName}</Text>
-          <Text style={styles.queue}>👥 {queueLength}</Text>
+          <Text style={styles.queue}>👤 {queueLength}</Text>
         </View>
 
         <Text style={styles.userCode}>{combinedName}</Text>
@@ -1036,7 +1036,7 @@ const styles = StyleSheet.create({
   ratePrice: { 
     fontSize: screenWidth * 0.04, 
     fontWeight: 'bold', 
-    color: '#28a745' 
+    color: '#28a745',
   },
   
   joinButton: { 
