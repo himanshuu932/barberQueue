@@ -16,7 +16,7 @@ import ServicesList from "./ServicesList";
 import BarbersList from "./BarbersList";
 import DangerZone from "./DangerZone";
 
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
   try {
@@ -255,24 +255,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8EDF2',
   },
   header: {
-    height: 70,
+    height: "6%",
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: 'flex-start',
-    paddingTop: 15,
+    // justifyContent: 'flex-start',
+    // paddingTop: 15,
     paddingHorizontal: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 4 },
+    // shadowOpacity: 0.25,
+    // shadowRadius: 8,
+    // elevation: 8,
   },
   title: {
     color: "#fff",
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    fontSize: 20,
+    marginLeft: 15
+    // fontWeight: '800',
+    // letterSpacing: 1.2,
   },
   scrollContainer: {
     flex: 1,

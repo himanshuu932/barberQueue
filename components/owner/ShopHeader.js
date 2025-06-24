@@ -27,7 +27,7 @@ import MapView, { Marker } from 'react-native-maps'; // Import for map functiona
 import * as Location from 'expo-location'; // Import for location functionality
 
 const { width: screenWidth } = Dimensions.get("window");
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0';
 
 const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
@@ -1070,10 +1070,10 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: "#28A745",
+    marginTop: 10
   },
   cancelButton: {
     backgroundColor: "#6C757D",
-    flex: 0,
     marginTop: 10
   },
   payNowButton: {

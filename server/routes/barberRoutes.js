@@ -16,5 +16,5 @@ router.post('/', protect(['owner']), authorize('owner'), barberController.create
 router.put('/:id', protect(['owner', 'barber']), barberController.updateBarberDetails); // Owner can update any barber in their shop, Barber can update self
 router.delete('/:id', protect(['owner']), authorize('owner'), barberController.deleteBarber);
 router.put('/:id/toggle-active', protect(['owner', 'barber']), barberController.updateBarberActiveStatus); // Owner can toggle any, Barber can toggle self
-
+router.put('/rate/:id',protect(['user']), barberController.rate);
 module.exports = router;

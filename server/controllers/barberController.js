@@ -1,6 +1,7 @@
 // controllers/barberController.js
 const Barber = require('../models/Barber');
 const Shop = require('../models/Shop'); // Needed to verify shop exists
+const History=require('../models/History');
 const { asyncHandler, ApiError } = require('../utils/errorHandler');
 const generateToken = require('../utils/generateToken');
 const bcrypt = require('bcryptjs');
@@ -270,4 +271,44 @@ exports.getBarberCustomersServed = asyncHandler(async (req, res) => {
             customersServed: barber.customersServed,
         },
     });
+});
+
+exports.rate = asyncHandler(async (req, res) => {
+  try {
+    const { rating, hid } = req.body;
+    const barber = await Barber.findById(req.params.id);
+
+    if (!barber) {
+      return res.status(404).json({ message: 'Barber not found' });
+    }
+
+    const history = await History.findById(hid);
+    if (!history) {
+      return res.status(404).json({ message: 'History not found' });
+    }
+
+    if (history.isRated) {
+      return res.status(400).json({ message: 'Service already rated' });
+    }
+
+    // Mark history as rated
+    history.isRated = true;
+    history.rating = rating;
+
+    // Update barber rating using cumulative average
+     const customersServed = barber.customersServed;
+
+    // Update the barber's average rating
+    barber.rating = ((barber.rating * (customersServed - 1)) + rating) / customersServed;
+    // Save updates
+    await history.save();
+    await barber.save();
+
+    console.log("Rating updated successfully");
+    res.status(200).json({ message: 'Rating submitted successfully' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error while rating' });
+  }
 });

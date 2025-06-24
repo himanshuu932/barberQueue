@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 
 const ServicesList = ({ services, shopId, userToken, onServicesUpdate }) => {
     const [isAddServiceModalVisible, setIsAddServiceModalVisible] = useState(false);
@@ -148,7 +148,7 @@ const ServicesList = ({ services, shopId, userToken, onServicesUpdate }) => {
                     <View key={service._id} style={styles.listItem}>
                         <View style={styles.listItemInfo}>
                             <Text style={styles.itemName}>{service.name}</Text>
-                            <Text style={styles.itemPrice}>${service.price.toFixed(2)}</Text>
+                            <Text style={styles.itemPrice}>₹{service.price.toFixed(2)}</Text>
                         </View>
                         <View style={styles.listItemActions}>
                             <TouchableOpacity

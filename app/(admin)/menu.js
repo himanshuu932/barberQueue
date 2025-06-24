@@ -19,7 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { io } from "socket.io-client";
 import { useFocusEffect } from "@react-navigation/native";
 
-const API_BASE = "http://10.0.2.2:5000";
+const API_BASE = "https://numbr-p7zc.onrender.com";
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);

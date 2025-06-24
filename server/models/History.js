@@ -52,6 +52,7 @@ const HistorySchema = new Schema({
         type: Number,
         required: true
     },
+    isRated:{type:Boolean,required:false,default:false},
     rating: { // User's rating for this specific service instance (optional)
         type: Number,
         min: 0,
