@@ -47,165 +47,228 @@ export default function MenuScreen() {
   const combinedName = userName && uid ? `${userName.substring(0, 2)}${uid.substring(0, 4)}` : "GUEST";
 
   // Effect for initial data loading (user details, pinned shop)
-  useEffect(() => {
-    const loadInitialData = async () => {
-      setLoading(true);
-      const ps = await AsyncStorage.getItem("pinnedShop");
-      const storedUserName = await AsyncStorage.getItem("userName");
-      const storedUid = await AsyncStorage.getItem("uid");
+ // Initial data loading and shop selection
+useEffect(() => {
+  const loadInitialData = async () => {
+    setLoading(true);
+    const ps = await AsyncStorage.getItem("pinnedShop");
+    const storedUserName = await AsyncStorage.getItem("userName");
+    const storedUid = await AsyncStorage.getItem("uid");
 
-      setUserName(storedUserName);
-      setUid(storedUid);
+    setUserName(storedUserName);
+    setUid(storedUid);
 
-      if (!ps) {
-        router.replace('/shop-selection'); // Use replace to prevent going back to an invalid state
-        // setLoading(false) will be handled by shopId effect or lack thereof
+    if (!ps) {
+      router.replace('/shop-selection');
+      return;
+    }
+    setShopId(ps);
+  };
+  loadInitialData();
+}, []);
+
+// Fetch shop name when shopId changes
+useEffect(() => {
+  if (shopId) {
+    getShopName(shopId).then(name => setShopName(name || "Shop"));
+  } else {
+    setShopName("No Shop Selected");
+  }
+}, [shopId]);
+
+// Fetch services and queue data when shopId changes
+useEffect(() => {
+  if (shopId) {
+    setLoading(true);
+    fetchRateList();
+    fetchQueueData();
+  } else {
+    setQueueItems([]);
+    setQueueLength(0);
+    setDefaultChecklist([]);
+    setChecklist([]);
+    setLoading(false);
+  }
+}, [shopId]);
+
+// Request notification permissions
+useEffect(() => {
+  Notifications.requestPermissionsAsync();
+}, []);
+
+// Push notification registration
+useEffect(() => {
+  async function registerForPushNotifications() {
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== "granted") {
+        console.log("Failed to get push token for push notification!");
         return;
       }
-      setShopId(ps); // This will trigger other useEffects dependent on shopId
-    };
-    loadInitialData();
-  }, []);
-
-  // Effect to fetch shop name when shopId changes
-  useEffect(() => {
-    if (shopId) {
-      getShopName(shopId).then(name => setShopName(name || "Shop"));
-    } else {
-      setShopName("No Shop Selected");
+      const token = (await Notifications.getExpoPushTokenAsync({ projectId: Notifications.projectId })).data;
+      await fetch(`${API_BASE}/users/register-push-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, token }),
+      });
+    } catch (e) {
+      console.error("Error in push notification registration:", e);
     }
-  }, [shopId]);
+  }
+  if (uid) {
+    registerForPushNotifications();
+  }
+}, [uid]);
 
-  // Effect to fetch rate list (services) and initial queue data when shopId is set or changes
-  useEffect(() => {
+// Socket.IO connection and event handling
+useEffect(() => {
+  const newSocket = io(API_BASE2, {
+    reconnectionAttempts: 5,
+    transports: ['websocket'],
+    query: { shopId: shopId }
+  });
+  setSocket(newSocket);
+
+  // Connection handlers
+  newSocket.on('connect', () => {
+    console.log("Socket connected with ID:", newSocket.id);
     if (shopId) {
-      setLoading(true); // Set loading true when shopId changes and we start fetching
-      fetchRateList(); // Fetches services for the shop
-      fetchQueueData(); // Fetches current queue for the shop
-    } else {
-      // Clear shop-specific data if shopId becomes null
-      setQueueItems([]);
-      setQueueLength(0);
-      setDefaultChecklist([]);
-      setChecklist([]);
-      setLoading(false);
+      newSocket.emit('join_shop_queue', shopId);
     }
-  }, [shopId]); // Dependency: shopId
+    if (uid) {
+      newSocket.emit('join_user_room', uid);
+      console.log(`Joined user room for UID: ${uid}`);
+    }
+  });
 
-  const handleShopSelection = async (selectedShopId) => {
-    await AsyncStorage.setItem("pinnedShop", selectedShopId);
-    setShopId(selectedShopId); // This will trigger data fetching for the new shop
-    router.back();
+  newSocket.on('disconnect', (reason) => {
+    console.log("Socket disconnected:", reason);
+  });
+
+  newSocket.on('connect_error', (err) => {
+    console.log('Connection Error:', err.message);
+  });
+
+  // Cleanup function
+  return () => {
+    if (shopId && newSocket.connected) {
+      newSocket.emit('leave_shop_queue', shopId);
+    }
+    if (uid && newSocket.connected) {
+      newSocket.emit('leave_user_room', uid);
+    }
+    newSocket.disconnect();
+  };
+}, [uid, shopId]);
+
+// Socket event listeners
+useEffect(() => {
+  if (!socket) return;
+
+  // Queue updates for the current shop
+  const handleQueueUpdate = (data) => {
+    console.log('queue:updated event received for shop:', data.shopId);
+    if (data.shopId === shopId) {
+      setQueueItems(data.queue || []);
+      setQueueLength(data.count !== undefined ? data.count : (data.queue || []).length);
+    }
   };
 
-  useEffect(() => {
-    Notifications.requestPermissionsAsync(); // Request notification permissions
-  }, []);
+  // Position change notifications
+  const handlePositionChange = (data) => {
+    console.log('Position changed:', data);
+    Alert.alert(
+      data.title, 
+      data.message,
+      [{ text: "OK", onPress: () => fetchQueueData() }] // Refresh queue when alert dismissed
+    );
+  };
 
-  // Push notification registration token logic
-  useEffect(() => {
-    async function registerForPushNotifications() {
-      // ... (your existing registerForPushNotifications function from the uploaded file)
-      // Example:
-      try {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-        if (existingStatus !== "granted") {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
-        if (finalStatus !== "granted") {
-          console.log("Failed to get push token for push notification!");
-          return;
-        }
-        const token = (await Notifications.getExpoPushTokenAsync({ projectId: Notifications.projectId })).data;
-       // console.log("Expo Push Token:", token);
-        // Send token to your backend
-        await fetch(`${API_BASE}/users/register-push-token`, { // Ensure this endpoint exists
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uid, token }), // Make sure your backend expects `uid`
-        });
-      } catch (e) {
-        console.error("Error in push notification registration:", e);
-      }
+  // Join responses
+  const handleJoinResponse = (response) => {
+    console.log('Join response:', response);
+  };
+
+  // Error handling
+  const handleError = (error) => {
+    console.error('Socket error:', error);
+  };
+
+   const handleServiceCompleted = (data) => {
+    Alert.alert(
+      data.title, 
+      data.message,
+      [{ text: "OK", onPress: () => fetchQueueData() }]
+    );
+  };
+
+  const handleQueueCancelled = (data) => {
+    Alert.alert(
+      data.title, 
+      data.message,
+      [{ text: "OK", onPress: () => fetchQueueData() }]
+    );
+  };
+
+
+    // Set up listeners
+  socket.on('queue:service_completed', handleServiceCompleted);
+  socket.on('queue:cancelled', handleQueueCancelled);
+  socket.on('queue:updated', handleQueueUpdate);
+  socket.on('queue:position_changed', handlePositionChange);
+  socket.on('join_user_room', handleJoinResponse);
+  socket.on('error', handleError);
+
+  // Clean up listeners
+  return () => {
+    socket.off('queue:service_completed', handleServiceCompleted);
+    socket.off('queue:cancelled', handleQueueCancelled);
+    socket.off('queue:updated', handleQueueUpdate);
+    socket.off('queue:position_changed', handlePositionChange);
+    socket.off('join_user_room', handleJoinResponse);
+    socket.off('error', handleError);
+  };
+}, [socket, shopId, fetchQueueData]);
+
+// Fallback polling when socket is disconnected
+useEffect(() => {
+  let intervalId;
+  if (shopId && !socket?.connected) {
+    console.log("Starting polling for queue data...");
+    intervalId = setInterval(fetchQueueData, 30000);
+    fetchQueueData(); // Initial fetch
+  }
+  return () => {
+    if (intervalId) {
+      clearInterval(intervalId);
+      console.log("Polling stopped.");
     }
-    if (uid) { // Only register if UID is available
-      registerForPushNotifications();
+  };
+}, [shopId, socket, fetchQueueData]);
+
+// Handle position change notifications separately for better reliability
+useEffect(() => {
+  if (!socket || !uid) return;
+
+  const handlePositionNotification = (data) => {
+    if (data.data?.queueId) {
+      console.log('Position change for queue entry:', data.data.queueId);
+      Alert.alert(data.title, data.message);
+      fetchQueueData();
     }
-  }, [uid]);
+  };
 
+  socket.on('queue:position_changed', handlePositionNotification);
 
-  // Socket.IO connection management
-  useEffect(() => {
-    const newSocket = io(API_BASE2, {
-      reconnectionAttempts: 5,
-      transports: ['websocket'], // Prefer WebSocket
-       query: { shopId: shopId } // Optionally send shopId on connect if backend supports it
-    });
-    setSocket(newSocket);
-
-    newSocket.on('connect', () => {
-      console.log("Socket connected:", newSocket.id);
-      if (shopId) { // If shopId is already known by the time of connection
-        newSocket.emit('join_shop_queue', shopId); // Join the room for this shop
-        console.log(`Socket joined room for shop: ${shopId} on connect`);
-      }
-    });
-
-    newSocket.on('disconnect', (reason) => {
-      console.log("Socket disconnected:", reason);
-    });
-
-   newSocket.on('connect_error', (err) => {
-  console.log('Connection Error:', err.message);
-});
-
-    return () => {
-      if (shopId && newSocket.connected) { // If connected, explicitly leave the room
-        newSocket.emit('leave_shop_queue', shopId);
-        console.log(`Socket left room for shop: ${shopId} on cleanup`);
-      }
-      newSocket.disconnect();
-      console.log("Socket instance disconnected on component unmount or effect re-run.");
-    };
-  }, []); // Create/destroy socket instance once per component lifecycle
-
-   // Socket event listeners and room joining/leaving based on shopId changes
-  useEffect(() => {
-    if (socket && shopId) {
-      console.log(`Joining room for shop: ${shopId}`);
-      socket.emit('join_shop_queue', shopId);
-
-      socket.off('queue:updated'); // Remove previous listener to avoid duplicates
-      socket.on('queue:updated', (data) => { // Data = { shopId, queue, count } from backend
-        console.log('queue:updated event received via socket for shop:', data.shopId);
-        if (data.shopId === shopId) { // Ensure update is for the current shop
-            setQueueItems(data.queue || []);
-            setQueueLength(data.count !== undefined ? data.count : (data.queue || []).length);
-        }
-      });
-    }
-    // When shopId changes and socket exists, this effect re-runs.
-    // If you want to leave the *previous* shop's room, you'd need to store prevShopId.
-    // For now, joining the new one is handled. Leaving is handled on global disconnect.
-  }, [socket, shopId]); // Re-run if socket instance or shopId changes
-
-
-  // Fallback Polling (can be less frequent if sockets are reliable)
-  useEffect(() => {
-    let intervalId;
-    if (shopId && !socket?.connected) { // Poll if shopId exists AND socket is not connected
-      console.log("Socket not connected, starting polling for queue data...");
-      intervalId = setInterval(fetchQueueData, 30000); // Poll every 30 seconds
-    }
-    return () => {
-        if (intervalId) {
-            clearInterval(intervalId);
-            console.log("Polling stopped.");
-        }
-    };
-  }, [shopId, socket, fetchQueueData]); // Rerun if shopId or socket connection status changes
+  return () => {
+    socket.off('queue:position_changed', handlePositionNotification);
+  };
+}, [socket, uid, fetchQueueData]);
 
 
 
