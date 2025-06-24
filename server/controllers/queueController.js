@@ -237,7 +237,7 @@ const addToQueue = asyncHandler(async (req, res) => {
 // @route   POST /api/queue/walkin
 // @access  Private (Barber, Owner, Admin)
 const addWalkInToQueue = asyncHandler(async (req, res) => {
-  console.log("reached to walking");
+    console.log("reached to walking");
     const { shopId, customerName, services: requestedServicesInput } = req.body;
 
     // 1. Validate required fields
@@ -271,18 +271,20 @@ const addWalkInToQueue = asyncHandler(async (req, res) => {
 
         const quantity = Math.max(1, parseInt(reqService.quantity, 10) || 1);
         
-        servicesForQueueSchema.push({
-            name: shopServiceEntry.name,
-            price: shopServiceEntry.price
-        });
+        // Push each service instance separately based on quantity
+        for (let i = 0; i < quantity; i++) {
+            servicesForQueueSchema.push({
+                name: shopServiceEntry.name,
+                price: shopServiceEntry.price
+            });
+        }
         
         totalCost += shopServiceEntry.price * quantity;
     }
 
-    // 5. Determine next queue number
+    // 5. Determine next queue number - FIXED: Include barber-specific queues
     const lastQueueEntry = await Queue.findOne({
         shop: shop._id,
-        barber: null,
         status: { $in: ['pending', 'in-progress'] }
     }).sort({ orderOrQueueNumber: -1 });
 
@@ -335,78 +337,84 @@ const addWalkInToQueue = asyncHandler(async (req, res) => {
     // @route   PUT /api/queue/:id/cancel
     // @access  Private (User, Barber, Owner, Admin - adjust protect() middleware accordingly)
 const removeFromQueue = asyncHandler(async (req, res, next) => {
-  try {
-    // 1. Log the incoming queue ID
-    const { id } = req.params;
-    console.log(`removeFromQueue called with id: ${id}`);
+    try {
+        const { id } = req.params;
+        const queueEntry = await Queue.findById(id).populate('shop', '_id name');
 
-    // 2. Find the queue entry (populate shop name for notifications)
-    const queueEntry = await Queue.findById(id).populate('shop', '_id name');
-    if (!queueEntry) {
-      console.error(`Queue entry not found (ID: ${id})`);
-      throw new ApiError('Queue entry not found', 404);
+        if (!queueEntry) {
+            throw new ApiError('Queue entry not found', 404);
+        }
+
+        if (queueEntry.status === 'completed' || queueEntry.status === 'cancelled') {
+            throw new ApiError(`Queue entry is already ${queueEntry.status}.`, 400);
+        }
+
+        queueEntry.status = 'cancelled';
+        await queueEntry.save();
+
+        // Reorder remaining queue
+        const remainingQueue = await Queue.find({
+            shop: queueEntry.shop._id,
+            status: { $in: ['pending', 'in-progress'] }
+        }).sort({ orderOrQueueNumber: 1 });
+
+        for (let i = 0; i < remainingQueue.length; i++) {
+            remainingQueue[i].orderOrQueueNumber = i + 1;
+            await remainingQueue[i].save();
+        }
+
+        // Send notification to the removed user
+        if (queueEntry.userId) {
+            await sendPushNotification(
+                queueEntry.userId,
+                `Queue Update at ${queueEntry.shop.name}`,
+                `Your queue entry #${queueEntry.orderOrQueueNumber} has been cancelled.`,
+                {
+                    type: 'queue_cancelled',
+                    queueId: id,
+                    shopId: queueEntry.shop._id.toString()
+                }
+            );
+
+            // Also send socket notification
+            io.to(queueEntry.userId.toString()).emit('queue:cancelled', {
+                title: `Queue Update at ${queueEntry.shop.name}`,
+                message: `Your queue entry #${queueEntry.orderOrQueueNumber} has been cancelled.`,
+                data: {
+                    type: 'queue_cancelled',
+                    queueId: id,
+                    shopId: queueEntry.shop._id.toString()
+                }
+            });
+        }
+
+        // Notify all users whose positions changed
+        for (const entry of remainingQueue) {
+            if (entry.userId && entry.orderOrQueueNumber !== entry._previousOrder) {
+                await sendPushNotification(
+                    entry.userId,
+                    `Queue Update at ${queueEntry.shop.name}`,
+                    `Your new position is #${entry.orderOrQueueNumber}`,
+                    {
+                        type: 'queue_position_change',
+                        queueId: entry._id.toString(),
+                        newPosition: entry.orderOrQueueNumber
+                    }
+                );
+            }
+        }
+
+        await emitQueueUpdate(queueEntry.shop._id.toString());
+
+        res.json({
+            success: true,
+            message: 'Queue entry cancelled successfully',
+            data: queueEntry
+        });
+    } catch (err) {
+        console.error('Error in removeFromQueue:', err);
+        throw err;
     }
-
-    console.log(
-      `Found queueEntry: shop=${queueEntry.shop.name}, status=${queueEntry.status}, userId=${queueEntry.userId}`
-    );
-
-    if (queueEntry.status === 'completed' || queueEntry.status === 'cancelled') {
-      console.error(
-        `Queue entry ${id} already in status=${queueEntry.status}, cannot cancel`
-      );
-      throw new ApiError(`Queue entry is already ${queueEntry.status}.`, 400);
-    }
-
-    // 5. Update status to 'cancelled'
-    console.log(`Cancelling queue entry ${id} (prev status=${queueEntry.status})`);
-    queueEntry.status = 'cancelled';
-    await queueEntry.save();
-
-    // Reorder remaining queue
-const remainingQueue = await Queue.find({
-  shop: queueEntry.shop._id,
-  status: { $in: ['pending', 'in-progress'] }
-}).sort({ orderOrQueueNumber: 1 });
-
-for (let i = 0; i < remainingQueue.length; i++) {
-  remainingQueue[i].orderOrQueueNumber = i + 1;
-  await remainingQueue[i].save();
-}
-    console.log(`Queue entry ${id} status updated to 'cancelled'`);
-
-    // 6. Send push notification if there's an associated user
-    if (queueEntry.userId) {
-      const title = `Queue Update at ${queueEntry.shop.name}`;
-      const body = `Your queue entry #${queueEntry.orderOrQueueNumber} (Code: ${queueEntry.uniqueCode}) has been cancelled.`;
-      console.log(
-        `Sending push notification to user ${queueEntry.userId} for cancellation of queue ${id}`
-      );
-      await sendPushNotification(queueEntry.userId, title, body, {
-        type: 'queue_cancelled',
-        queueId: id
-      });
-    } else {
-      console.log(`No userId to notify for queue entry ${id}`);
-    }
-
-    // 7. Emit real-time update for shop listeners
-    console.log(`Emitting queue update for shop ${queueEntry.shop._id}`);
-    await emitQueueUpdate(queueEntry.shop._id.toString());
-
-    // 8. Return JSON response
-    res.json({
-      success: true,
-      message: 'Queue entry cancelled successfully',
-      data: queueEntry
-    });
-    console.log(`removeFromQueue completed for id: ${id}`);
-  } catch (err) {
-    // 9. Log the error stack/message
-    console.error('Error in removeFromQueue:', err);
-    // Rethrow so asyncHandler/Express error middleware handles it
-    throw err;
-  }
 });
 
 
@@ -415,7 +423,7 @@ for (let i = 0; i < remainingQueue.length; i++) {
     // @access  Private (Barber, Owner, Admin)
 const updateQueueStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { status, barberId } = req.body; // Get barberId from request body
+    const { status, barberId } = req.body;
 
     if (!['in-progress', 'completed'].includes(status)) {
         throw new ApiError('Invalid status. Must be "in-progress" or "completed".', 400);
@@ -424,7 +432,8 @@ const updateQueueStatus = asyncHandler(async (req, res) => {
     const queueEntry = await Queue.findById(id)
         .populate('shop', '_id name owner')
         .populate('userId', '_id name')
-          .populate('services._id', 'name price');
+        .populate('barber', 'name')
+        .populate('services._id', 'name price');
 
     if (!queueEntry) {
         throw new ApiError('Queue entry not found', 404);
@@ -436,13 +445,11 @@ const updateQueueStatus = asyncHandler(async (req, res) => {
             throw new ApiError('Barber ID is required when completing service', 400);
         }
 
-        // Verify barber exists
         const barber = await Barber.findById(barberId);
         if (!barber) {
             throw new ApiError('Barber not found', 404);
         }
 
-        // Assign barber to queue entry
         queueEntry.barber = barberId;
     }
 
@@ -457,12 +464,10 @@ const updateQueueStatus = asyncHandler(async (req, res) => {
             price: service.price
         }));
 
-        
-
         const historyEntry = await History.create({
             user: queueEntry.userId ? queueEntry.userId._id : null,
-              customerName: queueEntry.userId ? queueEntry.userId.name : queueEntry.customerName,
-            barber: barberId,  // Use the provided barberId
+            customerName: queueEntry.userId ? queueEntry.userId.name : queueEntry.customerName,
+            barber: barberId,
             shop: queueEntry.shop._id,
             services: servicesForHistory,
             totalCost: queueEntry.totalCost,
@@ -482,6 +487,29 @@ const updateQueueStatus = asyncHandler(async (req, res) => {
             await User.findByIdAndUpdate(queueEntry.userId._id, {
                 $push: { history: historyEntry._id }
             });
+
+            // Send completion notification to user
+            await sendPushNotification(
+                queueEntry.userId._id,
+                `Service Completed at ${queueEntry.shop.name}!`,
+                `Your service with ${queueEntry.barber?.name || 'the barber'} is complete. Thank you!`,
+                { 
+                    type: 'service_completed',
+                    queueId: id,
+                    shopId: queueEntry.shop._id.toString()
+                }
+            );
+
+            // Also send socket notification
+            io.to(queueEntry.userId._id.toString()).emit('queue:service_completed', {
+                title: `Service Completed at ${queueEntry.shop.name}!`,
+                message: `Your service is complete. Thank you!`,
+                data: {
+                    type: 'service_completed',
+                    queueId: id,
+                    shopId: queueEntry.shop._id.toString()
+                }
+            });
         }
 
         // Update shop stats
@@ -494,22 +522,6 @@ const updateQueueStatus = asyncHandler(async (req, res) => {
     }
 
     await queueEntry.save();
-
-    // Send notifications if applicable
-    if (queueEntry.userId && status === 'completed') {
-        const shopName = queueEntry.shop.name;
-        const barberName = queueEntry.barber ? queueEntry.barber.name : 'Your barber';
-        
-        await sendPushNotification(queueEntry.userId._id, 
-            `Service Completed at ${shopName}!`,
-            `Your service with ${barberName} is complete. Thank you!`,
-            { 
-                type: 'service_completed', 
-                queueId: id 
-            }
-        );
-    }
-
     await emitQueueUpdate(queueEntry.shop._id.toString());
     
     res.json({ 
@@ -612,83 +624,100 @@ const updateQueueServices = asyncHandler(async (req, res) => {
     // - updateServicesInQueue (if a user wants to change services while waiting)
     //   This would be a PATCH /api/queue/:id/services
 const movePersonDownInQueue = asyncHandler(async (req, res) => {
-        const { id } = req.params;
+    const { id } = req.params;
+    const currentEntry = await Queue.findById(id);
 
-        const currentEntry = await Queue.findById(id);
+    if (!currentEntry) {
+        throw new ApiError('Queue entry not found', 404);
+    }
 
-        if (!currentEntry) {
-            throw new ApiError('Queue entry not found', 404);
-        }
+    const nextEntry = await Queue.findOne({
+        shop: currentEntry.shop,
+        orderOrQueueNumber: { $gt: currentEntry.orderOrQueueNumber },
+        status: { $in: ['pending', 'in-progress'] }
+    }).sort({ orderOrQueueNumber: 1 });
 
-        if (req.userType === 'Barber' && currentEntry.barber && currentEntry.barber.toString() !== req.user._id.toString()) {
-            throw new ApiError('Not authorized to move this queue entry (not your queue).', 403);
-        }
-        if (req.userType === 'Owner') {
-            const shop = await Shop.findById(currentEntry.shop);
-            if (!shop || shop.owner.toString() !== req.user._id.toString()) {
-                throw new ApiError('Not authorized to move this queue entry (not your shop).', 403);
-            }
-        }
+    if (!nextEntry) {
+        throw new ApiError('Cannot move down, already last in queue or no next person.', 400);
+    }
 
-      const nextEntry = await Queue.findOne({
-    shop: currentEntry.shop,
-    orderOrQueueNumber: { $gt: currentEntry.orderOrQueueNumber },
-    status: { $in: ['pending', 'in-progress'] }
-}).sort({ orderOrQueueNumber: 1 });
+    // Debug: Log current state
+    console.log(`Moving entry ${currentEntry._id} from ${currentEntry.orderOrQueueNumber} to ${nextEntry.orderOrQueueNumber}`);
+    console.log(`Next entry ${nextEntry._id} moving to ${currentEntry.orderOrQueueNumber}`);
 
+    // Swap positions
+    const currentOrder = currentEntry.orderOrQueueNumber;
+    currentEntry.orderOrQueueNumber = nextEntry.orderOrQueueNumber;
+    nextEntry.orderOrQueueNumber = currentOrder;
 
-        if (!nextEntry) {
-            throw new ApiError('Cannot move down, already last in queue or no next person.', 400);
-        }
+    await currentEntry.save();
+    await nextEntry.save();
 
-        // Swap orderOrQueueNumber values
-        const currentOrder = currentEntry.orderOrQueueNumber;
-        currentEntry.orderOrQueueNumber = nextEntry.orderOrQueueNumber;
-        nextEntry.orderOrQueueNumber = currentOrder;
-
-        await currentEntry.save();
-        await nextEntry.save();
-
-        // --- Send Notification: Queue Position Changed ---
-        if (currentEntry.userId) {
-            const shop = await Shop.findById(currentEntry.shop);
-            const title = `Queue Position Changed at ${shop ? shop.name : 'a shop'}`;
-            const body = `Your queue entry (Code: ${currentEntry.uniqueCode}) is now #${currentEntry.orderOrQueueNumber}.`;
-            const notificationData = {
-                type: 'queue_position_change',
-                queueId: currentEntry._id.toString(),
-                shopId: currentEntry.shop.toString(),
-                newPosition: currentEntry.orderOrQueueNumber,
-                uniqueCode: currentEntry.uniqueCode
-            };
-            await sendPushNotification(currentEntry.userId, title, body, notificationData);
-        }
-        if (nextEntry.userId) { // Also notify the person who moved up
-            const shop = await Shop.findById(nextEntry.shop);
-            const title = `Queue Position Changed at ${shop ? shop.name : 'a shop'}`;
-            const body = `Your queue entry (Code: ${nextEntry.uniqueCode}) is now #${nextEntry.orderOrQueueNumber}.`;
-            const notificationData = {
-                type: 'queue_position_change',
-                queueId: nextEntry._id.toString(),
-                shopId: nextEntry.shop.toString(),
-                newPosition: nextEntry.orderOrQueueNumber,
-                uniqueCode: nextEntry.uniqueCode
-            };
-            await sendPushNotification(nextEntry.userId, title, body, notificationData);
-        }
-        // --- End Send Notification ---
-
-        await emitQueueUpdate(currentEntry.shop);
-
-        res.json({
-            success: true,
-            message: `Queue entry ${currentEntry._id} moved down successfully.`,
+    // Prepare notification data
+    const prepareNotification = async (entry, newPosition) => {
+        if (!entry.userId) return null;
+        
+        const shop = await Shop.findById(entry.shop);
+        return {
+            title: `Queue Update at ${shop?.name || 'the shop'}`,
+            message: `Your position changed to #${newPosition}`,
             data: {
-                movedEntry: currentEntry,
-                swappedWithEntry: nextEntry,
-            },
-        });
+                type: 'queue_position_change',
+                queueId: entry._id.toString(),
+                shopId: entry.shop.toString(),
+                newPosition,
+                uniqueCode: entry.uniqueCode
+            }
+        };
+    };
+
+    // Handle current user (moved down)
+    if (currentEntry.userId) {
+        const notification = await prepareNotification(currentEntry, currentEntry.orderOrQueueNumber);
+        
+        console.log(`Emitting to user ${currentEntry.userId} in room?`, 
+            io.sockets.adapter.rooms.has(currentEntry.userId.toString()));
+        
+        // Send both push and socket notification
+        await sendPushNotification(
+            currentEntry.userId, 
+            notification.title, 
+            notification.message, 
+            notification.data
+        );
+        
+        io.to(currentEntry.userId.toString()).emit('queue:position_changed', notification);
+    }
+
+    // Handle next user (moved up)
+    if (nextEntry.userId) {
+        const notification = await prepareNotification(nextEntry, nextEntry.orderOrQueueNumber);
+        
+        await sendPushNotification(
+            nextEntry.userId, 
+            notification.title, 
+            notification.message, 
+            notification.data
+        );
+        
+        io.to(nextEntry.userId.toString()).emit('queue:position_changed', notification);
+    }
+
+    // Update all clients viewing this shop's queue
+    await emitQueueUpdate(currentEntry.shop);
+
+    res.json({ 
+        success: true,
+        message: `Queue positions updated successfully.`,
+        data: {
+            movedDown: currentEntry,
+            movedUp: nextEntry
+        }
     });
+});
+
+
+
     return {
         addToQueue,
         addWalkInToQueue,

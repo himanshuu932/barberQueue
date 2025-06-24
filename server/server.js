@@ -49,6 +49,21 @@ io.on('connection', (socket) => {
         }
     });
 
+    // In server.js - io.on('connection')
+socket.on('join_user_room', (userId) => {
+  if (userId) {
+    socket.join(userId.toString());
+    console.log(`Socket ${socket.id} joined user room: ${userId}`);
+  }
+});
+
+socket.on('leave_user_room', (userId) => {
+  if (userId) {
+    socket.leave(userId.toString());
+    console.log(`Socket ${socket.id} left user room: ${userId}`);
+  }
+});
+
     socket.on('disconnect', () => {
         console.log(`User Disconnected: ${socket.id}`);
     });

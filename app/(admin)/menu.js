@@ -63,7 +63,7 @@ const fetchRateList = async () => {
   }
 
   try {
-    console.log("Fetching rate list for shopId:", shopId);
+   
     const response = await fetch(`${API_BASE}/api/shops/${shopId}/rate-list`);
 
     if (!response.ok) {
@@ -73,7 +73,7 @@ const fetchRateList = async () => {
     }
 
     const result = await response.json();
-    console.log("Rate list response:", result);
+    
 
     const fetchedChecklist = result.data.map((item, index) => ({
       id: index + 1,
@@ -83,7 +83,7 @@ const fetchRateList = async () => {
       checked: false,
     }));
 
-    console.log("Checklist generated:", fetchedChecklist);
+   
     setChecklist(fetchedChecklist);
   } catch (err) {
     console.error("Error in fetchRateList:", err);
@@ -122,15 +122,15 @@ const fetchQueueData = async () => {
     return;
   }
   
-  console.log(`Attempting to fetch queue for shopId: ${shopId}`);
+ 
   
   try {
     const url = `${API_BASE}/api/queue/shop/${shopId}`;
-    console.log("Making request to:", url);
+   
     
     const response = await fetch(url);
     
-    console.log("Received response, status:", response.status);
+  
     
     // First check if response is OK
     if (!response.ok) {
@@ -148,10 +148,10 @@ const fetchQueueData = async () => {
     }
     
     const data = await response.json();
-    console.log("Successfully parsed JSON response:", data);
+  
     
     if (data.success) {
-      console.log("Queue data received. Count:", data.count, "Items:", data.data.length);
+    //  console.log("Queue data received. Count:", data.count, "Items:", data.data.length);
       setQueueLength(data.count);
       setQueueItems(data.data);
     } else {
@@ -230,7 +230,7 @@ const markUserServed = async (queueId) => {
       barberId: barberId,
     };
 
-    console.log("Marking user served with payload:", payload);
+   // console.log("Marking user served with payload:", payload);
 
     const response = await fetch(`${API_BASE}/api/queue/${queueId}/status`, {
       method: "PUT",
@@ -249,7 +249,7 @@ const markUserServed = async (queueId) => {
       return;
     }
 
-    console.log("User marked as served successfully:", data);
+   // console.log("User marked as served successfully:", data);
     Alert.alert("Success", "Customer marked as served");
     fetchQueueData(); // Refresh the queue
   } catch (error) {
@@ -304,14 +304,14 @@ const removePerson = async (queueId) => {
 const moveDownPerson = async (queueId) => {
     if (!shopId) return;
     try {
-        console.log(`Attempting to move down queue entry: ${queueId}`);
+       // console.log(`Attempting to move down queue entry: ${queueId}`);
         const token = await AsyncStorage.getItem("userToken");
         if (!token) {
             Alert.alert("Authentication Error", "User not authenticated.");
             return;
         }
         
-        console.log("Making request to:", `${API_BASE}/api/queue/${queueId}/move-down`);
+       
         
         const response = await fetch(`${API_BASE}/api/queue/${queueId}/move-down`, {
             method: "PUT",
@@ -321,11 +321,11 @@ const moveDownPerson = async (queueId) => {
             },
         });
 
-        console.log("Response status:", response.status);
+      //  console.log("Response status:", response.status);
         
         if (response.ok) {
             const data = await response.json();
-            console.log("Move down successful:", data);
+          //  console.log("Move down successful:", data);
             fetchQueueData();
         } else {
             const errorText = await response.text();
