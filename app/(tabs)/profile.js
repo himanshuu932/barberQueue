@@ -350,57 +350,120 @@ export default function TabProfileScreen() {
       </Modal>
 
       {/* History Detail Modal */}
-      <Modal visible={isHistoryDetailModalVisible} transparent animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Service Details</Text>
-            {selectedHistoryItem && (
-              <ScrollView>
-                <Text style={styles.detailText}>
-                  <Text style={styles.detailLabel}>Date:</Text> {new Date(selectedHistoryItem.date).toLocaleDateString()}
-                </Text>
-                <Text style={styles.detailText}>
-                  <Text style={styles.detailLabel}>Total Cost:</Text> ₹{selectedHistoryItem.totalCost?.toFixed(2) || '0.00'}
-                </Text>
-                <Text style={styles.detailLabel}>Services:</Text>
-                {selectedHistoryItem.services?.length > 0 ? (
-                  selectedHistoryItem.services.map((s, idx) => (
-                    <Text key={idx} style={styles.detailServiceItem}>
-                      - {s.name || 'Unknown Service'} (₹{s.price?.toFixed(2) || 'N/A'}) x {s.quantity || 1}
-                    </Text>
-                  ))
-                ) : (
-                  <Text style={styles.detailServiceItem}>No services listed.</Text>
-                )}
-                <Text style={styles.detailServiceItem}>Barber: {selectedHistoryItem.barber?.name || 'Unknown'}</Text>
-                <Text style={styles.detailServiceItem}>Shop: {selectedHistoryItem.shop?.name || 'Unknown'}</Text>
-                {selectedHistoryItem.isRated ? (
-                  <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Your Rating:</Text> {selectedHistoryItem.rating} <Icon name="star" size={screenWidth * 0.04} color="#FFD700" />
-                  </Text>
-                ) : (
-                  <View style={styles.modalButtonContainer}>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.saveButton]}
-                      onPress={handleRateService}
-                    >
-                      <Text style={styles.modalButtonText}>Rate Service</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </ScrollView>
-            )}
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setIsHistoryDetailModalVisible(false)}
-              >
-                <Text style={styles.modalButtonText}>Close</Text>
-              </TouchableOpacity>
+<Modal visible={isHistoryDetailModalVisible} transparent animationType="slide">
+  <View style={styles.modalContainer}>
+    <View style={styles.detailModalContent}>
+      <View style={styles.detailModalHeader}>
+        <Text style={styles.detailModalTitle}>Service Details</Text>
+        <TouchableOpacity 
+          style={styles.detailModalCloseButton}
+          onPress={() => setIsHistoryDetailModalVisible(false)}
+        >
+          <Icon name="times" size={screenWidth * 0.06} color="#666" />
+        </TouchableOpacity>
+      </View>
+      
+      {selectedHistoryItem && (
+        <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={false}>
+          <View style={styles.detailCard}>
+            <View style={styles.detailRow}>
+              <Icon name="calendar" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>Date: </Text> 
+                {new Date(selectedHistoryItem.date).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </Text>
             </View>
+
+            <View style={styles.detailDivider} />
+
+            <View style={styles.detailRow}>
+              <Icon name="money" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>Total Cost: </Text> 
+                <Text style={styles.detailAmount}>₹{selectedHistoryItem.totalCost?.toFixed(2) || '0.00'}</Text>
+              </Text>
+            </View>
+
+            <View style={styles.detailDivider} />
+
+            <View style={styles.detailSection}>
+              <View style={styles.detailRow}>
+                <Icon name="scissors" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                <Text style={styles.detailSectionTitle}>Services</Text>
+              </View>
+              {selectedHistoryItem.services?.length > 0 ? (
+                selectedHistoryItem.services.map((s, idx) => (
+                  <View key={idx} style={styles.serviceItem}>
+                    <View style={styles.serviceInfo}>
+                      <Text style={styles.serviceName}>• {s.name || 'Unknown Service'}</Text>
+                      <Text style={styles.servicePrice}>₹{s.price?.toFixed(2) || 'N/A'}</Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.noServicesText}>No services listed</Text>
+              )}
+            </View>
+
+            <View style={styles.detailDivider} />
+
+            <View style={styles.barberShopContainer}>
+              {/* Barber Section */}
+              <View style={styles.barberShopSection}>
+                <View style={styles.barberShopHeader}>
+                  <Icon name="user" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                  <Text style={styles.barberShopLabel}>Barber</Text>
+                </View>
+                <Text style={styles.barberShopValue}>
+                  {selectedHistoryItem.barber?.name || 'Unknown'}
+                </Text>
+              </View>
+
+              {/* Shop Section */}
+              <View style={styles.barberShopSection}>
+                <View style={styles.barberShopHeader}>
+                  <Icon name="home" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                  <Text style={styles.barberShopLabel}>Shop</Text>
+                </View>
+                <Text style={styles.barberShopValue}>
+                  {selectedHistoryItem.shop?.name || 'Unknown'}
+                </Text>
+              </View>
+            </View>
+
+            {selectedHistoryItem.isRated ? (
+              <>
+                <View style={styles.detailDivider} />
+                <View style={styles.ratingdetailSection}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailSectionTitle}>Your Rating</Text>
+                  </View>
+                  <View style={styles.ratingContainer}>
+                    <Text style={styles.ratingText}>{selectedHistoryItem.rating}</Text>
+                    <Icon name="star" size={screenWidth * 0.05} color="#FFD700" />
+                  </View>
+                </View>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={styles.rateButton}
+                onPress={handleRateService}
+              >
+                <Text style={styles.rateButtonText}>Rate This Service</Text>
+                <Icon name="arrow-right" size={screenWidth * 0.04} color="#fff" style={styles.rateButtonIcon} />
+              </TouchableOpacity>
+            )}
           </View>
-        </View>
-      </Modal>
+        </ScrollView>
+      )}
+    </View>
+  </View>
+</Modal>
 
       {/* Rating Modal Component */}
       <RatingModal
@@ -418,6 +481,171 @@ export default function TabProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+
+  barberShopContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginBottom: screenHeight * 0.02,
+},
+// barberShopSection: {
+//   width: '48%', // Slightly less than half to account for spacing
+// },
+barberShopHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: screenHeight * 0.005,
+},
+barberShopLabel: {
+  fontSize: screenWidth * 0.04,
+  fontWeight: '600',
+  color: '#333',
+  // marginLeft: screenWidth * 0.02,
+},
+barberShopValue: {
+  fontSize: screenWidth * 0.038,
+  color: '#555',
+  // paddingLeft: screenWidth * 0.05, // Align with icon
+},
+ratingdetailSection: {
+  flexDirection: "row",
+  justifyContent: "space-between"
+},
+  // Add these to your StyleSheet
+detailModalContent: {
+  width: "90%",
+  maxWidth: screenWidth * 0.9,
+  backgroundColor: "#fff",
+  borderRadius: screenWidth * 0.04,
+  elevation: 10,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: screenHeight * 0.005 },
+  shadowOpacity: 0.2,
+  shadowRadius: screenWidth * 0.02,
+  maxHeight: screenHeight * 0.8,
+},
+detailModalHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: screenWidth * 0.05,
+  borderBottomWidth: 1,
+  borderBottomColor: '#f0f0f0',
+},
+detailModalTitle: {
+  fontSize: screenWidth * 0.055,
+  fontWeight: '700',
+  color: '#333',
+},
+detailModalCloseButton: {
+  padding: screenWidth * 0.01,
+},
+detailScrollView: {
+  paddingHorizontal: screenWidth * 0.05,
+  paddingBottom: screenHeight * 0.02,
+},
+detailCard: {
+  backgroundColor: '#fff',
+  borderRadius: screenWidth * 0.03,
+  padding: screenWidth * 0.04,
+},
+detailRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: screenHeight * 0.01,
+},
+detailIcon: {
+  marginRight: screenWidth * 0.03,
+},
+detailText: {
+  fontSize: screenWidth * 0.042,
+  color: '#555',
+  lineHeight: screenHeight * 0.028,
+},
+detailLabel: {
+  fontWeight: '600',
+  color: '#333',
+},
+detailAmount: {
+  fontWeight: '700',
+  color: '#28a745',
+},
+detailDivider: {
+  height: 1,
+  backgroundColor: '#f0f0f0',
+  marginBottom: screenHeight * 0.015,
+},
+detailSection: {
+  marginBottom: screenHeight * 0.01,
+},
+detailSectionTitle: {
+  fontSize: screenWidth * 0.045,
+  fontWeight: '600',
+  color: '#333',
+},
+serviceItem: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingVertical: screenHeight * 0.008,
+  paddingHorizontal: screenWidth * 0.02,
+  backgroundColor: '#f9f9f9',
+  borderRadius: screenWidth * 0.02,
+  marginBottom: screenHeight * 0.008,
+},
+serviceInfo: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  flex: 1,
+},
+serviceName: {
+  fontSize: screenWidth * 0.038,
+  color: '#555',
+  flex: 1,
+},
+servicePrice: {
+  fontSize: screenWidth * 0.038,
+  fontWeight: '600',
+  color: '#333',
+  marginLeft: screenWidth * 0.02,
+},
+
+noServicesText: {
+  fontSize: screenWidth * 0.038,
+  color: '#999',
+  fontStyle: 'italic',
+  textAlign: 'center',
+  marginVertical: screenHeight * 0.01,
+},
+ratingContainer: {
+  flexDirection: 'row',
+  alignItems: "baseline",
+  // marginTop: screenHeight * 0.005,
+},
+ratingText: {
+  fontSize: screenWidth * 0.045,
+  fontWeight: '700',
+  color: '#FFD700',
+  marginRight: screenWidth * 0.01,
+},
+rateButton: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#1a1a1a',
+  padding: screenHeight * 0.015,
+  borderRadius: screenWidth * 0.02,
+  marginTop: screenHeight * 0.02,
+},
+rateButtonText: {
+  color: '#fff',
+  fontSize: screenWidth * 0.04,
+  fontWeight: '600',
+  marginRight: screenWidth * 0.01,
+},
+rateButtonIcon: {
+  marginLeft: screenWidth * 0.01,
+},
+
   backgroundImage: {
     flex: 1,
     width: '100%',
