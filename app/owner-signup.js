@@ -68,28 +68,6 @@ export default function SignupScreen() {
     return token;
   }
 
-  // Request user location on component mount
-  useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission to access location was denied");
-        return;
-      }
-      try {
-        let loc = await Location.getCurrentPositionAsync({});
-        console.log("Fetched location:", loc);
-        setLocation(loc);
-        setSelectedLocation({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
-      } catch (error) {
-        console.error("Error fetching location:", error);
-      }
-    })();
-  }, []);
-
   const handleSendOTP = async () => {
     if (!email) {
       Alert.alert("Error", "Please enter your email address.");
@@ -152,12 +130,13 @@ export default function SignupScreen() {
   };
 
   const handleSignup = async () => {
-    if (!name || !password || !addressText) {
+    if (!name || !password ) {
       Alert.alert("Error", "Please fill in all required fields.");
       return;
     }
 
     setIsLoading(true);
+    console.log("nams and emial",name," ",email," pass",password);
     try {
       const response = await fetch(`${API_BASE}/api/owners/register`, {
         method: "POST",
@@ -167,28 +146,8 @@ export default function SignupScreen() {
 
       const data = await response.json();
       if (!response.ok) {
+        console.log(data);
         throw new Error(data.message || "Signup failed");
-      }
-
-      await AsyncStorage.setItem("userToken", data.data.token);
-      await AsyncStorage.setItem("userName", data.data.name);
-      await AsyncStorage.setItem("uid", data.data._id);
-      await AsyncStorage.setItem("userType", "owner");
-
-      // Update the owner's profile with the push token
-      if (expoPushToken) {
-        const updateResponse = await fetch(`${API_BASE}/api/owners/profile`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${data.data.token}`,
-          },
-          body: JSON.stringify({ expopushtoken: expoPushToken }),
-        });
-        if (!updateResponse.ok) {
-          const updateErrorData = await updateResponse.json();
-          console.error("Error updating owner push token:", updateErrorData);
-        }
       }
 
       Alert.alert("Success", `Signed up as: ${data.data.email}`);
@@ -200,14 +159,6 @@ export default function SignupScreen() {
     }
   };
 
-  const confirmLocationSelection = () => {
-    if (selectedLocation) {
-      setLocation({ coords: selectedLocation });
-      setIsLocationModalVisible(false);
-    } else {
-      Alert.alert("Please select a location on the map.");
-    }
-  };
 
   const renderStepOne = () => (
     <>
@@ -292,21 +243,6 @@ export default function SignupScreen() {
         onChangeText={setName}
       />
 
-      <View style={styles.addressContainer}>
-        <TextInput
-          style={styles.addressInput}
-          placeholder="Address (for your shop)"
-          placeholderTextColor="rgb(0, 0, 0)"
-          value={addressText}
-          onChangeText={setAddressText}
-        />
-        <TouchableOpacity
-          style={styles.locateButton}
-          onPress={() => setIsLocationModalVisible(true)}
-        >
-          <Ionicons name="location-outline" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
 
       <TextInput
         style={styles.input}
@@ -360,38 +296,7 @@ export default function SignupScreen() {
         </View>
       </View>
 
-      {/* Modal for choosing location */}
-      <Modal visible={isLocationModalVisible} animationType="slide" transparent>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Choose Your Location</Text>
-            {location || selectedLocation ? (
-              <MapView
-                style={styles.modalMap}
-                initialRegion={{
-                  latitude: selectedLocation ? selectedLocation.latitude : (location ? location.coords.latitude : 0),
-                  longitude: selectedLocation ? selectedLocation.longitude : (location ? location.coords.longitude : 0),
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                onPress={(e) => setSelectedLocation(e.nativeEvent.coordinate)}
-              >
-                {selectedLocation && <Marker coordinate={selectedLocation} />}
-              </MapView>
-            ) : (
-              <Text style={styles.locationText}>Fetching current location...</Text>
-            )}
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity style={styles.modalButton} onPress={() => setIsLocationModalVisible(false)}>
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButton} onPress={confirmLocationSelection}>
-                <Text style={styles.modalButtonText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+  
     </ImageBackground>
   );
 }
