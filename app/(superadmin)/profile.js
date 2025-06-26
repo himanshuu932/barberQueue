@@ -17,11 +17,12 @@ import {
     ImageBackground,
     ScrollView,
     Dimensions,
+    Platform
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
 
-const { width } = Dimensions.get('window');
+const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 
 export default function TabProfileScreen() {
     const router = useRouter();
@@ -179,12 +180,12 @@ export default function TabProfileScreen() {
                                     setIsModalVisible(true);
                                 }}
                             >
-                                <Image source={require("../image/editw.png")} style={{ width: 25, height: 25, tintColor: "white" }} />
+                                <Image source={require("../image/editw.png")} style={{ width: screenWidth * 0.06, height: screenWidth * 0.06, tintColor: "white" }} />
                             </TouchableOpacity>
 
                             {/* Logout Button - Positioned like first code */}
                             <TouchableOpacity style={styles.logoutButton} onPress={() => setIsLogoutModalVisible(true)}>
-                                <Icon name="sign-out" size={25} color="white" />
+                                <Icon name="sign-out" size={screenWidth * 0.06} color="white" />
                             </TouchableOpacity>
 
                             <Animated.View
@@ -352,84 +353,83 @@ const styles = StyleSheet.create({
     },
     // --- Profile Card Styling ---
     profileBox: {
-        width: '95%',
-        height: width * 0.45,
-        borderRadius: 15,
-        overflow: "hidden",
-        marginBottom: 20,
-        elevation: 10,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-    },
+    width: '100%',
+    height: screenHeight * 0.20,
+    borderRadius: screenWidth * 0.04,
+    overflow: "hidden",
+    marginBottom: screenHeight * 0.02,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: screenHeight * 0.005 },
+    shadowOpacity: 0.3,
+    shadowRadius: screenWidth * 0.02,
+  },
     profileBackground: {
-        width: "100%",
-        height: "100%",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 20,
-    },
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: screenWidth * 0.05,
+  },
     shine: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: 300,
-        height: "300%"
-    },
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: screenWidth * 0.8,
+    height: "300%"
+  },
     shineGradient: {
         width: "100%",
         height: "100%"
     },
     profileContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        width: "100%",
-        paddingHorizontal: 0,
-    },
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+  },
     profileImage: {
-        width: width * 0.22,
-        height: width * 0.22,
-        borderRadius: (width * 0.22) / 2,
-        borderWidth: 3,
-        borderColor: "#eee",
-        marginRight: 20,
-    },
+    width: screenWidth * 0.22,
+    height: screenWidth * 0.22,
+    borderRadius: screenWidth * 0.11,
+    borderWidth: screenWidth * 0.007,
+    borderColor: "#eee",
+    marginRight: screenWidth * 0.05,
+  },
     profileDetails: {
         flex: 1,
     },
     username: {
-        fontSize: width * 0.06,
-        fontWeight: "bold",
-        color: "#fff",
-        marginBottom: 5,
-    },
+    fontSize: screenWidth * 0.06,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: screenHeight * 0.005,
+  },
     userInfo: {
-        fontSize: width * 0.04,
-        fontWeight: "400",
-        color: "#f0f0f0",
-        marginTop: 2,
-    },
+    fontSize: screenWidth * 0.04,
+    fontWeight: "400",
+    color: "#f0f0f0",
+    marginTop: screenHeight * 0.002,
+  },
     editButton: {
-        position: "absolute",
-        top: 15,
-        right: 60,
-        padding: 8,
-        borderRadius: 15,
-        alignItems: "center",
-        zIndex: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
+    position: "absolute",
+    top: screenHeight * 0.02,
+    right: screenWidth * 0.15,
+    padding: screenWidth * 0.02,
+    borderRadius: screenWidth * 0.04,
+    alignItems: "center",
+    zIndex: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
     logoutButton: {
-        position: 'absolute',
-        top: 15,
-        right: 15,
-        padding: 8,
-        borderRadius: 15,
-        alignItems: 'center',
-        zIndex: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
+    position: 'absolute',
+    top: screenHeight * 0.02,
+    right: screenWidth * 0.04,
+    padding: screenWidth * 0.02,
+    borderRadius: screenWidth * 0.04,
+    alignItems: 'center',
+    zIndex: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
     // --- Company Info Section ---
     companyContainer: {
         width: "95%",
@@ -447,28 +447,28 @@ const styles = StyleSheet.create({
         borderRadius: 15,
     },
     companyTitle: {
-        fontSize: width * 0.065,
+        fontSize: screenWidth * 0.065,
         fontWeight: "bold",
         color: "#fff",
         marginBottom: 10,
         textAlign: "center",
     },
     companyTagline: {
-        fontSize: width * 0.045,
+        fontSize: screenWidth * 0.045,
         color: "#ddd",
         marginBottom: 15,
         fontStyle: "italic",
         textAlign: "center",
     },
     companyDescription: {
-        fontSize: width * 0.04,
+        fontSize: screenWidth * 0.04,
         color: "#ccc",
         textAlign: "justify",
         marginBottom: 20,
         paddingHorizontal: 10,
     },
     companyWebsite: {
-        fontSize: width * 0.04,
+        fontSize: screenWidth * 0.04,
         color: "#00c0ff",
         fontWeight: "bold",
     },
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
         justifyContent: "flex-start",
     },
     numberText: {
-        fontSize: width * 0.04,
+        fontSize: screenWidth * 0.04,
         fontWeight: "bold",
         color: "#00c0ff",
         marginLeft: 8,
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
     },
     infoLinkText: {
-        fontSize: width * 0.035,
+        fontSize: screenWidth * 0.035,
         color: "#ADD8E6",
         textDecorationLine: "underline",
         textAlign: "left",
@@ -532,14 +532,14 @@ const styles = StyleSheet.create({
         shadowRadius: 5,
     },
     modalTitle: {
-        fontSize: width * 0.055,
+        fontSize: screenWidth * 0.055,
         fontWeight: "bold",
         marginBottom: 20,
         textAlign: "center",
         color: '#333',
     },
     modalMessage: {
-        fontSize: width * 0.045,
+        fontSize: screenWidth * 0.045,
         textAlign: 'center',
         marginBottom: 20,
         color: '#555',
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     },
     inputLabel: {
         marginBottom: 5,
-        fontSize: width * 0.04,
+        fontSize: screenWidth * 0.04,
         fontWeight: "bold",
         color: "#333",
     },
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
         borderColor: "#ddd",
         borderRadius: 8,
         padding: 12,
-        fontSize: width * 0.04,
+        fontSize: screenWidth * 0.04,
         color: '#333',
         backgroundColor: '#f9f9f9',
     },
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     },
     modalButtonText: {
         color: "#fff",
-        fontSize: width * 0.045,
+        fontSize: screenWidth * 0.045,
         fontWeight: "bold",
     },
     cancelButton: {

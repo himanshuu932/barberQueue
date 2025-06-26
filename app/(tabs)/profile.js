@@ -455,7 +455,6 @@ export default function TabProfileScreen() {
                 onPress={handleRateService}
               >
                 <Text style={styles.rateButtonText}>Rate This Service</Text>
-                <Icon name="arrow-right" size={screenWidth * 0.04} color="#fff" style={styles.rateButtonIcon} />
               </TouchableOpacity>
             )}
           </View>
@@ -641,9 +640,6 @@ rateButtonText: {
   fontSize: screenWidth * 0.04,
   fontWeight: '600',
   marginRight: screenWidth * 0.01,
-},
-rateButtonIcon: {
-  marginLeft: screenWidth * 0.01,
 },
 
   backgroundImage: {
