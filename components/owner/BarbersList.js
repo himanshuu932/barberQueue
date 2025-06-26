@@ -15,18 +15,18 @@ const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 
 const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
     const [isAddBarberModalVisible, setIsAddBarberModalVisible] = useState(false);
-    const [newBarberData, setNewBarberData] = useState({ name: '', phone: '', password: '' });
+    const [newBarberData, setNewBarberData] = useState({ name: '', email: '', password: '' }); // Changed 'phone' to 'email'
     
     const [isEditBarberModalVisible, setIsEditBarberModalVisible] = useState(false);
     const [editingBarber, setEditingBarber] = useState(null);
-    const [editedBarberData, setEditedBarberData] = useState({ name: '', phone: '', password: '' });
+    const [editedBarberData, setEditedBarberData] = useState({ name: '', email: '', password: '' }); // Changed 'phone' to 'email'
 
     const [isDeleteBarberConfirmModalVisible, setIsDeleteBarberConfirmModalVisible] = useState(false);
     const [barberToDelete, setBarberToDelete] = useState(null);
 
     const handleAddBarber = async () => {
-        if (!newBarberData.name || !newBarberData.phone || !newBarberData.password) {
-            Alert.alert("Validation Error", "Name, Phone, and Password are required.");
+        if (!newBarberData.name || !newBarberData.email || !newBarberData.password) { // Changed 'phone' to 'email'
+            Alert.alert("Validation Error", "Name, Email, and Password are required."); // Changed message
             return;
         }
         if (!shopId || !userToken) {
@@ -37,14 +37,14 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
             const response = await fetch(`${API_BASE_URL}/barbers`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
-                body: JSON.stringify({ shopId: shopId, name: newBarberData.name, phone: newBarberData.phone, pass: newBarberData.password }),
+                body: JSON.stringify({ shopId: shopId, name: newBarberData.name, email: newBarberData.email, pass: newBarberData.password }), // Changed 'phone' to 'email'
             });
             if (!response.ok) {
                 const errData = await response.json();
                 throw new Error(errData.message || 'Failed to create barber.');
             }
             Alert.alert("Success", "Barber added!");
-            setNewBarberData({ name: '', phone: '', password: '' });
+            setNewBarberData({ name: '', email: '', password: '' }); // Changed 'phone' to 'email'
             setIsAddBarberModalVisible(false);
             await onBarbersUpdate();
         } catch (err) {
@@ -55,7 +55,7 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
 
     const handleOpenEditBarberModal = (barber) => {
         setEditingBarber(barber);
-        setEditedBarberData({ name: barber.name, phone: barber.phone, password: '' });
+        setEditedBarberData({ name: barber.name, email: barber.email, password: '' }); // Changed 'phone' to 'email'
         setIsEditBarberModalVisible(true);
     };
 
@@ -64,13 +64,13 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
             Alert.alert("Error", "No barber selected or token missing.");
             return;
         }
-        if (!editedBarberData.name || !editedBarberData.phone) {
-            Alert.alert("Validation Error", "Name and Phone are required.");
+        if (!editedBarberData.name || !editedBarberData.email) { // Changed 'phone' to 'email'
+            Alert.alert("Validation Error", "Name and Email are required."); // Changed message
             return;
         }
         const payload = {
             name: editedBarberData.name,
-            phone: editedBarberData.phone,
+            email: editedBarberData.email, // Changed 'phone' to 'email'
         };
         if (editedBarberData.password) {
             payload.pass = editedBarberData.password;
@@ -144,7 +144,7 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
                         </View>
                         <View style={styles.listItemInfo}>
                             <Text style={styles.itemName}>{barber.name}</Text>
-                            <Text style={styles.itemSubText}>{barber.phone}</Text>
+                            <Text style={styles.itemSubText}>{barber.email}</Text> {/* Changed 'phone' to 'email' */}
                             <Text style={styles.itemSubText}>Served: {barber.customersServed || 0}</Text>
                         </View>
                         <View style={styles.listItemActions}>
@@ -174,8 +174,8 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
                     <Text style={styles.modalTitle}>Add Barber</Text>
                     <Text style={styles.inputLabel}>Name:</Text>
                     <TextInput style={styles.input} value={newBarberData.name} onChangeText={txt => setNewBarberData({ ...newBarberData, name: txt })} />
-                    <Text style={styles.inputLabel}>Phone:</Text>
-                    <TextInput style={styles.input} value={newBarberData.phone} onChangeText={txt => setNewBarberData({ ...newBarberData, phone: txt })} keyboardType="phone-pad" />
+                    <Text style={styles.inputLabel}>Email:</Text> {/* Changed 'Phone' to 'Email' */}
+                    <TextInput style={styles.input} value={newBarberData.email} onChangeText={txt => setNewBarberData({ ...newBarberData, email: txt })} keyboardType="email-address" /> {/* Changed keyboardType */}
                     <Text style={styles.inputLabel}>Password:</Text>
                     <TextInput style={styles.input} value={newBarberData.password} onChangeText={txt => setNewBarberData({ ...newBarberData, password: txt })} secureTextEntry />
                     <View style={styles.modalButtonContainer}>
@@ -199,8 +199,8 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
                         <>
                         <Text style={styles.inputLabel}>Name:</Text>
                         <TextInput style={styles.input} value={editedBarberData.name} onChangeText={txt => setEditedBarberData({ ...editedBarberData, name: txt })} />
-                        <Text style={styles.inputLabel}>Phone:</Text>
-                        <TextInput style={styles.input} value={editedBarberData.phone} onChangeText={txt => setEditedBarberData({ ...editedBarberData, phone: txt })} keyboardType="phone-pad" />
+                        <Text style={styles.inputLabel}>Email:</Text> {/* Changed 'Phone' to 'Email' */}
+                        <TextInput style={styles.input} value={editedBarberData.email} onChangeText={txt => setEditedBarberData({ ...editedBarberData, email: txt })} keyboardType="email-address" /> {/* Changed keyboardType */}
                         <Text style={styles.inputLabel}>New Password (optional):</Text>
                         <TextInput style={styles.input} placeholder="Leave blank to keep current" value={editedBarberData.password} onChangeText={txt => setEditedBarberData({ ...editedBarberData, password: txt })} secureTextEntry />
                         <View style={styles.modalButtonContainer}>

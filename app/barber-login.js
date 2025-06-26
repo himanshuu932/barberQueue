@@ -96,7 +96,7 @@ export default function BarberLoginScreen() {
       // Register push notifications for this user AFTER successful login
       await registerForPushNotifications(data.barber._id, data.token); // Pass the token received from login
 
-      // Navigate to the barber dashboard
+     
       router.replace("/(admin)/menu");
     } catch (error) {
       console.error("Login error:", error);

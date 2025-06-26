@@ -22,13 +22,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
 import RatingModal from "../../components/user/RatingModal";
 
-<<<<<<< HEAD
-const { height,width } = Dimensions.get('window');
-const API_BASE = "https://numbr-p7zc.onrender.com/api";
-=======
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 const API_BASE = "https://numbr-p7zc.onrender.com/api";
->>>>>>> c93d190535f0adccdad4a6e5ed7a2d2b11a0b84a
 
 export default function TabProfileScreen() {
   const router = useRouter();

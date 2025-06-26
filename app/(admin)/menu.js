@@ -21,6 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { io } from "socket.io-client";
 import { useFocusEffect } from "@react-navigation/native";
 
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const API_BASE = "https://numbr-p7zc.onrender.com";
 
 export default function MenuScreen() {
