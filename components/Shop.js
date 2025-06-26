@@ -27,7 +27,7 @@ const fontScale = PixelRatio.getFontScale();
 const getResponsiveFontSize = (size) => size / fontScale;
 
 // Base API URL
-const API_BASE = "http://10.0.2.2:5000/api";
+const API_BASE = "https://numbr-p7zc.onrender.com/api";
 
 // Define a consistent color palette with reverted colors for specific elements
 const colors = {
@@ -528,12 +528,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: screenWidth * 0.042,
+    height: screenHeight * 0.1
   },
   titleApp: {
     color: colors.white,
-    fontSize: getResponsiveFontSize(24),
-    fontWeight: 'bold',
-    paddingVertical: screenHeight * 0.02,
+    fontSize: screenWidth * 0.055,
+    // fontWeight: 'bold',
+    marginLeft: screenWidth * 0.042,
   },
   container: {
     flex: 1,

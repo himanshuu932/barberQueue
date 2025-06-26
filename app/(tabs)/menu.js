@@ -21,8 +21,8 @@ Notifications.setNotificationHandler({
 });
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
-const API_BASE = "http://10.0.2.2:5000/api";
-const API_BASE2 = "http://10.0.2.2:5000";
+const API_BASE = "https://numbr-p7zc.onrender.com/api";
+const API_BASE2 = "https://numbr-p7zc.onrender.com";
 export default function MenuScreen() {
 
   const [queueLength, setQueueLength] = useState(0);
@@ -719,7 +719,7 @@ const updateUserServices = async () => {
             <FontAwesome5 name="store" solid size={20} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.shopName} numberOfLines={1}>{shopName}</Text>
-          <Text style={styles.queue}>👥 {queueLength}</Text>
+          <Text style={styles.queue}>👤 {queueLength}</Text>
         </View>
 
         <Text style={styles.userCode}>{combinedName}</Text>
@@ -1099,7 +1099,7 @@ const styles = StyleSheet.create({
   ratePrice: { 
     fontSize: screenWidth * 0.04, 
     fontWeight: 'bold', 
-    color: '#28a745' 
+    color: '#28a745',
   },
   
   joinButton: { 

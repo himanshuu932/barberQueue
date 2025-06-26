@@ -16,7 +16,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
 
 const RateList = () => {
   const [ownerId, setOwnerId] = useState(null);

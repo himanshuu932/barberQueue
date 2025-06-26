@@ -9,20 +9,26 @@ import {
   Image,
   TouchableOpacity,
   Animated,
-  Alert, // Keep Alert for other alerts, not for rating submission anymore
+  Alert,
   ActivityIndicator,
   Modal,
   TextInput,
   ImageBackground,
   Linking,
   Dimensions,
+  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
-import RatingModal from "../../components/user/RatingModal"; // Import the new RatingModal
+import RatingModal from "../../components/user/RatingModal";
 
+<<<<<<< HEAD
 const { height,width } = Dimensions.get('window');
-const API_BASE = "http://10.0.2.2:5000/api";
+const API_BASE = "https://numbr-p7zc.onrender.com/api";
+=======
+const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
+const API_BASE = "https://numbr-p7zc.onrender.com/api";
+>>>>>>> c93d190535f0adccdad4a6e5ed7a2d2b11a0b84a
 
 export default function TabProfileScreen() {
   const router = useRouter();
@@ -35,7 +41,7 @@ export default function TabProfileScreen() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isHistoryDetailModalVisible, setIsHistoryDetailModalVisible] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
-  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false); // New state for rating modal
+  const [isRatingModalVisible, setIsRatingModalVisible] = useState(false);
 
   const fetchProfileAndHistory = async () => {
     setLoading(true);
@@ -167,10 +173,9 @@ export default function TabProfileScreen() {
 
 
   return (
-    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
+    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage} resizeMode="cover">
       <View style={styles.overlay} />
       <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
           {/* Profile Card */}
           <View style={styles.profileBox}>
             <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
@@ -186,7 +191,7 @@ export default function TabProfileScreen() {
               >
                 <Image
                   source={require("../image/editw.png")}
-                  style={{ width: 25, height: 25, tintColor: "white" }}
+                  style={{ width: screenWidth * 0.06, height: screenWidth * 0.06, tintColor: "white" }}
                 />
               </TouchableOpacity>
 
@@ -194,7 +199,7 @@ export default function TabProfileScreen() {
                 style={styles.logoutButton}
                 onPress={() => setIsLogoutModalVisible(true)}
               >
-                <Icon name="sign-out" size={25} color="white" />
+                <Icon name="sign-out" size={screenWidth * 0.06} color="white" />
               </TouchableOpacity>
 
               <Animated.View
@@ -202,8 +207,14 @@ export default function TabProfileScreen() {
                   styles.shine,
                   {
                     transform: [
-                      { translateX: shineTranslateX },
-                      { translateY: shineTranslateY },
+                      { translateX: shineAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-200, screenWidth * 2.5],
+                      }) },
+                      { translateY: shineAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-200, screenHeight * 0.3],
+                      }) },
                       { rotate: "45deg" },
                     ],
                   },
@@ -263,9 +274,9 @@ export default function TabProfileScreen() {
               </ScrollView>
             </View>
           </View>
-        </ScrollView>
+        
 
-        {/* Terms and Privacy Policy - STICK TO BOTTOM */}
+        {/* Terms and Privacy Policy */}
         <View style={styles.infoGrid}>
           <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/terms")}>
             <Text style={styles.infoLinkText}>Terms and Conditions</Text>
@@ -344,68 +355,127 @@ export default function TabProfileScreen() {
       </Modal>
 
       {/* History Detail Modal */}
-      <Modal visible={isHistoryDetailModalVisible} transparent animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Service Details</Text>
-            {selectedHistoryItem && (
-              <ScrollView>
-                <Text style={styles.detailText}>
-                  <Text style={styles.detailLabel}>Date:</Text> {new Date(selectedHistoryItem.date).toLocaleDateString()}
-                </Text>
-                <Text style={styles.detailText}>
-                  <Text style={styles.detailLabel}>Total Cost:</Text> ₹{selectedHistoryItem.totalCost?.toFixed(2) || '0.00'}
-                </Text>
-                <Text style={styles.detailLabel}>Services:</Text>
-                {selectedHistoryItem.services?.length > 0 ? (
-                  selectedHistoryItem.services.map((s, idx) => (
-                    <Text key={idx} style={styles.detailServiceItem}>
-                      - {s.name || 'Unknown Service'} (₹{s.price?.toFixed(2) || 'N/A'}) x {s.quantity || 1}
-                    </Text>
-                  ))
-
-                 ) : (
-                  <Text style={styles.detailServiceItem}>No services listed.</Text>
-                )}
-                 <Text style={styles.detailServiceItem}>Barber: {selectedHistoryItem.barber?.name || 'Unknown'}</Text>
-                <Text style={styles.detailServiceItem}>Shop: {selectedHistoryItem.shop?.name || 'Unknown'}</Text>
-                {/* Conditional rendering for Rate Service button or rating display */}
-                {selectedHistoryItem.isRated ? (
-                  <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Your Rating:</Text> {selectedHistoryItem.rating} <Icon name="star" size={16} color="#FFD700" />
-                  </Text>
-                ) : (
-                  <View style={styles.modalButtonContainer}>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.saveButton]}
-                      onPress={handleRateService}
-                    >
-                      <Text style={styles.modalButtonText}>Rate Service</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </ScrollView>
-            )}
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setIsHistoryDetailModalVisible(false)}
-              >
-                <Text style={styles.modalButtonText}>Close</Text>
-              </TouchableOpacity>
+<Modal visible={isHistoryDetailModalVisible} transparent animationType="slide">
+  <View style={styles.modalContainer}>
+    <View style={styles.detailModalContent}>
+      <View style={styles.detailModalHeader}>
+        <Text style={styles.detailModalTitle}>Service Details</Text>
+        <TouchableOpacity 
+          style={styles.detailModalCloseButton}
+          onPress={() => setIsHistoryDetailModalVisible(false)}
+        >
+          <Icon name="times" size={screenWidth * 0.06} color="#666" />
+        </TouchableOpacity>
+      </View>
+      
+      {selectedHistoryItem && (
+        <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={false}>
+          <View style={styles.detailCard}>
+            <View style={styles.detailRow}>
+              <Icon name="calendar" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>Date: </Text> 
+                {new Date(selectedHistoryItem.date).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </Text>
             </View>
+
+            <View style={styles.detailDivider} />
+
+            <View style={styles.detailRow}>
+              <Icon name="money" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>Total Cost: </Text> 
+                <Text style={styles.detailAmount}>₹{selectedHistoryItem.totalCost?.toFixed(2) || '0.00'}</Text>
+              </Text>
+            </View>
+
+            <View style={styles.detailDivider} />
+
+            <View style={styles.detailSection}>
+              <View style={styles.detailRow}>
+                <Icon name="scissors" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                <Text style={styles.detailSectionTitle}>Services</Text>
+              </View>
+              {selectedHistoryItem.services?.length > 0 ? (
+                selectedHistoryItem.services.map((s, idx) => (
+                  <View key={idx} style={styles.serviceItem}>
+                    <View style={styles.serviceInfo}>
+                      <Text style={styles.serviceName}>• {s.name || 'Unknown Service'}</Text>
+                      <Text style={styles.servicePrice}>₹{s.price?.toFixed(2) || 'N/A'}</Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.noServicesText}>No services listed</Text>
+              )}
+            </View>
+
+            <View style={styles.detailDivider} />
+
+            <View style={styles.barberShopContainer}>
+              {/* Barber Section */}
+              <View style={styles.barberShopSection}>
+                <View style={styles.barberShopHeader}>
+                  <Icon name="user" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                  <Text style={styles.barberShopLabel}>Barber</Text>
+                </View>
+                <Text style={styles.barberShopValue}>
+                  {selectedHistoryItem.barber?.name || 'Unknown'}
+                </Text>
+              </View>
+
+              {/* Shop Section */}
+              <View style={styles.barberShopSection}>
+                <View style={styles.barberShopHeader}>
+                  <Icon name="home" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                  <Text style={styles.barberShopLabel}>Shop</Text>
+                </View>
+                <Text style={styles.barberShopValue}>
+                  {selectedHistoryItem.shop?.name || 'Unknown'}
+                </Text>
+              </View>
+            </View>
+
+            {selectedHistoryItem.isRated ? (
+              <>
+                <View style={styles.detailDivider} />
+                <View style={styles.ratingdetailSection}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailSectionTitle}>Your Rating</Text>
+                  </View>
+                  <View style={styles.ratingContainer}>
+                    <Text style={styles.ratingText}>{selectedHistoryItem.rating}</Text>
+                    <Icon name="star" size={screenWidth * 0.05} color="#FFD700" />
+                  </View>
+                </View>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={styles.rateButton}
+                onPress={handleRateService}
+              >
+                <Text style={styles.rateButtonText}>Rate This Service</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        </View>
-      </Modal>
+        </ScrollView>
+      )}
+    </View>
+  </View>
+</Modal>
 
       {/* Rating Modal Component */}
       <RatingModal
         isVisible={isRatingModalVisible}
-        onClose={() => {setIsRatingModalVisible(false);
-        fetchProfileAndHistory();
-          
-        }} // RatingModal now calls onClose directly after submission
-        // Removed onSubmit prop since RatingModal handles submission internally
+        onClose={() => {
+          setIsRatingModalVisible(false);
+          fetchProfileAndHistory();
+        }}
         shopId={selectedHistoryItem?.shop?._id || null}
         barberId={selectedHistoryItem?.barber?._id || null}
         historyId={selectedHistoryItem?._id || null}
@@ -415,12 +485,172 @@ export default function TabProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+
+  barberShopContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginBottom: screenHeight * 0.02,
+},
+// barberShopSection: {
+//   width: '48%', // Slightly less than half to account for spacing
+// },
+barberShopHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: screenHeight * 0.005,
+},
+barberShopLabel: {
+  fontSize: screenWidth * 0.04,
+  fontWeight: '600',
+  color: '#333',
+  // marginLeft: screenWidth * 0.02,
+},
+barberShopValue: {
+  fontSize: screenWidth * 0.038,
+  color: '#555',
+  // paddingLeft: screenWidth * 0.05, // Align with icon
+},
+ratingdetailSection: {
+  flexDirection: "row",
+  justifyContent: "space-between"
+},
+  // Add these to your StyleSheet
+detailModalContent: {
+  width: "90%",
+  maxWidth: screenWidth * 0.9,
+  backgroundColor: "#fff",
+  borderRadius: screenWidth * 0.04,
+  elevation: 10,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: screenHeight * 0.005 },
+  shadowOpacity: 0.2,
+  shadowRadius: screenWidth * 0.02,
+  maxHeight: screenHeight * 0.8,
+},
+detailModalHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: screenWidth * 0.05,
+  borderBottomWidth: 1,
+  borderBottomColor: '#f0f0f0',
+},
+detailModalTitle: {
+  fontSize: screenWidth * 0.055,
+  fontWeight: '700',
+  color: '#333',
+},
+detailModalCloseButton: {
+  padding: screenWidth * 0.01,
+},
+detailScrollView: {
+  paddingHorizontal: screenWidth * 0.05,
+  paddingBottom: screenHeight * 0.02,
+},
+detailCard: {
+  backgroundColor: '#fff',
+  borderRadius: screenWidth * 0.03,
+  padding: screenWidth * 0.04,
+},
+detailRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: screenHeight * 0.01,
+},
+detailIcon: {
+  marginRight: screenWidth * 0.03,
+},
+detailText: {
+  fontSize: screenWidth * 0.042,
+  color: '#555',
+  lineHeight: screenHeight * 0.028,
+},
+detailLabel: {
+  fontWeight: '600',
+  color: '#333',
+},
+detailAmount: {
+  fontWeight: '700',
+  color: '#28a745',
+},
+detailDivider: {
+  height: 1,
+  backgroundColor: '#f0f0f0',
+  marginBottom: screenHeight * 0.015,
+},
+detailSection: {
+  marginBottom: screenHeight * 0.01,
+},
+detailSectionTitle: {
+  fontSize: screenWidth * 0.045,
+  fontWeight: '600',
+  color: '#333',
+},
+serviceItem: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingVertical: screenHeight * 0.008,
+  paddingHorizontal: screenWidth * 0.02,
+  backgroundColor: '#f9f9f9',
+  borderRadius: screenWidth * 0.02,
+  marginBottom: screenHeight * 0.008,
+},
+serviceInfo: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  flex: 1,
+},
+serviceName: {
+  fontSize: screenWidth * 0.038,
+  color: '#555',
+  flex: 1,
+},
+servicePrice: {
+  fontSize: screenWidth * 0.038,
+  fontWeight: '600',
+  color: '#333',
+  marginLeft: screenWidth * 0.02,
+},
+
+noServicesText: {
+  fontSize: screenWidth * 0.038,
+  color: '#999',
+  fontStyle: 'italic',
+  textAlign: 'center',
+  marginVertical: screenHeight * 0.01,
+},
+ratingContainer: {
+  flexDirection: 'row',
+  alignItems: "baseline",
+  // marginTop: screenHeight * 0.005,
+},
+ratingText: {
+  fontSize: screenWidth * 0.045,
+  fontWeight: '700',
+  color: '#FFD700',
+  marginRight: screenWidth * 0.01,
+},
+rateButton: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#1a1a1a',
+  padding: screenHeight * 0.015,
+  borderRadius: screenWidth * 0.02,
+  marginTop: screenHeight * 0.02,
+},
+rateButtonText: {
+  color: '#fff',
+  fontSize: screenWidth * 0.04,
+  fontWeight: '600',
+  marginRight: screenWidth * 0.01,
+},
+
   backgroundImage: {
     flex: 1,
-    resizeMode: "cover",
-    position: "absolute",
-    width: "100%",
-    height: "100%",
+    width: '100%',
+    height: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -428,14 +658,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    width: "100%",
-    // No flexGrow here, let children manage
-  },
-  scrollViewContent: {
-    padding: 20,
-    paddingBottom: 20, // Adjust this as needed to account for the infoGrid at the bottom
-    alignItems: "center",
-    // Remove justifyContent: 'space-between' and flexGrow, as infoGrid is absolute
+    paddingTop: Platform.OS === 'ios' ? screenHeight * 0.06 : screenHeight * 0.04,
+    paddingHorizontal: screenWidth * 0.04,
   },
   loadingContainer: {
     flex: 1,
@@ -444,29 +668,29 @@ const styles = StyleSheet.create({
   },
   // Profile Card Styles
   profileBox: {
-    width: '95%',
-    height: width * 0.45,
-    borderRadius: 15,
+    width: '100%',
+    height: screenHeight * 0.20,
+    borderRadius: screenWidth * 0.04,
     overflow: "hidden",
-    marginBottom: 20,
-    elevation: 10,
+    marginBottom: screenHeight * 0.02,
+    elevation: 5,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 5 },
+    shadowOffset: { width: 0, height: screenHeight * 0.005 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: screenWidth * 0.02,
   },
   profileBackground: {
     width: "100%",
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    padding: screenWidth * 0.05,
   },
   shine: {
     position: "absolute",
     top: 0,
     left: 0,
-    width: 300,
+    width: screenWidth * 0.8,
     height: "300%"
   },
   shineGradient: {
@@ -477,149 +701,142 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-    paddingHorizontal: 0,
   },
   profileImage: {
-    width: width * 0.22,
-    height: width * 0.22,
-    borderRadius: (width * 0.22) / 2,
-    borderWidth: 3,
+    width: screenWidth * 0.22,
+    height: screenWidth * 0.22,
+    borderRadius: screenWidth * 0.11,
+    borderWidth: screenWidth * 0.007,
     borderColor: "#eee",
-    marginRight: 20,
+    marginRight: screenWidth * 0.05,
   },
   profileDetails: {
     flex: 1,
   },
   username: {
-    fontSize: width * 0.06,
+    fontSize: screenWidth * 0.06,
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 5,
+    marginBottom: screenHeight * 0.005,
   },
   userInfo: {
-    fontSize: width * 0.04,
+    fontSize: screenWidth * 0.04,
     fontWeight: "400",
     color: "#f0f0f0",
-    marginTop: 2,
+    marginTop: screenHeight * 0.002,
   },
   subscriptionText: {
-    fontSize: width * 0.035,
+    fontSize: screenWidth * 0.035,
     color: "#f0f0f0",
-    marginTop: 2,
+    marginTop: screenHeight * 0.002,
   },
   editButton: {
     position: "absolute",
-    top: 15,
-    right: 60,
-    padding: 8,
-    borderRadius: 15,
+    top: screenHeight * 0.02,
+    right: screenWidth * 0.15,
+    padding: screenWidth * 0.02,
+    borderRadius: screenWidth * 0.04,
     alignItems: "center",
     zIndex: 1,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   logoutButton: {
     position: 'absolute',
-    top: 15,
-    right: 15,
-    padding: 8,
-    borderRadius: 15,
+    top: screenHeight * 0.02,
+    right: screenWidth * 0.04,
+    padding: screenWidth * 0.02,
+    borderRadius: screenWidth * 0.04,
     alignItems: 'center',
     zIndex: 1,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   // Service History Styles
   serviceHistoryContainer: {
-    flex: 1, // Crucial: This makes the history container fill available space
     width: "100%",
     alignItems: "center",
-    marginBottom: 20, // Add margin to separate from bottom elements, adjust as needed
+    marginBottom: screenHeight * 0.02,
   },
   sectionTitle: {
-    fontSize: width * 0.055,
+    fontSize: screenWidth * 0.055,
     fontWeight: "bold",
-    marginBottom: 15,
+    marginBottom: screenHeight * 0.015,
     color: "#333",
     alignSelf: 'flex-start',
-    marginLeft: 10,
+    marginLeft: screenWidth * 0.03,
   },
   historyBox: {
     backgroundColor: "#fff",
-    borderRadius: 15,
-    width: "95%",
-    padding: 15,
-    maxHeight:height * 0.47,// Let the inner box also take available space within its container
-    elevation: 8,
+    borderRadius: screenWidth * 0.04,
+    width: "100%",
+    padding: screenWidth * 0.04,
+    maxHeight: screenHeight * 0.45,
+    elevation: 5,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: screenHeight * 0.005 },
     shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowRadius: screenWidth * 0.015,
   },
   historyCard: {
     backgroundColor: "#F0F0F0",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-    elevation: 4,
+    padding: screenWidth * 0.04,
+    borderRadius: screenWidth * 0.03,
+    marginBottom: screenHeight * 0.01,
+    elevation: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: screenHeight * 0.002 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: screenWidth * 0.008,
   },
   paymentRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: screenHeight * 0.005,
   },
   historyDate: {
-    fontSize: width * 0.038,
+    fontSize: screenWidth * 0.038,
     color: "#666",
     fontWeight: '500',
   },
   paymentAmount: {
-    fontSize: width * 0.045,
+    fontSize: screenWidth * 0.045,
     fontWeight: "bold",
     color: "rgb(16, 120, 50)",
   },
   historyService: {
-    fontSize: width * 0.04,
+    fontSize: screenWidth * 0.04,
     color: "#555",
-    marginTop: 3,
-    lineHeight: 20,
+    marginTop: screenHeight * 0.003,
+    lineHeight: screenHeight * 0.025,
   },
   noHistory: {
-    fontSize: width * 0.042,
+    fontSize: screenWidth * 0.042,
     color: "#999",
     textAlign: "center",
-    marginTop: 20,
+    marginTop: screenHeight * 0.02,
     fontStyle: 'italic',
   },
-  // Company Info Styles (now for T&C and Privacy)
+  // Info Grid Styles
   infoGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-around',
-    paddingHorizontal: 10,
-    // Styles to stick to the bottom
     position: 'absolute',
-    bottom: 0,
+    bottom: screenHeight * 0.01,
     width: '100%',
-    paddingBottom: 20, // Padding from the very bottom of the screen
-    backgroundColor: 'transparent', // Ensure it doesn't obscure content above
-    zIndex: 10, // Ensure it's above other elements if there's overlap
+    // paddingBottom: screenHeight * 0.02,
+    backgroundColor: 'transparent',
+    zIndex: 10,
   },
   infoGridItem: {
-    width: '45%',
-    paddingVertical: 8,
-    marginBottom: 10,
-    alignItems: 'center', // Center text within each item
+    // paddingVertical: screenHeight * 0.01,
+    alignItems: 'center',
+    marginLeft: screenWidth * 0.07
   },
   infoLinkText: {
-    fontSize: width * 0.035,
+    fontSize: screenWidth * 0.035,
     fontWeight: "bold",
     color: "#000000",
     textDecorationLine: "underline",
-    textAlign: "center",
   },
   // Modal Styles
   modalContainer: {
@@ -630,34 +847,35 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: "88%",
+    maxWidth: screenWidth * 0.9,
     backgroundColor: "#fff",
-    padding: 25,
-    borderRadius: 15,
+    padding: screenWidth * 0.06,
+    borderRadius: screenWidth * 0.04,
     elevation: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: screenHeight * 0.005 },
     shadowOpacity: 0.25,
-    shadowRadius: 5,
+    shadowRadius: screenWidth * 0.015,
   },
   modalTitle: {
-    fontSize: width * 0.055,
+    fontSize: screenWidth * 0.055,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: screenHeight * 0.02,
     textAlign: "center",
     color: '#333',
   },
   modalMessage: {
-    fontSize: width * 0.045,
+    fontSize: screenWidth * 0.045,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: screenHeight * 0.02,
     color: '#555',
   },
   inputContainer: {
-    marginBottom: 15,
+    marginBottom: screenHeight * 0.015,
   },
   inputLabel: {
-    marginBottom: 5,
-    fontSize: width * 0.04,
+    marginBottom: screenHeight * 0.005,
+    fontSize: screenWidth * 0.04,
     fontWeight: "bold",
     color: "#333",
   },
@@ -665,27 +883,27 @@ const styles = StyleSheet.create({
     width: "100%",
     borderWidth: 1,
     borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: width * 0.04,
+    borderRadius: screenWidth * 0.02,
+    padding: screenWidth * 0.03,
+    fontSize: screenWidth * 0.04,
     color: '#333',
     backgroundColor: '#f9f9f9',
   },
   modalButtonContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
-    marginTop: 15,
+    marginTop: screenHeight * 0.015,
   },
   modalButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    padding: screenHeight * 0.015,
+    borderRadius: screenWidth * 0.02,
     alignItems: "center",
-    marginHorizontal: 8,
+    marginHorizontal: screenWidth * 0.02,
   },
   modalButtonText: {
     color: "#fff",
-    fontSize: width * 0.045,
+    fontSize: screenWidth * 0.045,
     fontWeight: "bold",
   },
   cancelButton: {
@@ -695,8 +913,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#28a745",
   },
   detailText: {
-    fontSize: width * 0.042,
-    marginBottom: 8,
+    fontSize: screenWidth * 0.042,
+    marginBottom: screenHeight * 0.008,
     color: '#333',
   },
   detailLabel: {
@@ -704,9 +922,9 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   detailServiceItem: {
-    fontSize: width * 0.038,
-    marginLeft: 10,
-    marginBottom: 3,
+    fontSize: screenWidth * 0.038,
+    marginLeft: screenWidth * 0.03,
+    marginBottom: screenHeight * 0.003,
     color: '#555',
   },
 });

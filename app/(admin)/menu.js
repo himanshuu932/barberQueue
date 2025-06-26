@@ -11,6 +11,8 @@ import {
   TextInput,
   Alert,
   FlatList,
+  Dimensions,
+  Platform,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,7 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { io } from "socket.io-client";
 import { useFocusEffect } from "@react-navigation/native";
 
-const API_BASE = "http://10.0.2.2:5000";
+const API_BASE = "https://numbr-p7zc.onrender.com";
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
@@ -418,7 +420,7 @@ const joinQueue = async () => {
   }
 
   return (
-    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
+    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage} resizeMode="cover">
       <View style={styles.overlay} />
       <View style={styles.container}>
         <Text style={styles.userCode}>
@@ -430,7 +432,7 @@ const joinQueue = async () => {
           style={styles.namesContainer}
           nestedScrollEnabled={true}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 10 }}
+          contentContainerStyle={{ paddingBottom: screenHeight * 0.02 }}
         >
           {queueItems.map((item, index) => (
             <TouchableOpacity
@@ -473,7 +475,7 @@ const joinQueue = async () => {
                         setInfoModalVisible(true);
                       }}
                     >
-                      <Icon name="info" size={20} color="black" />
+                      <Icon name="info" size={screenWidth * 0.05} color="black" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -491,11 +493,11 @@ const joinQueue = async () => {
                       )
                     }
                   >
-                    <Icon name="check" size={24} color="white" />
+                    <Icon name="check" size={screenWidth * 0.06} color="white" />
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity onPress={() => removePerson(item._id)}>
-                    <Icon name="delete" size={24} color="red" />
+                    <Icon name="delete" size={screenWidth * 0.06} color="red" />
                   </TouchableOpacity>
                 )}
                 {index < 3 && (
@@ -509,7 +511,7 @@ const joinQueue = async () => {
                   >
                     <Icon
                       name={longPressIndex === index ? "delete" : "arrow-downward"}
-                      size={24}
+                      size={screenWidth * 0.06}
                       color={longPressIndex === index ? "red" : "white"}
                     />
                   </TouchableOpacity>
@@ -519,6 +521,7 @@ const joinQueue = async () => {
           ))}
         </ScrollView>
 
+        {/* Modals remain the same but with updated styles */}
         <Modal
           transparent={true}
           animationType="slide"
@@ -553,22 +556,23 @@ const joinQueue = async () => {
                       <Text style={styles.checklistPrice}>₹{item.price}</Text>
                       <Icon
                         name={item.checked ? "check-box" : "check-box-outline-blank"}
-                        size={24}
+                        size={screenWidth * 0.06}
                         color="green"
                       />
                     </View>
                   </TouchableOpacity>
                 )}
                 keyExtractor={(item) => item.id.toString()}
+                style={{ maxHeight: screenHeight * 0.4 }}
               />
               <Text style={styles.totalPrice}>
                 Total Price: ₹{totalSelectedPrice}
               </Text>
               <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.modalButton} onPress={handleCancel}>
+                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={handleCancel}>
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.modalButton} onPress={joinQueue}>
+                <TouchableOpacity style={[styles.modalButton, styles.confirmButton]} onPress={joinQueue}>
                   <Text style={styles.modalButtonText}>Confirm</Text>
                 </TouchableOpacity>
               </View>
@@ -576,6 +580,7 @@ const joinQueue = async () => {
           </View>
         </Modal>
 
+        {/* Info Modal */}
         <Modal
           visible={infoModalVisible}
           animationType="slide"
@@ -603,13 +608,14 @@ const joinQueue = async () => {
                       <Text style={styles.checklistPrice}>₹{item.price}</Text>
                       <Icon
                         name={item.checked ? "check-box" : "check-box-outline-blank"}
-                        size={24}
+                        size={screenWidth * 0.06}
                         color="green"
                       />
                     </View>
                   </TouchableOpacity>
                 )}
                 keyExtractor={(item) => item.id.toString()}
+                style={{ maxHeight: screenHeight * 0.4 }}
               />
               <Text style={styles.totalPrice}>
                 Total Price: ₹
@@ -619,13 +625,13 @@ const joinQueue = async () => {
               </Text>
               <View style={styles.modalButtons}>
                 <TouchableOpacity
-                  style={styles.modalButton}
+                  style={[styles.modalButton, styles.cancelButton]}
                   onPress={() => setInfoModalVisible(false)}
                 >
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.modalButton}
+                  style={[styles.modalButton, styles.confirmButton]}
                   onPress={() => {
                     const selectedServices = infoModalChecklist
                       .filter((item) => item.checked)
@@ -653,13 +659,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: 'rgba(255,255,255,0.7)',
   },
   backgroundImage: {
     flex: 1,
-    resizeMode: "cover",
-    position: "absolute",
-    width: "100%",
-    height: "100%",
+    width: '100%',
+    height: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -667,202 +672,203 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 15,
-    paddingRight: 15,
-    paddingLeft: 15,
+    paddingTop: Platform.OS === 'ios' ? screenHeight * 0.06 : screenHeight * 0.04,
+    paddingHorizontal: screenWidth * 0.04,
   },
   userCode: {
-    fontSize: 70,
+    fontSize: screenWidth * 0.18,
     fontWeight: "bold",
     textAlign: "center",
     color: "black",
+    marginTop: screenHeight * 0.01,
   },
   queue: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    fontSize: 18,
+    top: screenHeight * 0.02,
+    right: screenWidth * 0.03,
+    fontSize: screenWidth * 0.045,
     fontWeight: "bold",
     color: "black",
   },
   queueListTitle: {
-    fontSize: 20,
+    fontSize: screenWidth * 0.055,
     fontWeight: "bold",
-    marginTop: 10,
-    marginBottom: 5,
+    marginTop: screenHeight * 0.02,
+    marginBottom: screenHeight * 0.01,
     color: "black",
+    alignSelf: 'center',
+    // marginLeft: screenWidth * 0.02,
   },
   namesContainer: {
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: screenWidth * 0.04,
     width: "100%",
-    padding: 10,
-    maxHeight: "72%",
+    padding: screenWidth * 0.04,
+    maxHeight: screenHeight * 0.54,
     elevation: 5,
     shadowColor: "#000",
+    shadowOffset: { width: 0, height: screenHeight * 0.005 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: screenWidth * 0.015,
   },
   queueCard: {
     backgroundColor: "#F9F9F9",
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 10,
+    borderRadius: screenWidth * 0.03,
+    padding: screenWidth * 0.04,
+    marginBottom: screenHeight * 0.015,
     elevation: 3,
     shadowColor: "#000",
+    shadowOffset: { width: 0, height: screenHeight * 0.002 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: screenWidth * 0.008,
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
+    justifyContent: 'space-between',
   },
   leftSection: {
-    flex: 1,
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
+    flex: 1,
   },
   detailsContainer: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: screenWidth * 0.03,
   },
   queueNumber: {
-    fontSize: 22,
+    fontSize: screenWidth * 0.06,
     fontWeight: "bold",
     color: "#333",
-    marginRight: 0,
-  },
-  nameContainer: {
-    flexShrink: 1,
-    maxWidth: "70%",
   },
   queueName: {
-    fontSize: 20,
-    color: "#777",
-    flexWrap: "wrap",
+    fontSize: screenWidth * 0.045,
+    color: "#555",
+    marginBottom: screenHeight * 0.005,
   },
   queueId: {
-    fontSize: 10,
-    color: "#555",
+    fontSize: screenWidth * 0.03,
+    color: "#777",
+    marginBottom: screenHeight * 0.005,
   },
   serviceRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 5,
   },
   servicesText: {
-    fontSize: 14,
+    fontSize: screenWidth * 0.035,
     color: "blue",
   },
   infoButton: {
-    marginLeft: 10,
+    marginLeft: screenWidth * 0.03,
   },
   iconGroup: {
-    display: "flex",
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    marginLeft: 10,
   },
   doneButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: screenWidth * 0.1,
+    height: screenWidth * 0.1,
+    borderRadius: screenWidth * 0.03,
     backgroundColor: "rgb(48, 139, 36)",
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 10,
+    marginLeft: screenWidth * 0.02,
     elevation: 3,
   },
   downButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: screenWidth * 0.1,
+    height: screenWidth * 0.1,
+    borderRadius: screenWidth * 0.03,
     backgroundColor: "rgb(7, 55, 229)",
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 10,
+    marginLeft: screenWidth * 0.02,
     elevation: 3,
   },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
   modalContent: {
     backgroundColor: "white",
-    padding: 20,
-    borderRadius: 10,
-    width: "80%",
-    alignItems: "center",
+    width: screenWidth * 0.85,
+    borderRadius: screenWidth * 0.04,
+    padding: screenWidth * 0.05,
     elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: screenHeight * 0.005 },
+    shadowOpacity: 0.25,
+    shadowRadius: screenWidth * 0.015,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: screenWidth * 0.05,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: screenHeight * 0.02,
     textAlign: "center",
+    color: '#333',
   },
   modalInput: {
     width: "100%",
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 20,
+    borderColor: "#ddd",
+    borderRadius: screenWidth * 0.02,
+    padding: screenWidth * 0.03,
+    marginBottom: screenHeight * 0.02,
+    fontSize: screenWidth * 0.04,
   },
   checklistItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 10,
+    padding: screenWidth * 0.03,
     backgroundColor: "#f8f9fa",
-    borderRadius: 10,
-    marginVertical: 5,
+    borderRadius: screenWidth * 0.02,
+    marginVertical: screenHeight * 0.005,
     width: "100%",
   },
   checklistRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    width: "100%",
   },
   checklistText: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: screenWidth * 0.04,
+    fontWeight: "500",
     color: "#333",
     flex: 1,
-    marginLeft: "auto",
   },
   checklistPrice: {
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     fontWeight: "bold",
     color: "#555",
-    marginRight: "5%",
+    marginRight: screenWidth * 0.05,
   },
   totalPrice: {
-    fontSize: 18,
+    fontSize: screenWidth * 0.045,
     fontWeight: "bold",
     color: "#333",
     textAlign: "center",
-    marginTop: 10,
+    marginVertical: screenHeight * 0.015,
   },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
-    marginTop: 20,
   },
   modalButton: {
     flex: 1,
-    padding: 10,
+    padding: screenHeight * 0.015,
+    borderRadius: screenWidth * 0.02,
     alignItems: "center",
+    marginHorizontal: screenWidth * 0.01,
+  },
+  cancelButton: {
+    backgroundColor: "#dc3545",
+  },
+  confirmButton: {
+    backgroundColor: "#28a745",
   },
   modalButtonText: {
-    fontSize: 16,
-    color: "#007bff",
+    color: "#fff",
+    fontSize: screenWidth * 0.04,
+    fontWeight: "bold",
   },
 });
