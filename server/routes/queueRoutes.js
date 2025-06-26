@@ -26,7 +26,7 @@ router.post('/walkin', protect(['barber', 'owner', 'admin']), (req, res, next) =
     router.put('/:id/status', protect(['barber', 'owner', 'admin']), queueController.updateQueueStatus); // Status updates often by barber/owner
 
 
-    router.patch('/:id/services', protect(['user', 'barber', 'owner', 'admin']), queueController.updateQueueServices);
+  router.patch('/:id/services', protect(['user', 'barber', 'owner', 'admin']), queueController.updateQueueServices);
 
 
     // Route to move a person down in queue

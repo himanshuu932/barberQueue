@@ -39,6 +39,11 @@ export default function MenuScreen() {
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const [infoModalChecklist, setInfoModalChecklist] = useState([]);
 
+  // --- NEW: State variables for loading indicators ---
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [isUpdatingServices, setIsUpdatingServices] = useState(false);
+  const [actionInProgress, setActionInProgress] = useState(null); // Stores ID of item being acted on
+
   const totalSelectedPrice = checklist
     .filter((item) => item.checked)
     .reduce((sum, item) => sum + item.price, 0);
@@ -59,40 +64,31 @@ export default function MenuScreen() {
     fetchIds();
   }, []);
 
-const fetchRateList = async () => {
-  if (!shopId) {
-    console.error("Shop ID not available");
-    return;
-  }
-
-  try {
-   
-    const response = await fetch(`${API_BASE}/api/shops/${shopId}/rate-list`);
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Rate list fetch failed:", errText);
+  const fetchRateList = async () => {
+    if (!shopId) {
+      console.error("Shop ID not available");
       return;
     }
-
-    const result = await response.json();
-    
-
-    const fetchedChecklist = result.data.map((item, index) => ({
-      id: index + 1,
-       _id: item._id,
-      text: item.name,
-      price: item.price,
-      checked: false,
-    }));
-
-   
-    setChecklist(fetchedChecklist);
-  } catch (err) {
-    console.error("Error in fetchRateList:", err);
-  }
-};
-
+    try {
+      const response = await fetch(`${API_BASE}/api/shops/${shopId}/rate-list`);
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("Rate list fetch failed:", errText);
+        return;
+      }
+      const result = await response.json();
+      const fetchedChecklist = result.data.map((item, index) => ({
+        id: index + 1,
+        _id: item._id,
+        text: item.name,
+        price: item.price,
+        checked: false,
+      }));
+      setChecklist(fetchedChecklist);
+    } catch (err) {
+      console.error("Error in fetchRateList:", err);
+    }
+  };
 
   useEffect(() => {
     if (shopId) {
@@ -119,57 +115,38 @@ const fetchRateList = async () => {
     }
   }, [socket]);
 
-const fetchQueueData = async () => {
-  if (!shopId) {
-    console.error("Cannot fetch queue - shopId is null/undefined");
-    return;
-  }
-  
- 
-  
-  try {
-    const url = `${API_BASE}/api/queue/shop/${shopId}`;
-   
-    
-    const response = await fetch(url);
-    
-  
-    
-    // First check if response is OK
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`HTTP error! status: ${response.status}, response:`, errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
+  const fetchQueueData = async () => {
+    if (!shopId) {
+      console.error("Cannot fetch queue - shopId is null/undefined");
+      return;
     }
-    
-    // Check content type
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      const text = await response.text();
-      console.error("Received non-JSON response. Content-Type:", contentType, "Response:", text);
-      throw new TypeError("Expected JSON response");
-    }
-    
-    const data = await response.json();
-  
-    
-    if (data.success) {
-    //  console.log("Queue data received. Count:", data.count, "Items:", data.data.length);
-      setQueueLength(data.count);
-      setQueueItems(data.data);
-    } else {
-      console.error("API returned unsuccessful response:", data);
+    try {
+      const url = `${API_BASE}/api/queue/shop/${shopId}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`HTTP error! status: ${response.status}, response:`, errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Received non-JSON response. Content-Type:", contentType, "Response:", text);
+        throw new TypeError("Expected JSON response");
+      }
+      const data = await response.json();
+      if (data.success) {
+        setQueueLength(data.count);
+        setQueueItems(data.data);
+      } else {
+        console.error("API returned unsuccessful response:", data);
+        Alert.alert("Error", "Failed to load queue data. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error in fetchQueueData:", { error: error.message, stack: error.stack, name: error.name });
       Alert.alert("Error", "Failed to load queue data. Please try again.");
     }
-  } catch (error) {
-    console.error("Error in fetchQueueData:", {
-      error: error.message,
-      stack: error.stack,
-      name: error.name
-    });
-    Alert.alert("Error", "Failed to load queue data. Please try again.");
-  }
-};
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -177,230 +154,174 @@ const fetchQueueData = async () => {
     }, [shopId])
   );
 
-  const updateUserServices = async (selectedServices, totalCost) => {
+    // --- CORRECTED FUNCTION ---
+    const updateUserServices = async (servicesPayload) => {
+        setIsUpdatingServices(true);
+        try {
+            const token = await AsyncStorage.getItem("userToken");
+            if (!token) {
+                Alert.alert("Authentication Error", "User not authenticated.");
+                return;
+            }
+
+            // CORRECTED: The route now points to the specific /services endpoint
+            const response = await fetch(`${API_BASE}/api/queue/${editingUid}/services`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                // CORRECTED: The body now sends the payload in the format the backend expects
+                body: JSON.stringify({ services: servicesPayload }),
+            });
+
+            if (response.ok) {
+                await fetchQueueData();
+                Alert.alert("Success", "Services updated successfully.");
+            } else {
+                const errorData = await response.json();
+                Alert.alert("Error", errorData.message || "Failed to update services.");
+            }
+        } catch (error) {
+            console.error("Error updating services:", error);
+            Alert.alert("Error", "Failed to update services.");
+        } finally {
+            setIsUpdatingServices(false);
+        }
+    };
+
+
+  const markUserServed = async (queueId) => {
+    setActionInProgress(queueId);
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const barberId = await AsyncStorage.getItem("uid");
+      if (!token || !barberId) {
+        console.error("Missing token or barber ID");
+        Alert.alert("Error", "Authentication required. Please re-login.");
+        return;
+      }
+      const payload = { status: "completed", barberId: barberId };
+      const response = await fetch(`${API_BASE}/api/queue/${queueId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("Failed to mark as served. Response:", data);
+        Alert.alert("Error", data.message || "Failed to mark as served");
+        return;
+      }
+      Alert.alert("Success", "Customer marked as served");
+      fetchQueueData();
+    } catch (error) {
+      console.error("Error in markUserServed:", error);
+      Alert.alert("Error", error.message || "Failed to mark as served");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const removePerson = async (queueId) => {
+    if (!shopId) return;
+    setActionInProgress(queueId);
     try {
       const token = await AsyncStorage.getItem("userToken");
       if (!token) {
         Alert.alert("Authentication Error", "User not authenticated.");
         return;
       }
-
-      const servicesForUpdate = selectedServices.map(serviceName => {
-        const service = checklist.find(item => item.text === serviceName);
-        return {
-          name: serviceName,
-          price: service ? service.price : 0
-        };
+      const response = await fetch(`${API_BASE}/api/queue/${queueId}/cancel`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       });
-
-      const response = await fetch(`${API_BASE}/queue/${editingUid}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          services: servicesForUpdate,
-          totalCost: totalCost,
-        }),
-      });
-
       if (response.ok) {
+        const queueEntry = await response.json();
+        if (queueEntry.data && queueEntry.data.userId) {
+          await fetch(`${API_BASE}/notify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid: queueEntry.data.userId, title: "Removed from queue", body: `You have been removed from the queue.` }),
+          });
+        }
         fetchQueueData();
-        Alert.alert("Success", "Services updated successfully.");
       } else {
-        Alert.alert("Error", "Failed to update services.");
+        const errorText = await response.text();
+        console.error("Remove person failed:", errorText);
+        Alert.alert("Error", "Failed to remove person from queue.");
       }
     } catch (error) {
-      console.error("Error updating services:", error);
-      Alert.alert("Error", "Failed to update services.");
+      console.error("Error removing person:", error);
+      Alert.alert("Error", "Failed to remove person from queue.");
+    } finally {
+      setActionInProgress(null);
     }
   };
 
-const markUserServed = async (queueId) => {
-  try {
-    const token = await AsyncStorage.getItem("userToken");
-    const barberId = await AsyncStorage.getItem("uid"); // Assuming barber's ID is stored here
-
-    if (!token || !barberId) {
-      console.error("Missing token or barber ID");
-      Alert.alert("Error", "Authentication required. Please re-login.");
-      return;
-    }
-
-    const payload = {
-      status: "completed",
-      barberId: barberId,
-    };
-
-   // console.log("Marking user served with payload:", payload);
-
-    const response = await fetch(`${API_BASE}/api/queue/${queueId}/status`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Failed to mark as served. Response:", data);
-      Alert.alert("Error", data.message || "Failed to mark as served");
-      return;
-    }
-
-   // console.log("User marked as served successfully:", data);
-    Alert.alert("Success", "Customer marked as served");
-    fetchQueueData(); // Refresh the queue
-  } catch (error) {
-    console.error("Error in markUserServed:", error);
-    Alert.alert("Error", error.message || "Failed to mark as served");
-  }
-};
-
-
-const removePerson = async (queueId) => {
-  if (!shopId) return;
-  try {
-    const token = await AsyncStorage.getItem("userToken");
-    if (!token) {
-      Alert.alert("Authentication Error", "User not authenticated.");
-      return;
-    }
-
-    const response = await fetch(`${API_BASE}/api/queue/${queueId}/cancel`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      const queueEntry = await response.json();
-      if (queueEntry.data && queueEntry.data.userId) {
-        await fetch(`${API_BASE}/notify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            uid: queueEntry.data.userId,
-            title: "Removed from queue",
-            body: `You have been removed from the queue.`,
-          }),
-        });
-      }
-      fetchQueueData();
-    } else {
-      const errorText = await response.text();
-      console.error("Remove person failed:", errorText);
-      Alert.alert("Error", "Failed to remove person from queue.");
-    }
-  } catch (error) {
-    console.error("Error removing person:", error);
-    Alert.alert("Error", "Failed to remove person from queue.");
-  }
-};
-
-const moveDownPerson = async (queueId) => {
+  const moveDownPerson = async (queueId) => {
     if (!shopId) return;
+    setActionInProgress(queueId);
     try {
-       // console.log(`Attempting to move down queue entry: ${queueId}`);
-        const token = await AsyncStorage.getItem("userToken");
-        if (!token) {
-            Alert.alert("Authentication Error", "User not authenticated.");
-            return;
-        }
-        
-       
-        
-        const response = await fetch(`${API_BASE}/api/queue/${queueId}/move-down`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-        });
-
-      //  console.log("Response status:", response.status);
-        
-        if (response.ok) {
-            const data = await response.json();
-          //  console.log("Move down successful:", data);
-            fetchQueueData();
-        } else {
-            const errorText = await response.text();
-            console.error("Move down failed:", errorText);
-            Alert.alert("Error", "Failed to move user down in queue.");
-        }
-    } catch (error) {
-        console.error("Error moving user down:", error);
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Authentication Error", "User not authenticated.");
+        return;
+      }
+      const response = await fetch(`${API_BASE}/api/queue/${queueId}/move-down`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        fetchQueueData();
+      } else {
+        const errorText = await response.text();
+        console.error("Move down failed:", errorText);
         Alert.alert("Error", "Failed to move user down in queue.");
+      }
+    } catch (error) {
+      console.error("Error moving user down:", error);
+      Alert.alert("Error", "Failed to move user down in queue.");
+    } finally {
+      setActionInProgress(null);
     }
-};
+  };
 
-const joinQueue = async () => {
-  if (!shopId) {
-    Alert.alert("Error", "Shop ID not available.");
-    return;
-  }
-
-  let finalName = newName.trim();
-  if (finalName === "") {
-    const now = new Date();
-    const hour = now.getHours().toString().padStart(2, "0");
-    const minutes = now.getMinutes().toString().padStart(2, "0");
-    const seconds = now.getSeconds().toString().padStart(2, "0");
-    finalName = `User${hour}${minutes}${seconds}`;
-  }
-
-  // Build service list in backend-compatible format
-  const selectedServices = checklist
-    .filter((item) => item.checked)
-    .map((item) => ({
-      service: item._id,
-      quantity: 1,
-    }));
-
-  if (selectedServices.length === 0) {
-    Alert.alert("No Service Selected", "Please select at least one service before proceeding.");
-    return;
-  }
-
-  try {
-    const token = await AsyncStorage.getItem("userToken");
-
-    const response = await fetch(`${API_BASE}/api/queue/walkin`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        shopId,
-        customerName: finalName,
-        customerPhone: "0000000000", // fallback for walk-ins
-        services: selectedServices,
-      }),
-    });
-
-    if (response.ok) {
-      fetchQueueData();
-      setModalVisible(false);
-    } else {
-      const errorText = await response.text();
-      console.error("Join queue failed:", errorText);
-      Alert.alert("Error", "Failed to add walk-in customer to queue.");
+  const joinQueue = async () => {
+    if (!shopId) {
+      Alert.alert("Error", "Shop ID not available.");
+      return;
     }
-  } catch (error) {
-    console.error("Error adding walk-in customer:", error);
-    Alert.alert("Error", "An error occurred while adding walk-in customer.");
-  }
-};
-
-
+    let finalName = newName.trim();
+    if (finalName === "") {
+      const now = new Date();
+      finalName = `User${now.getHours().toString().padStart(2, "0")}${now.getMinutes().toString().padStart(2, "0")}${now.getSeconds().toString().padStart(2, "0")}`;
+    }
+    const selectedServices = checklist.filter((item) => item.checked).map((item) => ({ service: item._id, quantity: 1 }));
+    if (selectedServices.length === 0) {
+      Alert.alert("No Service Selected", "Please select at least one service before proceeding.");
+      return;
+    }
+    setIsAddingUser(true);
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const response = await fetch(`${API_BASE}/api/queue/walkin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ shopId, customerName: finalName, customerPhone: "0000000000", services: selectedServices }),
+      });
+      if (response.ok) {
+        await fetchQueueData();
+        setModalVisible(false);
+      } else {
+        const errorText = await response.text();
+        console.error("Join queue failed:", errorText);
+        Alert.alert("Error", "Failed to add walk-in customer to queue.");
+      }
+    } catch (error) {
+      console.error("Error adding walk-in customer:", error);
+      Alert.alert("Error", "An error occurred while adding walk-in customer.");
+    } finally {
+      setIsAddingUser(false);
+    }
+  };
 
   const handleIncrement = () => {
     setNewName("");
@@ -409,6 +330,7 @@ const joinQueue = async () => {
   };
 
   const handleCancel = () => {
+    if (isAddingUser) return;
     setModalVisible(false);
   };
 
@@ -429,12 +351,7 @@ const joinQueue = async () => {
         </Text>
         <Text style={styles.queue}>👤 {queueLength}</Text>
         <Text style={styles.queueListTitle}>Queue List</Text>
-        <ScrollView
-          style={styles.namesContainer}
-          nestedScrollEnabled={true}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: screenHeight * 0.02 }}
-        >
+        <ScrollView style={styles.namesContainer} nestedScrollEnabled={true} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: screenHeight * 0.02 }}>
           {queueItems.map((item, index) => (
             <TouchableOpacity
               key={item._id}
@@ -443,35 +360,22 @@ const joinQueue = async () => {
                 setLongPressIndex(index);
                 setTimeout(() => setLongPressIndex(null), 3000);
               }}
+              activeOpacity={0.7}
             >
               <View style={styles.leftSection}>
                 <Text style={styles.queueNumber}>{item.orderOrQueueNumber}.</Text>
                 <View style={styles.detailsContainer}>
-                  <Text style={styles.queueName}>
-                    {item.customerName || (item.userId && item.userId.name) || 'Guest'}
-                  </Text>
+                  <Text style={styles.queueName}>{item.customerName || (item.userId && item.userId.name) || 'Guest'}</Text>
                   <Text style={styles.queueId}>Code: {item.uniqueCode}</Text>
                   <View style={styles.serviceRow}>
-                    <TouchableOpacity
-                      onPress={() =>
-                        Alert.alert(
-                          "Services",
-                          item.services && item.services.length > 0
-                            ? item.services.map(s => s.name).join(", ")
-                            : "No services"
-                        )
-                      }
-                    >
+                    <TouchableOpacity onPress={() => Alert.alert("Services", item.services && item.services.length > 0 ? item.services.map(s => s.name).join(", ") : "No services")}>
                       <Text style={styles.servicesText}>View Services</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.infoButton}
                       onPress={() => {
                         setEditingUid(item._id);
-                        const updatedChecklist = checklist.map(service => ({
-                          ...service,
-                          checked: item.services.some(s => s.name === service.text),
-                        }));
+                        const updatedChecklist = checklist.map(service => ({ ...service, checked: item.services.some(s => s.name === service.text) }));
                         setInfoModalChecklist(updatedChecklist);
                         setInfoModalVisible(true);
                       }}
@@ -482,169 +386,103 @@ const joinQueue = async () => {
                 </View>
               </View>
               <View style={styles.iconGroup}>
-                {index < 3 ? (
-                  <TouchableOpacity
-                    style={styles.doneButton}
-                    onPress={() =>
-                      markUserServed(
-                        item._id,
-                        item.customerName || (item.userId && item.userId.name) || 'Guest',
-                        item.services,
-                        item.totalCost
-                      )
-                    }
-                  >
-                    <Icon name="check" size={screenWidth * 0.06} color="white" />
-                  </TouchableOpacity>
+                {actionInProgress === item._id ? (
+                  <ActivityIndicator size="small" color="#0000ff" style={{ paddingHorizontal: screenWidth * 0.1 }} />
                 ) : (
-                  <TouchableOpacity onPress={() => removePerson(item._id)}>
-                    <Icon name="delete" size={screenWidth * 0.06} color="red" />
-                  </TouchableOpacity>
-                )}
-                {index < 3 && (
-                  <TouchableOpacity
-                    style={styles.downButton}
-                    onPress={() =>
-                      longPressIndex === index
-                        ? removePerson(item._id)
-                        : moveDownPerson(item._id)
-                    }
-                  >
-                    <Icon
-                      name={longPressIndex === index ? "delete" : "arrow-downward"}
-                      size={screenWidth * 0.06}
-                      color={longPressIndex === index ? "red" : "white"}
-                    />
-                  </TouchableOpacity>
+                  <>
+                    {index < 3 ? (
+                      <TouchableOpacity style={styles.doneButton} onPress={() => markUserServed(item._id)}>
+                        <Icon name="check" size={screenWidth * 0.06} color="white" />
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity onPress={() => removePerson(item._id)}>
+                        <Icon name="delete" size={screenWidth * 0.06} color="red" />
+                      </TouchableOpacity>
+                    )}
+                    {index < 3 && (
+                      <TouchableOpacity style={styles.downButton} onPress={() => longPressIndex === index ? removePerson(item._id) : moveDownPerson(item._id)}>
+                        <Icon name={longPressIndex === index ? "delete" : "arrow-downward"} size={screenWidth * 0.06} color={longPressIndex === index ? "red" : "white"} />
+                      </TouchableOpacity>
+                    )}
+                  </>
                 )}
               </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {/* Modals remain the same but with updated styles */}
-        <Modal
-          transparent={true}
-          animationType="slide"
-          visible={modalVisible}
-          onRequestClose={handleCancel}
-        >
+        <Modal transparent={true} animationType="slide" visible={modalVisible} onRequestClose={handleCancel}>
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Enter Name & Select Services</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={newName}
-                onChangeText={setNewName}
-                placeholder="Enter your name"
-                onFocus={() => setNewName("")}
-              />
+              <TextInput style={styles.modalInput} value={newName} onChangeText={setNewName} placeholder="Enter your name" onFocus={() => setNewName("")} editable={!isAddingUser} />
               <FlatList
                 data={checklist}
                 renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.checklistItem}
-                    onPress={() =>
-                      setChecklist((prev) =>
-                        prev.map((i) =>
-                          i.id === item.id ? { ...i, checked: !i.checked } : i
-                        )
-                      )
-                    }
-                  >
+                  <TouchableOpacity style={styles.checklistItem} onPress={() => setChecklist((prev) => prev.map((i) => i.id === item.id ? { ...i, checked: !i.checked } : i))} disabled={isAddingUser}>
                     <View style={styles.checklistRow}>
                       <Text style={styles.checklistText}>{item.text}</Text>
                       <Text style={styles.checklistPrice}>₹{item.price}</Text>
-                      <Icon
-                        name={item.checked ? "check-box" : "check-box-outline-blank"}
-                        size={screenWidth * 0.06}
-                        color="green"
-                      />
+                      <Icon name={item.checked ? "check-box" : "check-box-outline-blank"} size={screenWidth * 0.06} color="green" />
                     </View>
                   </TouchableOpacity>
                 )}
                 keyExtractor={(item) => item.id.toString()}
                 style={{ maxHeight: screenHeight * 0.4 }}
               />
-              <Text style={styles.totalPrice}>
-                Total Price: ₹{totalSelectedPrice}
-              </Text>
+              <Text style={styles.totalPrice}>Total Price: ₹{totalSelectedPrice}</Text>
               <View style={styles.modalButtons}>
-                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={handleCancel}>
+                <TouchableOpacity style={[styles.modalButton, styles.cancelButton, isAddingUser && styles.disabledButton]} onPress={handleCancel} disabled={isAddingUser}>
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, styles.confirmButton]} onPress={joinQueue}>
-                  <Text style={styles.modalButtonText}>Confirm</Text>
+                <TouchableOpacity style={[styles.modalButton, styles.confirmButton, isAddingUser && styles.disabledButton]} onPress={joinQueue} disabled={isAddingUser}>
+                  {isAddingUser ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalButtonText}>Confirm</Text>}
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
 
-        {/* Info Modal */}
-        <Modal
-          visible={infoModalVisible}
-          animationType="slide"
-          transparent
-          onRequestClose={() => setInfoModalVisible(false)}
-        >
+        <Modal visible={infoModalVisible} animationType="slide" transparent onRequestClose={() => isUpdatingServices ? null : setInfoModalVisible(false)}>
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Edit Selected Services</Text>
               <FlatList
                 data={infoModalChecklist}
                 renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.checklistItem}
-                    onPress={() =>
-                      setInfoModalChecklist((prev) =>
-                        prev.map((i) =>
-                          i.id === item.id ? { ...i, checked: !i.checked } : i
-                        )
-                      )
-                    }
-                  >
+                  <TouchableOpacity style={styles.checklistItem} onPress={() => setInfoModalChecklist((prev) => prev.map((i) => (i.id === item.id ? { ...i, checked: !i.checked } : i)))} disabled={isUpdatingServices}>
                     <View style={styles.checklistRow}>
                       <Text style={styles.checklistText}>{item.text}</Text>
                       <Text style={styles.checklistPrice}>₹{item.price}</Text>
-                      <Icon
-                        name={item.checked ? "check-box" : "check-box-outline-blank"}
-                        size={screenWidth * 0.06}
-                        color="green"
-                      />
+                      <Icon name={item.checked ? "check-box" : "check-box-outline-blank"} size={screenWidth * 0.06} color="green" />
                     </View>
                   </TouchableOpacity>
                 )}
                 keyExtractor={(item) => item.id.toString()}
                 style={{ maxHeight: screenHeight * 0.4 }}
               />
-              <Text style={styles.totalPrice}>
-                Total Price: ₹
-                {infoModalChecklist
-                  .filter((item) => item.checked)
-                  .reduce((sum, item) => sum + item.price, 0)}
-              </Text>
+              <Text style={styles.totalPrice}>Total Price: ₹{infoModalChecklist.filter((item) => item.checked).reduce((sum, item) => sum + item.price, 0)}</Text>
               <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => setInfoModalVisible(false)}
-                >
+                <TouchableOpacity style={[styles.modalButton, styles.cancelButton, isUpdatingServices && styles.disabledButton]} onPress={() => setInfoModalVisible(false)} disabled={isUpdatingServices}>
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
+                {/* --- CORRECTED OnPress Handler --- */}
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.confirmButton]}
-                  onPress={() => {
-                    const selectedServices = infoModalChecklist
-                      .filter((item) => item.checked)
-                      .map((item) => item.text);
-                    const totalCost = infoModalChecklist
-                      .filter((item) => item.checked)
-                      .reduce((sum, item) => sum + item.price, 0);
-                    updateUserServices(selectedServices, totalCost);
+                  style={[styles.modalButton, styles.confirmButton, isUpdatingServices && styles.disabledButton]}
+                  disabled={isUpdatingServices}
+                  onPress={async () => {
+                    const checkedServices = infoModalChecklist.filter((item) => item.checked);
+
+                    const servicesForUpdate = checkedServices.map(item => ({
+                        service: item._id, // Use the service's unique ID
+                        quantity: 1
+                    }));
+
+                    await updateUserServices(servicesForUpdate);
                     setInfoModalVisible(false);
                   }}
                 >
-                  <Text style={styles.modalButtonText}>Confirm</Text>
+                  {isUpdatingServices ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalButtonText}>Confirm</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -656,6 +494,7 @@ const joinQueue = async () => {
 }
 
 const styles = StyleSheet.create({
+  // --- All original styles remain the same ---
   loaderContainer: {
     flex: 1,
     justifyContent: "center",
@@ -698,7 +537,6 @@ const styles = StyleSheet.create({
     marginBottom: screenHeight * 0.01,
     color: "black",
     alignSelf: 'center',
-    // marginLeft: screenWidth * 0.02,
   },
   namesContainer: {
     backgroundColor: "#fff",
@@ -764,6 +602,8 @@ const styles = StyleSheet.create({
   iconGroup: {
     flexDirection: "row",
     alignItems: "center",
+    minWidth: screenWidth * 0.22, // Ensure consistent width
+    justifyContent: 'flex-end'
   },
   doneButton: {
     width: screenWidth * 0.1,
@@ -871,5 +711,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: screenWidth * 0.04,
     fontWeight: "bold",
+  },
+  // --- NEW STYLE ---
+  disabledButton: {
+    opacity: 0.6,
   },
 });
