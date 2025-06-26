@@ -26,85 +26,49 @@ Notifications.setNotificationHandler({
 });
 
 // Updated API_BASE URL
-const API_BASE = "https://numbr-p7zc.onrender.com";
+const API_BASE = "http://10.0.2.2:5000";
 
 // Function to register push notifications
-async function registerForPushNotifications(uid, token) {
+async function registerForPushNotifications(uid, userToken) {
   console.log("Registering for push notifications for uid:", uid);
 
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    console.log("Existing permission status:", existingStatus);
-
     let finalStatus = existingStatus;
+    
     if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
-      console.log("Requested permission status:", finalStatus);
     }
 
     if (finalStatus !== "granted") {
       console.log("Failed to get push token for push notifications!");
-      Alert.alert(
-        "Permission Denied",
-        "Push notifications permission is required to receive notifications. Please enable it in your device settings."
-      );
       return;
     }
 
-    let expoPushToken;
-    try {
-      expoPushToken = (
-        await Notifications.getExpoPushTokenAsync({
-          projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
-        })
-      ).data;
-    } catch (error) {
-      console.error("Error generating Expo Push Token:", error);
-      Alert.alert(
-        "Error Generating Push Token",
-        `An error occurred while generating the push token: ${error.message}`
-      );
+    const expoPushToken = (await Notifications.getExpoPushTokenAsync({
+      projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
+    })).data;
+
+    console.log("Expo push token:", expoPushToken);
+
+    // Use the passed userToken instead of getting from AsyncStorage
+    const response = await fetch(`${API_BASE}/api/users/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${userToken}`
+      },
+      body: JSON.stringify({ expopushtoken: expoPushToken }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Backend error:", errorData);
       return;
     }
 
-    // Get the user's token from AsyncStorage
-    const userToken = await AsyncStorage.getItem("userToken");
-    if (!userToken) {
-        console.error("No user token found for push notification registration.");
-        return;
-    }
-
-    try {
-      // Send the expoPushToken to your backend's user profile update 
-      const response = await fetch(`${API_BASE}/api/users/profile`, { // Updated endpoint
-        method: "PUT", // Use PUT for updating profile
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${userToken}` // Send JWT token for authentication
-        },
-        body: JSON.stringify({ expopushtoken: expoPushToken }), // Send expoPushToken
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Backend error:", errorData);
-        Alert.alert(
-          "Backend Error",
-          `Failed to register push token: ${errorData.error || "Unknown error"}`
-        );
-        return;
-      }
-
-      const resData = await response.json();
-      console.log("Backend response for push token registration:", resData);
-    } catch (error) {
-      console.error("Error sending push token to backend:", error);
-      Alert.alert(
-        "Network Error",
-        "Failed to send push token to the backend. Please check your internet connection."
-      );
-    }
+    console.log("Push token registered successfully");
 
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
@@ -116,32 +80,28 @@ async function registerForPushNotifications(uid, token) {
     }
   } catch (error) {
     console.error("Error in registerForPushNotifications:", error);
-    Alert.alert(
-      "Error",
-      "An unexpected error occurred while setting up push notifications. Please try again later."
-    );
   }
 }
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [phone, setPhone] = useState(""); // Changed from email to phone
+   const [email, setEmail] = useState(""); // Changed from phone to email
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
 
   const handleLogin = async () => {
-    if (!phone || !password) { // Changed from email to phone
-      Alert.alert("Error", "Please enter both phone number and password.");
+    if (!email || !password) { // Changed from phone to email
+      Alert.alert("Error", "Please enter both email and password.");
       return;
     }
     setLoading(true);
-    console.log("Logging in with phone:", phone, "and password:", password); // Changed from email to phone
+    console.log("Logging in with email:", email, "and password:", password); // Changed from phone to email
     try {
       const response = await fetch(`${API_BASE}/api/users/login`, { // Updated endpoint
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, pass: password }), // Changed email to phone, password to pass
+        body: JSON.stringify({ email, pass: password }), // Changed phone to email, password to pass
       });
 
       const responseData = await response.json(); // Renamed data to responseData
@@ -160,7 +120,7 @@ export default function LoginScreen() {
 
       // Register push notifications
       // Pass the obtained token from login to registerForPushNotifications if needed
-      await registerForPushNotifications(responseData.data._id);
+     await registerForPushNotifications(responseData.data._id, responseData.data.token);
 
       if (responseData.data.pinnedShop) { // Access pinnedShop from responseData.data
         await AsyncStorage.setItem("pinnedShop", responseData.data.pinnedShop);
@@ -182,12 +142,12 @@ export default function LoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Phone Number" // Changed placeholder
+            placeholder=" Email" // Changed placeholder
             placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="phone-pad" // Changed keyboardType
+            keyboardType="email-address" // Changed keyboardType
             autoCapitalize="none"
-            value={phone} // Changed from email to phone
-            onChangeText={setPhone} // Changed from setEmail to setPhone
+            value={email} // Changed from phone to email
+            onChangeText={setEmail} // Changed from setPhone to setEmail
           />
 
           <View style={styles.passwordContainer}>

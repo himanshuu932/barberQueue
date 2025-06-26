@@ -10,12 +10,12 @@ const bcrypt = require('bcryptjs');
 // @route   POST /api/owners/register
 // @access  Public
 exports.registerOwner = asyncHandler(async (req, res) => {
-    const { name, phone, pass } = req.body;
+    const { name, email, pass } = req.body;
 
-    const ownerExists = await Owner.findOne({ phone });
+    const ownerExists = await Owner.findOne({ email });
 
     if (ownerExists) {
-        throw new ApiError('Owner already exists with this phone number', 400);
+        throw new ApiError('Owner already exists with this email ', 400);
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -23,7 +23,8 @@ exports.registerOwner = asyncHandler(async (req, res) => {
 
     const owner = await Owner.create({
         name,
-        phone,
+        email,
+         emailVerified: true,
         pass: hashedPassword,
     });
 
@@ -34,7 +35,7 @@ exports.registerOwner = asyncHandler(async (req, res) => {
             data: {
                 _id: owner._id,
                 name: owner.name,
-                phone: owner.phone,
+                email: owner.email,
                 token: generateToken(owner._id),
             },
         });
@@ -47,9 +48,9 @@ exports.registerOwner = asyncHandler(async (req, res) => {
 // @route   POST /api/owners/login
 // @access  Public
 exports.loginOwner = asyncHandler(async (req, res) => {
-    const { phone, pass } = req.body;
-    console.log('Login attempt with phone:', phone);
-    const owner = await Owner.findOne({ phone });
+    const { email, pass } = req.body;
+    console.log('Login attempt with email:', email);
+    const owner = await Owner.findOne({ email });
 
     if (owner && (await bcrypt.compare(pass, owner.pass))) {
         res.json({
@@ -58,12 +59,12 @@ exports.loginOwner = asyncHandler(async (req, res) => {
             data: {
                 _id: owner._id,
                 name: owner.name,
-                phone: owner.phone,
+                email: owner.email,
                 token: generateToken(owner._id),
             },
         });
     } else {
-        throw new ApiError('Invalid phone or password', 401);
+        throw new ApiError('Invalid email or password', 401);
     }
 });
 
@@ -92,7 +93,7 @@ exports.updateOwnerProfile = asyncHandler(async (req, res) => {
 
     if (owner) {
         owner.name = req.body.name || owner.name;
-        owner.phone = req.body.phone || owner.phone;
+        owner.email = req.body.email || owner.email;
         // Optionally update password if provided
         if (req.body.pass) {
             const salt = await bcrypt.genSalt(10);
@@ -110,7 +111,7 @@ exports.updateOwnerProfile = asyncHandler(async (req, res) => {
             data: {
                 _id: updatedOwner._id,
                 name: updatedOwner.name,
-                phone: updatedOwner.phone,
+                email: updatedOwner.email,
                 // Do not send token again unless new login is required
             },
         });

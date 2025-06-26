@@ -45,25 +45,29 @@ const calculateEndDate = (startDate, durationValue, durationUnit) => {
 // @route   POST /api/users/register
 // @access  Public
 exports.registerUser = asyncHandler(async (req, res) => {
-    const { name, phone, pass, expoPushToken } = req.body;
+   console.log("reached to register backend", req.body); // Good
+    const { name, email, pass, expoPushToken } = req.body;
 
-    const userExists = await User.findOne({ phone });
+    const userExists = await User.findOne({ email });
+    
 
     if (userExists) {
-        throw new ApiError('User already exists with this phone number', 400);
+        console.log("another user exists with this email"+ email);
+        throw new ApiError('User already exists with this email', 400); 
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(pass, salt);
 
-    const trialPeriodInDays = 7; // Default trial period for users
+    const trialPeriodInDays = 7; 
     const trialStartDate = new Date();
     const trialEndDate = calculateEndDate(trialStartDate, trialPeriodInDays, 'days');
 
     const user = await User.create({
         name,
-        phone,
+        email,
         pass: hashedPassword,
+         emailVerified: true,
         expopushtoken: expoPushToken || null,
         subscription: {
             status: 'trial',
@@ -78,12 +82,13 @@ exports.registerUser = asyncHandler(async (req, res) => {
             data: {
                 _id: user._id,
                 name: user.name,
-                phone: user.phone,
+                email: user.email,
                 subscription: {
                     status: user.subscription.status,
                     trialEndDate: user.subscription.trialEndDate,
                 },
                 token: generateToken(user._id),
+                emailVerified: user.emailVerified
             },
         });
     } else {
@@ -95,12 +100,12 @@ exports.registerUser = asyncHandler(async (req, res) => {
 // @route   POST /api/users/login
 // @access  Public
 exports.loginUser = asyncHandler(async (req, res) => {
-    const { phone, pass } = req.body;
+    const { email, pass } = req.body;
 
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ email });
 
     if (!user || !(await bcrypt.compare(pass, user.pass))) {
-        throw new ApiError('Invalid phone or password', 401);
+        throw new ApiError('Invalid email or password', 401);
     }
 
     // Dynamic subscription status check on login
@@ -126,7 +131,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
         data: {
             _id: user._id,
             name: user.name,
-            phone: user.phone,
+            email: user.email,
             subscription: user.subscription, // Send updated status
             token: generateToken(user._id),
         },
@@ -158,7 +163,7 @@ exports.updateUserProfile = asyncHandler(async (req, res) => {
 
     if (user) {
         user.name = req.body.name || user.name;
-        user.phone = req.body.phone || user.phone;
+        user.email = req.body.email || user.email
         if (req.body.pass) {
             const salt = await bcrypt.genSalt(10);
             user.pass = await bcrypt.hash(req.body.pass, salt);
@@ -175,7 +180,7 @@ exports.updateUserProfile = asyncHandler(async (req, res) => {
             data: {
                 _id: updatedUser._id,
                 name: updatedUser.name,
-                phone: updatedUser.phone,
+                email: updatedUser.email,
             },
         });
     } else {
@@ -326,7 +331,7 @@ exports.serveRazorpayCheckoutPageUser = asyncHandler(async (req, res) => {
             "prefill": {
               "name": "${s(req.user.name)}", // Use authenticated user's name
               "email": "${s(prefill_email)}",
-              "contact": "${s(req.user.phone)}" // Use authenticated user's phone
+              "contact": "${s(req.user.email)}" // Use authenticated user's email
             },
             "theme": {
               "color": "${safeThemeColor}"

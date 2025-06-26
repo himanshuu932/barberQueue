@@ -17,7 +17,7 @@ const BarberSchema = new Schema({
         type: String,
         required: false // Optional if barbers don't have direct logins
     },
-    phone: {
+    email: {
         type: String,
         required: true,
         unique: true

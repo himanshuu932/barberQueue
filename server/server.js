@@ -91,6 +91,7 @@ require('./models/User');
 
 // --- Import Routes ---
 const userRoutes = require('./routes/userRoutes');
+const otpRoutes = require('./routes/otpRoutes');
 const ownerRoutes = require('./routes/ownerRoutes');
 const shopRoutes = require('./routes/shopRoutes');
 const barberRoutes = require('./routes/barberRoutes');
@@ -102,6 +103,7 @@ const adminRoutes = require('./routes/adminRoutes');
 
 // --- Define API Routes ---
 app.use('/api/users', userRoutes);
+app.use('/api/otp', otpRoutes);
 app.use('/api/owners', ownerRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/barbers', barberRoutes);
@@ -127,7 +129,7 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => { // Use `server.listen` instead of `app.listen`
     console.log(`Server running in ${process.env.NODE_ENV || "local"} mode on port ${PORT}`);
     setInterval(() => {
-  fetch('https://numbr-p7zc.onrender.com/ping')
+  fetch('http://10.0.2.2:5000/ping')
     .then(() => console.log('Pinged self!'))
     .catch(() => console.log('Self ping failed.'));
 }, 1000 * 60 * 10); // Every 10 mins

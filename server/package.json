@@ -22,6 +22,7 @@
     "multer": "^2.0.1",
     "multer-storage-cloudinary": "^4.0.0",
     "node-fetch": "^3.3.2",
+    "node-mailjet": "^6.0.8",
     "nodemon": "^3.1.10",
     "razorpay": "^2.9.6",
     "sanitize-html": "^2.17.0",

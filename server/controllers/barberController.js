@@ -10,9 +10,9 @@ const bcrypt = require('bcryptjs');
 // @route   POST /api/barbers
 // @access  Private (Owner)
 exports.authBarber = asyncHandler(async (req, res) => {
-    const { phone, pass } = req.body;
+    const { email, pass } = req.body;
 
-    const barber = await Barber.findOne({ phone });
+    const barber = await Barber.findOne({ email });
 
     if (barber && (await bcrypt.compare(pass, barber.pass))) {
         res.json({
@@ -22,7 +22,7 @@ exports.authBarber = asyncHandler(async (req, res) => {
             barber: {
                 _id: barber._id,
                 name: barber.name,
-                phone: barber.phone,
+                email: barber.email,
                 shopId: barber.shopId, // Include shopId
             },
         });
@@ -32,17 +32,17 @@ exports.authBarber = asyncHandler(async (req, res) => {
 });
 
 exports.createBarber = asyncHandler(async (req, res) => {
-    const { shopId, name, phone, pass } = req.body;
-console.log('Creating barber with data:', { shopId, name, phone, pass });
+    const { shopId, name, email, pass } = req.body;
+console.log('Creating barber with data:', { shopId, name, email, pass });
     // Verify the shop exists and belongs to the owner
     const shop = await Shop.findOne({ _id: shopId, owner: req.user._id });
     if (!shop) {
         throw new ApiError('Shop not found or you are not the owner of this shop', 404);
     }
 
-    const barberExists = await Barber.findOne({ phone });
+    const barberExists = await Barber.findOne({ email });
     if (barberExists) {
-        throw new ApiError('Barber already exists with this phone number', 400);
+        throw new ApiError('Barber already exists with this email', 400);
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -51,7 +51,7 @@ console.log('Creating barber with data:', { shopId, name, phone, pass });
     const barber = await Barber.create({
         shopId,
         name,
-        phone,
+        email,
         pass: hashedPassword,
     });
 
@@ -65,7 +65,7 @@ console.log('Creating barber with data:', { shopId, name, phone, pass });
         data: {
             _id: barber._id,
             name: barber.name,
-            phone: barber.phone,
+            email: barber.email,
             shop: shop.name,
         },
     });
@@ -135,7 +135,7 @@ exports.getBarbersByShop = asyncHandler(async (req, res) => {
 // @access  Private (Owner or Barber)
 exports.updateBarberDetails = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, phone, pass } = req.body; // Pass can also be updated
+    const { name, email, pass } = req.body; // Pass can also be updated
 
     let barber = await Barber.findById(id);
 
@@ -158,7 +158,7 @@ exports.updateBarberDetails = asyncHandler(async (req, res) => {
     }
 
     barber.name = name || barber.name;
-    barber.phone = phone || barber.phone;
+    barber.email = email || barber.email;
 
     if (pass) {
         const salt = await bcrypt.genSalt(10);
@@ -176,7 +176,7 @@ exports.updateBarberDetails = asyncHandler(async (req, res) => {
         data: {
             _id: updatedBarber._id,
             name: updatedBarber.name,
-            phone: updatedBarber.phone,
+            email: updatedBarber.email,
         },
     });
 });

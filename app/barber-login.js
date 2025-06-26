@@ -16,7 +16,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 
 // Base API URL
-const API_BASE_URL = "https://numbr-p7zc.onrender.com/api";
+const API_BASE_URL = "http://10.0.2.2:5000/api";
 
 async function registerForPushNotifications(uid, userToken) { // Pass userToken here
   console.log("Registering for push notifications for uid:", uid);
@@ -66,19 +66,19 @@ async function registerForPushNotifications(uid, userToken) { // Pass userToken 
 
 export default function BarberLoginScreen() {
   const router = useRouter();
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
-    if (!phone || !password) {
-      Alert.alert("Error", "Please enter both phone and password.");
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter both email and password.");
       return;
     }
     try {
       const response = await fetch(`${API_BASE_URL}/barbers/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, pass: password }),
+        body: JSON.stringify({ email, pass: password }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -115,12 +115,12 @@ export default function BarberLoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Phone Number"
+            placeholder="Email"
             placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="phone-pad"
+            keyboardType="email-address"
             autoCapitalize="none"
-            value={phone}
-            onChangeText={setPhone}
+            value={email}
+            onChangeText={setEmail}
           />
 
           <TextInput

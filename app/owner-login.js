@@ -62,7 +62,7 @@ async function registerForPushNotifications(ownerId, token) {
       }
 
       const response = await fetch(
-        "https://numbr-p7zc.onrender.com/api/owners/profile", // Correct route for updating owner profile
+        "http://10.0.2.2:5000/api/owners/profile", // Correct route for updating owner profile
         {
           method: "PUT", // Use PUT for updating profile
           headers: {
@@ -113,24 +113,24 @@ async function registerForPushNotifications(ownerId, token) {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [phone, setPhone] = useState(""); // Changed from email to phone
+  const [email, setEmail] = useState(""); // Changed from phone to email
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!phone || !password) { // Changed from email to phone
-      Alert.alert("Error", "Please enter both phone number and password.");
+    if (!email || !password) { // Changed from email to phone
+      Alert.alert("Error", "Please enter both email and password.");
       return;
     }
     setLoading(true);
     try {
       const response = await fetch(
-        "https://numbr-p7zc.onrender.com/api/owners/login", // Corrected endpoint
+        "http://10.0.2.2:5000/api/owners/login", // Corrected endpoint
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone, pass: password }), // Corrected fields
+          body: JSON.stringify({ email, pass: password }), // Corrected fields
         }
       );
 
@@ -181,12 +181,12 @@ export default function LoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Phone Number" // Changed placeholder
+            placeholder="Email" // Changed placeholder
             placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="phone-pad" // Changed keyboardType
+            keyboardType="email-address" // Changed keyboardType
             autoCapitalize="none"
-            value={phone}
-            onChangeText={setPhone} // Changed setter
+            value={email}
+            onChangeText={setEmail} // Changed setter
           />
 
           <View style={styles.passwordContainer}>

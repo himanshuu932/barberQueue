@@ -38,7 +38,7 @@ const RatingModal = ({ isVisible, onClose, shopId, barberId,historyId }) => { //
       "Rating Submitted",
       `User rated ${currentRating} stars!\nShop ID: ${historyId || 'N/A'}\nBarber ID: ${barberId || 'N/A'}`
     );
-    const res=await fetch(`https://numbr-p7zc.onrender.com/api/barbers/rate/${barberId}`,{
+    const res=await fetch(`http://10.0.2.2:5000/api/barbers/rate/${barberId}`,{
         method: "PUT", 
         headers: {
             "Content-Type": "application/json",

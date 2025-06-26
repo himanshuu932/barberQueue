@@ -21,18 +21,19 @@ import { Ionicons } from "@expo/vector-icons";
 
 export default function SignupScreen() {
   const router = useRouter();
+  const [step, setStep] = useState(1); // 1: email entry, 2: OTP verification, 3: registration
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState(""); // Changed from email to phone
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [addressText, setAddressText] = useState("");
   const [expoPushToken, setExpoPushToken] = useState("");
   const [location, setLocation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  // New state for modal and selected location
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  const API_BASE = "https://numbr-p7zc.onrender.com";
+  const API_BASE = "http://10.0.2.2:5000";
 
   // Register for push notifications
   useEffect(() => {
@@ -52,7 +53,7 @@ export default function SignupScreen() {
       return;
     }
     token = (await Notifications.getExpoPushTokenAsync({
-      projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
+      projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
     })).data;
     console.log("Expo Push Token:", token);
 
@@ -79,7 +80,6 @@ export default function SignupScreen() {
         let loc = await Location.getCurrentPositionAsync({});
         console.log("Fetched location:", loc);
         setLocation(loc);
-        // Also initialize selectedLocation to current location for convenience
         setSelectedLocation({
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
@@ -90,158 +90,273 @@ export default function SignupScreen() {
     })();
   }, []);
 
-  const handleSignup = async () => {
-    if (!name || !phone || !password) { // Changed from email to phone
-      Alert.alert("Error", "Please fill in all required fields.");
+  const handleSendOTP = async () => {
+    if (!email) {
+      Alert.alert("Error", "Please enter your email address.");
       return;
     }
-    // Address is not directly part of owner registration in the provided backend,
-    // but the UI has it. If this is for a shop owner, the shop creation would handle address.
-    // For now, I'll remove the address check for owner signup as per backend.
-    // If address is intended for the owner, the Owner model would need an address field.
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert("Error", "Please enter a valid email address.");
+      return;
+    }
 
     setIsLoading(true);
     try {
-      // The `ownerController.js` does not handle `address` or `expoPushToken` during registration directly.
-      // `expopushtoken` is handled via `updateOwnerProfile`.
-      // `address` would typically be part of a `Shop` model.
-      // For now, only sending `name`, `phone`, `pass` as per `registerOwner` controller.
-
-      const response = await fetch(`${API_BASE}/api/owners/register`, { // Corrected endpoint
+      const response = await fetch(`${API_BASE}/api/otp/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, pass: password }), // Corrected fields
+        body: JSON.stringify({ email }),
       });
+
       const data = await response.json();
       if (!response.ok) {
-        Alert.alert("Error", data.message || "Signup failed"); // Use data.message
-        setIsLoading(false);
-        return;
+        throw new Error(data.message || "Failed to send OTP");
       }
-      console.log("Signup successful:", data);
 
-      await AsyncStorage.setItem("userToken", data.data.token); // Access token from data.data
-      await AsyncStorage.setItem("userName", data.data.name); // Access name from data.data
-      await AsyncStorage.setItem("uid", data.data._id); // Store owner ID
-      let userType = "owner";
-      await AsyncStorage.setItem("userType", userType);
+      Alert.alert("Success", "OTP sent to your email");
+      setStep(2); // Move to OTP verification step
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      // Now update the owner's profile with the push token
+  const handleVerifyOTP = async () => {
+    if (!otp) {
+      Alert.alert("Error", "Please enter the OTP");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "OTP verification failed");
+      }
+
+      Alert.alert("Success", "Email verified successfully");
+      setStep(3); // Move to registration details step
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async () => {
+    if (!name || !password || !addressText) {
+      Alert.alert("Error", "Please fill in all required fields.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/owners/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, pass: password }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Signup failed");
+      }
+
+      await AsyncStorage.setItem("userToken", data.data.token);
+      await AsyncStorage.setItem("userName", data.data.name);
+      await AsyncStorage.setItem("uid", data.data._id);
+      await AsyncStorage.setItem("userType", "owner");
+
+      // Update the owner's profile with the push token
       if (expoPushToken) {
         const updateResponse = await fetch(`${API_BASE}/api/owners/profile`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${data.data.token}`, // Use the newly received token
+            Authorization: `Bearer ${data.data.token}`,
           },
           body: JSON.stringify({ expopushtoken: expoPushToken }),
         });
         if (!updateResponse.ok) {
           const updateErrorData = await updateResponse.json();
           console.error("Error updating owner push token:", updateErrorData);
-          Alert.alert("Push Token Error", `Failed to register push token: ${updateErrorData.message || "Unknown error"}`);
-        } else {
-          console.log("Owner push token updated successfully.");
         }
       }
 
-      Alert.alert("Success", `Signed up as: ${data.data.phone}`); // Use phone for alert
-      router.replace("/owner-login"); // Redirect to login after successful signup
+      Alert.alert("Success", `Signed up as: ${data.data.email}`);
+      router.replace("/owner-login");
     } catch (error) {
-      console.error("Signup error:", error);
-      Alert.alert("Error", "Something went wrong during signup.");
+      Alert.alert("Error", error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handler when user confirms location in modal
   const confirmLocationSelection = () => {
     if (selectedLocation) {
-      // Update main location state with the chosen location
       setLocation({ coords: selectedLocation });
       setIsLocationModalVisible(false);
-      // You might want to reverse geocode the selected location to get a human-readable address
-      // and set it to `addressText` here.
-      // For this example, we'll just keep the coordinates.
     } else {
       Alert.alert("Please select a location on the map.");
     }
   };
 
+  const renderStepOne = () => (
+    <>
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        placeholderTextColor="rgb(0, 0, 0)"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
+      />
+      
+      <TouchableOpacity
+        style={[styles.buttonContainer, { marginBottom: 15 }]}
+        onPress={handleSendOTP}
+        disabled={isLoading}
+      >
+        <LinearGradient
+          colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.button}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.buttonText}>Send Verification Code</Text>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderStepTwo = () => (
+    <>
+      <Text style={styles.otpMessage}>Verification code sent to {email}</Text>
+      
+      <TextInput
+        style={styles.input}
+        placeholder="Enter OTP"
+        placeholderTextColor="rgb(0, 0, 0)"
+        keyboardType="number-pad"
+        value={otp}
+        onChangeText={setOtp}
+        maxLength={6}
+      />
+      
+      <TouchableOpacity
+        style={[styles.buttonContainer, { marginBottom: 15 }]}
+        onPress={handleVerifyOTP}
+        disabled={isLoading}
+      >
+        <LinearGradient
+          colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.button}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.buttonText}>Verify Code</Text>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+      
+      <TouchableOpacity onPress={() => setStep(1)}>
+        <Text style={styles.link}>Change Email</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderStepThree = () => (
+    <>
+      <TextInput
+        style={styles.input}
+        placeholder="Name"
+        placeholderTextColor="rgb(0, 0, 0)"
+        autoCapitalize="words"
+        value={name}
+        onChangeText={setName}
+      />
+
+      <View style={styles.addressContainer}>
+        <TextInput
+          style={styles.addressInput}
+          placeholder="Address (for your shop)"
+          placeholderTextColor="rgb(0, 0, 0)"
+          value={addressText}
+          onChangeText={setAddressText}
+        />
+        <TouchableOpacity
+          style={styles.locateButton}
+          onPress={() => setIsLocationModalVisible(true)}
+        >
+          <Ionicons name="location-outline" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="rgb(0, 0, 0)"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+
+      <TouchableOpacity 
+        style={styles.buttonContainer} 
+        onPress={handleSignup}
+        disabled={isLoading}
+      >
+        <LinearGradient
+          colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.button}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.buttonText}>Complete Sign Up</Text>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    </>
+  );
+
   return (
     <ImageBackground source={require("./image/bglogin.png")} style={styles.background}>
       <View style={styles.overlay}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Owner Sign Up</Text> {/* Changed title to Owner Sign Up */}
+          <Text style={styles.title}>
+            {step === 1 ? "Owner Sign Up" : step === 2 ? "Verify Email" : "Complete Registration"}
+          </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Name"
-            placeholderTextColor="rgb(0, 0, 0)"
-            autoCapitalize="words"
-            value={name}
-            onChangeText={setName}
-          />
+          {step === 1 && renderStepOne()}
+          {step === 2 && renderStepTwo()}
+          {step === 3 && renderStepThree()}
 
-          <TextInput
-            style={styles.input}
-            placeholder="Phone Number" // Changed from email to phone
-            placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="phone-pad" // Changed keyboardType
-            autoCapitalize="none"
-            value={phone}
-            onChangeText={setPhone} // Changed setter
-          />
-
-          {/* Address field with locate icon on the right */}
-          {/* Keep this section if shops will be created immediately after owner signup with this address */}
-          {/* Note: The current backend owner registration doesn't take address, this would be for shop creation */}
-          <View style={styles.addressContainer}>
-            <TextInput
-              style={styles.addressInput}
-              placeholder="Address (for your shop)" // Clarified placeholder
-              placeholderTextColor="rgb(0, 0, 0)"
-              value={addressText}
-              onChangeText={setAddressText}
-            />
-            <TouchableOpacity
-              style={styles.locateButton}
-              onPress={() => setIsLocationModalVisible(true)}
-            >
-              <Ionicons name="location-outline" size={24} color="white" />
+          {step === 1 && (
+            <TouchableOpacity onPress={() => router.push("/owner-login")}>
+              <Text style={styles.registerText}>
+                Already have an account? <Text style={styles.link}>Login</Text>
+              </Text>
             </TouchableOpacity>
-          </View>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="rgb(0, 0, 0)"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-
-          <TouchableOpacity style={styles.buttonContainer} onPress={handleSignup}>
-            <LinearGradient
-              colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.button}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buttonText}>Sign Up</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => router.push("/owner-login")}>
-            <Text style={styles.registerText}>
-              Already have an account? <Text style={styles.link}>Login</Text>
-            </Text>
-          </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -318,6 +433,11 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     color: "rgb(0, 0, 0)",
+  },
+  otpMessage: {
+    color: "#FFFFFF",
+    marginBottom: 15,
+    textAlign: "center",
   },
   addressContainer: {
     flexDirection: "row",

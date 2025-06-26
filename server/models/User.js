@@ -12,10 +12,14 @@ const UserSchema = new Schema({
         type: String,
         required: true
     },
-    phone: {
+    email: {
         type: String,
         required: true,
         unique: true
+    },
+      emailVerified: {
+        type: Boolean,
+        default: false
     },
     expopushtoken: { // For push notifications
         type: String,
