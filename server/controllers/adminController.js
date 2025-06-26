@@ -127,7 +127,7 @@ const getShops = asyncHandler(async (req, res) => {
     try{
     console.log("here");
     const shops = await Shop.find({}).populate('owner', 'name email').populate('barbers', 'name');
-    console.log(shops);
+  
     res.json({ success: true, data: shops });}
     catch(err)
     {
@@ -146,7 +146,16 @@ const deleteShop = asyncHandler(async (req, res) => {
 
 // Added these missing functions for completeness as they were in the routes
 const getOwners = asyncHandler(async (req, res) => {
-    const owners = await Owner.find({}).select('-pass');
+    const owners = await Owner.find({})
+        .select('-pass') // Exclude the 'pass' field from the Owner document
+        .populate({
+            path: 'shops', // Populate the 'shops' field in the Owner document
+            model: 'Shop', // Specify the model to use for population (optional if ref is defined in schema)
+            populate: {
+                path: 'barbers', // For each populated shop, populate the 'barbers' field
+                model: 'Barber' // Specify the model for barbers
+            }
+        });
     res.json({ success: true, data: owners });
 });
 
