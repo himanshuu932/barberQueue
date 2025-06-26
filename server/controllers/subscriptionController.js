@@ -6,8 +6,10 @@ const { asyncHandler, ApiError } = require('../utils/errorHandler');
 // @route   POST /api/subscriptions
 // @access  Private (Admin)
 exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
+    try{
+    console.log("hio");
     const { name, price, duration, features } = req.body;
-
+     console.log(req.body);
     const subscriptionExists = await Subscription.findOne({ name });
     if (subscriptionExists) {
         throw new ApiError('Subscription plan with this name already exists', 400);
@@ -25,6 +27,11 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
         message: 'Subscription plan created successfully',
         data: subscriptionPlan,
     });
+}
+catch(err)
+{
+    console.log(err);
+}
 });
 
 // @desc    Get all available subscription plans
