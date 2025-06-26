@@ -2,14 +2,12 @@
   "expo": {
     "name": "Numbr",
     "slug": "barber",
-    "icon": "./assets/images/icon.jpg",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.jpg",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "projectId": "9f482a7d-4202-4875-86ce-a4507d9c4c45",
+    "projectId": "f198e5a9-f69f-4063-89ce-fa4f5387bb9e",
+    "icon": "./assets/images/icon.jpg",
     "ios": {
       "supportsTablet": true
     },
@@ -23,11 +21,10 @@
           "apiKey": "AIzaSyB_qepC3UG7dcdWG645NtYZHa3aserIJoY"
         }
       },
-      "notification": {
-    "icon": "./assets/images/ic_stat_ic_stat_noti.png",
-    "color": "#ffffff"
-     },
       "googleServicesFile": "./google-services.json"
+    },
+   "notification": {
+      "icon": "./assets/images/ic_stat_ic_stat_noti.png"
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +33,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -55,9 +53,8 @@
         "origin": false
       },
       "eas": {
-        "projectId": "9f482a7d-4202-4875-86ce-a4507d9c4c45"
+        "projectId": "f198e5a9-f69f-4063-89ce-fa4f5387bb9e"
       }
     }
   }
 }
- 
