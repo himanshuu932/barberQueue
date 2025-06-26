@@ -188,7 +188,7 @@ useEffect(() => {
       [{ text: "OK", onPress: () => fetchQueueData() }] // Refresh queue when alert dismissed
     );
   };
-
+   
   // Join responses
   const handleJoinResponse = (response) => {
     console.log('Join response:', response);
@@ -706,7 +706,11 @@ const updateUserServices = async () => {
       </View>
     );
   }
-
+    const handleShopSelection = async (selectedShopId) => {
+    await AsyncStorage.setItem("pinnedShop", selectedShopId);
+    setShopId(selectedShopId); // This will trigger data fetching for the new shop
+    router.back();
+  };
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage} resizeMode="cover">
       <View style={styles.overlay} />
@@ -714,7 +718,7 @@ const updateUserServices = async () => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.chooseShopButton}
-            onPress={() => router.navigate('/shop-selection', { onShopSelected: handleShopSelection })}
+            onPress={() => router.navigate('/shop-selection', { onShopSelected: handleShopSelection})}
           >
             <FontAwesome5 name="store" solid size={20} color="#fff" />
           </TouchableOpacity>
