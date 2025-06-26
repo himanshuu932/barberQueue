@@ -40,7 +40,7 @@ const registerAdmin = asyncHandler(async (req, res) => {
                 name: admin.name,
                 email: admin.email,
                 role: admin.role,
-                token: generateToken(admin._id),
+                token: generateToken(admin._id, admin.role),
             },
         });
     } else {
@@ -65,7 +65,7 @@ const adminLogin = asyncHandler(async (req, res) => {
                 name: admin.name,
                 email: admin.email,
                 role: admin.role,
-                token: generateToken(admin._id),
+                token: generateToken(admin._id, admin.role),
             },
         });
     } else {
@@ -124,8 +124,15 @@ const deleteUser = asyncHandler(async (req, res) => {
 });
 
 const getShops = asyncHandler(async (req, res) => {
-    const shops = await Shop.find({}).populate('owner', 'name email').populate('barbers', 'name').populate('services.service', 'name');
-    res.json({ success: true, data: shops });
+    try{
+    console.log("here");
+    const shops = await Shop.find({}).populate('owner', 'name email').populate('barbers', 'name');
+    console.log(shops);
+    res.json({ success: true, data: shops });}
+    catch(err)
+    {
+        console.log(err);
+    }
 });
 
 const deleteShop = asyncHandler(async (req, res) => {
