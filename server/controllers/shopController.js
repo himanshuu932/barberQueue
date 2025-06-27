@@ -22,7 +22,7 @@ const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'FdhuPV1HIA5bRYAI
 // - For Android Emulator: 'https://numbr-p7zc.onrender.com'
 // - For iOS Simulator/Device or Physical Android Device: Replace '10.0.2.2' with your computer's actual local IP address (e.g., 'http://192.168.1.X:5000')
 // - For Production/Public access: This should be your deployed backend's public URL (e.g., 'https://api.yourdomain.com')
-const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-p7zc.onrender.com'; 
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-exq6.onrender.com'; 
 
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({

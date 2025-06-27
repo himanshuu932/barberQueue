@@ -26,7 +26,7 @@ Notifications.setNotificationHandler({
 });
 
 // Updated API_BASE URL
-const API_BASE = "https://numbr-p7zc.onrender.com";
+const API_BASE = "https://numbr-exq6.onrender.com";
 
 // Function to register push notifications
 async function registerForPushNotifications(uid, userToken) {

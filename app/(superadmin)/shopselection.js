@@ -25,10 +25,10 @@ import * as Location from 'expo-location';
 
 import ShopsList from "../../components/owner/shops";
 
-const { width } = Dimensions.get("window");
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 // IMPORTANT: Replace with your actual backend API URL
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
+const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 
 // This function remains unchanged
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
@@ -537,90 +537,148 @@ const ShopSelection = () => {
       </ScrollView>
 
       {/* --- MODIFIED: "Add Shop Modal" with Map Integration --- */}
-      <Modal visible={isAddModalVisible} transparent animationType="slide">
-        {/* Make the modal content scrollable to accommodate the map */}
-        <ScrollView contentContainerStyle={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Shop</Text>
 
-            <Text style={styles.inputLabel}>Shop Name:</Text>
-            <TextInput style={styles.input} placeholder="Enter shop name" value={newShopData.name} onChangeText={(text) => setNewShopData({ ...newShopData, name: text })} />
+<Modal visible={isAddModalVisible} transparent animationType="slide">
+  <View style={styles.modalContainer}>
+    <View style={styles.modalContent}>
+      <Text style={styles.modalTitle}>Add New Shop</Text>
+      
+      <ScrollView style={styles.modalScrollView} contentContainerStyle={styles.modalScrollContent}>
+        <Text style={styles.inputLabel}>Shop Name:</Text>
+        <TextInput 
+          style={styles.input} 
+          placeholder="Enter shop name" 
+          value={newShopData.name} 
+          onChangeText={(text) => setNewShopData({ ...newShopData, name: text })} 
+        />
 
-            <Text style={styles.inputLabel}>Shop Address:</Text>
-            <TextInput style={styles.input} placeholder="Enter shop address" value={newShopData.address} onChangeText={(text) => setNewShopData({ ...newShopData, address: text })} />
+        <Text style={styles.inputLabel}>Shop Address:</Text>
+        <TextInput 
+          style={styles.input} 
+          placeholder="Enter shop address" 
+          value={newShopData.address} 
+          onChangeText={(text) => setNewShopData({ ...newShopData, address: text })} 
+        />
 
-            {/* --- NEW: Map View and Location Button --- */}
-            <Text style={styles.inputLabel}>Shop Location:</Text>
-            <View style={styles.mapContainer}>
-                <MapView
-                    style={styles.map}
-                    region={mapRegion}
-                    onPress={onMapPress}
-                    onRegionChangeComplete={setMapRegion}
-                >
-                    {newShopData.coordinates && <Marker coordinate={newShopData.coordinates} title="Shop Location" />}
-                </MapView>
-            </View>
-            <TouchableOpacity style={styles.locationButton} onPress={handleSetCurrentLocation}>
-                <FontAwesome5 name="location-arrow" size={16} color="#fff" />
-                <Text style={styles.locationButtonText}>Use My Current Location</Text>
-            </TouchableOpacity>
+        {/* Add Coordinates Input Field */}
+        <Text style={styles.inputLabel}>Coordinates (Lat, Lon):</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g., 12.3456, 78.9012"
+          value={
+            newShopData.coordinates 
+              ? `${newShopData.coordinates.latitude.toFixed(4)}, ${newShopData.coordinates.longitude.toFixed(4)}`
+              : ''
+          }
+          onChangeText={(text) => {
+            const parts = text.split(',').map(coord => parseFloat(coord.trim()));
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              setNewShopData({
+                ...newShopData,
+                coordinates: {
+                  latitude: parts[0],
+                  longitude: parts[1]
+                }
+              });
+            } else if (text === '') {
+              setNewShopData({
+                ...newShopData,
+                coordinates: null
+              });
+            }
+          }}
+        />
 
+        <Text style={styles.inputLabel}>Shop Location:</Text>
+        <View style={styles.mapContainer}>
+          <MapView
+            style={styles.map}
+            region={mapRegion}
+            onPress={onMapPress}
+            onRegionChangeComplete={setMapRegion}
+          >
+            {newShopData.coordinates && <Marker coordinate={newShopData.coordinates} title="Shop Location" />}
+          </MapView>
+        </View>
 
-            {/* Time Pickers and Image Carousel (unchanged JSX) */}
-             <Text style={styles.inputLabel}>Opening Time:</Text>
-            <TouchableOpacity onPress={() => setShowOpeningTimePicker(true)} style={styles.timeInputTouchable}>
-              <TextInput
-                style={styles.input}
-                placeholder="Select opening time"
-                value={newShopData.openingTime}
-                editable={false}
-              />
-              <Icon name="clock-o" size={20} color="#666" style={styles.timeInputIcon} />
-            </TouchableOpacity>
-            {showOpeningTimePicker && (
-              <DateTimePicker
-                testID="openingTimePicker"
-                value={tempOpeningTime}
-                mode="time"
-                is24Hour={true}
-                display="default"
-                onChange={onOpeningTimeChange}
-              />
-            )}
+        <View style={styles.locationButtonsContainer}>
+        <TouchableOpacity style={styles.locationButton} onPress={handleSetCurrentLocation}>
+          <FontAwesome5 name="location-arrow" size={16} color="#fff" />
+          <Text style={styles.locationButtonText}>Use My Current Location</Text>
+        </TouchableOpacity>
 
-            <Text style={styles.inputLabel}>Closing Time:</Text>
-            <TouchableOpacity onPress={() => setShowClosingTimePicker(true)} style={styles.timeInputTouchable}>
-              <TextInput
-                style={styles.input}
-                placeholder="Select closing time"
-                value={newShopData.closingTime}
-                editable={false}
-              />
-              <Icon name="clock-o" size={20} color="#666" style={styles.timeInputIcon} />
-            </TouchableOpacity>
-            {showClosingTimePicker && (
-              <DateTimePicker
-                testID="closingTimePicker"
-                value={tempClosingTime}
-                mode="time"
-                is24Hour={true}
-                display="default"
-                onChange={onClosingTimeChange}
-              />
-            )}
-            
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddModalVisible(false)}>
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddNewShop}>
-                <Text style={styles.modalButtonText}>Add Shop</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ScrollView>
-      </Modal>
+        <TouchableOpacity 
+            style={[styles.locationButton, styles.mapButton]}
+            onPress={() => {
+              // Center map on entered coordinates if they exist
+              if (newShopData.coordinates) {
+                setMapRegion({
+                  ...mapRegion,
+                  latitude: newShopData.coordinates.latitude,
+                  longitude: newShopData.coordinates.longitude,
+                });
+              }
+            }}
+          >
+            <Icon name="map" size={16} color="#fff" />
+            <Text style={styles.locationButtonText}>Center on Coordinates</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.inputLabel}>Opening Time:</Text>
+        <TouchableOpacity onPress={() => setShowOpeningTimePicker(true)} style={styles.timeInputTouchable}>
+          <TextInput
+            style={styles.input}
+            placeholder="Select opening time"
+            value={newShopData.openingTime}
+            editable={false}
+          />
+          <Icon name="clock-o" size={20} color="#666" style={styles.timeInputIcon} />
+        </TouchableOpacity>
+        {showOpeningTimePicker && (
+          <DateTimePicker
+            testID="openingTimePicker"
+            value={tempOpeningTime}
+            mode="time"
+            is24Hour={true}
+            display="default"
+            onChange={onOpeningTimeChange}
+          />
+        )}
+
+        <Text style={styles.inputLabel}>Closing Time:</Text>
+        <TouchableOpacity onPress={() => setShowClosingTimePicker(true)} style={styles.timeInputTouchable}>
+          <TextInput
+            style={styles.input}
+            placeholder="Select closing time"
+            value={newShopData.closingTime}
+            editable={false}
+          />
+          <Icon name="clock-o" size={20} color="#666" style={styles.timeInputIcon} />
+        </TouchableOpacity>
+        {showClosingTimePicker && (
+          <DateTimePicker
+            testID="closingTimePicker"
+            value={tempClosingTime}
+            mode="time"
+            is24Hour={true}
+            display="default"
+            onChange={onClosingTimeChange}
+          />
+        )}
+      </ScrollView>
+      
+      <View style={styles.modalButtonContainer}>
+        <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddModalVisible(false)}>
+          <Text style={styles.modalButtonText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddNewShop}>
+          <Text style={styles.modalButtonText}>Add Shop</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
 
       {/* ShopsList Details Modal (unchanged) */}
       <Modal animationType="slide" transparent={false} visible={isShopsListModalVisible} onRequestClose={handleCloseShopsListModal}>
@@ -641,16 +699,321 @@ const ShopSelection = () => {
 
 // --- ADDED/MODIFIED: New styles for carousel, map and location button ---
 const styles = StyleSheet.create({
-    // ... (All existing styles)
+
+  locationButtonsContainer: {
+  flexDirection: 'column',
+  justifyContent: 'space-between',
+  marginBottom: screenHeight * 0.01,
+},
+
+    backgroundImage: {
+        flex: 1,
+        resizeMode: "cover",
+        width: "100%",
+        height: "100%",
+    },
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: "rgba(237,236,236,0.77)",
+    },
+    container: {
+        flex: 1,
+        paddingHorizontal: screenWidth * 0.05,
+        paddingTop: screenHeight * 0.02,
+    },
+    contentContainer: {
+        paddingBottom: screenHeight * 0.04,
+    },
+    headerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: screenHeight * 0.03,
+    },
+    pageTitle: {
+        fontSize: screenWidth * 0.08,
+        fontWeight: "800",
+        color: "#333",
+        textShadowColor: 'rgba(0,0,0,0.1)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
+    addShopButtonHeader: {
+        backgroundColor: '#3498db',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: screenHeight * 0.01,
+        paddingHorizontal: screenWidth * 0.04,
+        borderRadius: screenWidth * 0.06,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.003 },
+        shadowOpacity: 0.2,
+        shadowRadius: screenWidth * 0.01,
+        elevation: 6,
+    },
+    addShopButtonHeaderText: {
+        color: '#fff',
+        fontSize: screenWidth * 0.04,
+        fontWeight: '600',
+        marginLeft: screenWidth * 0.015,
+    },
+    shopsList: {
+        width: "100%",
+    },
+    shopCard: {
+        backgroundColor: "#fff",
+        width: '100%',
+        borderRadius: screenWidth * 0.04,
+        overflow: "hidden",
+        marginBottom: screenHeight * 0.025,
+        elevation: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.006 },
+        shadowOpacity: 0.15,
+        shadowRadius: screenWidth * 0.02,
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+    },
+    shopImageContainer: {
+        position: "relative",
+        width: "100%",
+        height: screenHeight * 0.25,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    statusBadge: {
+        position: 'absolute',
+        top: screenHeight * 0.02,
+        left: screenWidth * 0.04,
+        borderRadius: screenWidth * 0.02,
+        paddingVertical: screenHeight * 0.005,
+        paddingHorizontal: screenWidth * 0.03,
+        minWidth: screenWidth * 0.15, 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        zIndex: 1,
+    },
+    statusText: {
+        fontSize: screenWidth * 0.035,
+        fontWeight: 'bold',
+        color: '#fff',
+    },
+    statusOpenBackground: {
+        backgroundColor: '#28a745', 
+    },
+    statusClosedBackground: {
+        backgroundColor: '#dc3545', 
+    },
+    statusToggle: {
+        position: 'absolute',
+        top: screenHeight * 0.015,
+        right: screenWidth * 0.03,
+        transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
+        zIndex: 1,
+    },
+    shopDetails: {
+        padding: screenWidth * 0.04,
+    },
+    shopName: {
+        fontSize: screenWidth * 0.05,
+        fontWeight: "700",
+        color: "#2c3e50",
+        marginBottom: screenHeight * 0.01,
+    },
+    shopAddress: {
+        fontSize: screenWidth * 0.035,
+        color: "#666",
+        marginBottom: screenHeight * 0.01,
+    },
+    ratingTimeContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: screenHeight * 0.01,
+        paddingTop: screenHeight * 0.01,
+        borderTopWidth: 1,
+        borderTopColor: '#f5f5f5',
+    },
+    ratingContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    starsContainer: {
+        flexDirection: "row",
+    },
+    ratingText: {
+        fontSize: screenWidth * 0.04,
+        fontWeight: "700",
+        color: "#555",
+        marginLeft: screenWidth * 0.01,
+    },
+    timeContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    timeText: {
+        fontSize: screenWidth * 0.035,
+        color: "#666",
+        marginLeft: screenWidth * 0.01,
+    },
+    modalContainer: {
+  flex: 1,
+  justifyContent: "center",
+  alignItems: "center",
+  backgroundColor: "rgba(0,0,0,0.6)",
+},
+    modalContent: {
+  width: "90%",
+  maxHeight: '90%', // Limit the maximum height
+  backgroundColor: "#FFFFFF",
+  padding: screenWidth * 0.05,
+  borderRadius: screenWidth * 0.07,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 10 },
+  shadowOpacity: 0.25,
+  shadowRadius: 25,
+  elevation: 20,
+},
+modalScrollView: {
+  flexGrow: 0, // Prevent the ScrollView from taking all available space
+  maxHeight: '100%', // Limit the height to leave space for buttons
+},
+// modalScrollContent: {
+//   paddingBottom: 20, // Add some padding at the bottom
+// },
+    modalTitle: {
+  fontSize: screenWidth * 0.068,
+  fontWeight: "bold",
+  marginBottom: 20,
+  color: "#007BFF",
+  textAlign: 'center',
+},
+    inputLabel: {
+        alignSelf: 'flex-start',
+        fontSize: screenWidth * 0.04,
+        color: '#555',
+        marginBottom: screenHeight * 0.01,
+        fontWeight: '600',
+    },
+    input: {
+        width: "100%",
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: screenWidth * 0.03,
+        padding: screenHeight * 0.015,
+        marginBottom: screenHeight * 0.02,
+        fontSize: screenWidth * 0.04,
+        backgroundColor: "#fefefe",
+    },
+    timeInputTouchable: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: screenHeight * 0.02,
+    },
+    timeInputIcon: {
+        position: 'absolute',
+        right: screenWidth * 0.04,
+        top: screenHeight * 0.015,
+    },
+    modalButtonContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        width: "100%",
+        marginTop: screenHeight * 0.03,
+    },
+    modalButton: {
+        paddingVertical: screenHeight * 0.015,
+        paddingHorizontal: screenWidth * 0.05,
+        borderRadius: screenWidth * 0.02,
+        alignItems: "center",
+        flex: 1,
+        marginHorizontal: screenWidth * 0.02,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.003 },
+        shadowOpacity: 0.25,
+        shadowRadius: screenWidth * 0.01,
+        elevation: 7,
+    },
+    modalButtonText: {
+        color: "#fff",
+        fontSize: screenWidth * 0.04,
+        fontWeight: "bold",
+    },
+    saveButton: {
+        backgroundColor: "#28a745",
+    },
+    cancelButton: {
+        backgroundColor: "#6c757d",
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f8f9fa',
+    },
+    loadingText: {
+        marginTop: screenHeight * 0.02,
+        fontSize: screenWidth * 0.045,
+        color: '#555',
+        fontWeight: '500',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f8f9fa',
+        padding: screenWidth * 0.06,
+    },
+    errorText: {
+        fontSize: screenWidth * 0.045,
+        color: '#dc3545',
+        textAlign: 'center',
+        marginBottom: screenHeight * 0.025,
+        fontWeight: '600',
+    },
+    retryButton: {
+        backgroundColor: '#007bff',
+        paddingVertical: screenHeight * 0.015,
+        paddingHorizontal: screenWidth * 0.06,
+        borderRadius: screenWidth * 0.02,
+    },
+    retryButtonText: {
+        color: '#fff',
+        fontSize: screenWidth * 0.04,
+        fontWeight: 'bold',
+    },
+    noShopsContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: screenHeight * 0.07,
+        padding: screenWidth * 0.06,
+        backgroundColor: '#ffffff',
+        borderRadius: screenWidth * 0.04,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.004 },
+        shadowOpacity: 0.1,
+        shadowRadius: screenWidth * 0.02,
+        elevation: 5,
+        marginHorizontal: screenWidth * 0.03,
+    },
+    noShopsText: {
+        fontSize: screenWidth * 0.045,
+        color: '#777',
+        textAlign: 'center',
+        lineHeight: screenHeight * 0.03,
+        fontWeight: '500',
+    },
+    // --- NEW: Map and Carousel Styles ---
     mapContainer: {
         width: '100%',
-        height: 250,
-        borderRadius: 12,
+        height: screenHeight * 0.3,
+        borderRadius: screenWidth * 0.03,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: '#ccc',
-        marginBottom: 10,
-        backgroundColor: '#e0e0e0' // Placeholder color
+        marginBottom: screenHeight * 0.01,
+        backgroundColor: '#e0e0e0'
     },
     map: {
         ...StyleSheet.absoluteFillObject,
@@ -658,422 +1021,65 @@ const styles = StyleSheet.create({
     locationButton: {
         flexDirection: 'row',
         backgroundColor: '#007bff',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 10,
+        paddingVertical: screenHeight * 0.015,
+        paddingHorizontal: screenWidth * 0.05,
+        borderRadius: screenWidth * 0.02,
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
-        marginBottom: 18,
+        marginBottom: screenHeight * 0.02,
         elevation: 4,
     },
     locationButtonText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: screenWidth * 0.04,
         fontWeight: 'bold',
-        marginLeft: 10,
+        marginLeft: screenWidth * 0.02,
     },
-    // --- MODIFIED: Make modal container a flex start for scroll view ---
-    modalContainer: {
-      flexGrow: 1, // Changed from flex: 1
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.7)",
-      paddingVertical: 50 // Add padding for better scroll view appearance
-    },
-    // --- NEW CAROUSEL STYLES ---
     carouselContainer: {
-      width: "100%",
-      height: 180, // Same height as original shopImage
-      position: 'relative',
+        width: "100%",
+        height: screenHeight * 0.25,
+        position: 'relative',
     },
     carouselImage: {
-      width: width - 40, // width of the screen minus horizontal padding of the card
-      height: "100%",
-      resizeMode: "cover",
+        width: screenWidth * 0.9,
+        height: "100%",
+        resizeMode: "cover",
     },
     carouselPlaceholder: {
-      width: "100%",
-      height: "100%",
-      backgroundColor: '#f5f5f5',
-      justifyContent: 'center',
-      alignItems: 'center',
+        width: "100%",
+        height: "100%",
+        backgroundColor: '#f5f5f5',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     carouselPlaceholderText: {
-      color: '#888',
-      fontSize: 16,
+        color: '#888',
+        fontSize: screenWidth * 0.04,
     },
     pagination: {
-      position: 'absolute',
-      bottom: 10,
-      width: '100%',
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
+        position: 'absolute',
+        bottom: screenHeight * 0.01,
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     paginationDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: 'rgba(255,255,255,0.6)',
-      marginHorizontal: 4,
-      borderColor: '#333',
-      borderWidth: 0.5,
+        width: screenWidth * 0.02,
+        height: screenWidth * 0.02,
+        borderRadius: screenWidth * 0.01,
+        backgroundColor: 'rgba(255,255,255,0.6)',
+        marginHorizontal: screenWidth * 0.01,
+        borderColor: '#333',
+        borderWidth: 0.5,
     },
     paginationDotActive: {
-      backgroundColor: '#007bff',
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+        backgroundColor: '#007bff',
+        width: screenWidth * 0.025,
+        height: screenWidth * 0.025,
+        borderRadius: screenWidth * 0.0125,
     },
-    // Paste the rest of your original styles here
-      backgroundImage: {
-    flex: 1,
-    resizeMode: "cover",
-    width: "100%",
-    height: "100%",
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(237,236,236,0.77)",
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 40,
-  },
-  contentContainer: {
-    paddingBottom: 30,
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 25,
-  },
-  pageTitle: {
-    fontSize: 34,
-    fontWeight: "800",
-    color: "#2c3e50",
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  addShopButtonHeader: {
-    backgroundColor: '#3498db',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 25,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 6,
-  },
-  addShopButtonHeaderText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-    marginLeft: 7,
-  },
-  shopsList: {
-    width: "100%",
-  },
-  shopCard: {
-    backgroundColor: "#fff",
-    width: '100%',
-    borderRadius: 15,
-    overflow: "hidden",
-    marginBottom: 20,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  shopImageContainer: {
-    position: "relative",
-    width: "100%",
-    height: 180,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  shopImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  statusBadge: {
-    position: 'absolute',
-    top: 15,
-    left: 15,
-    borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    minWidth: 70, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    zIndex: 1, // Ensure badge is above carousel
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  statusOpenBackground: {
-    backgroundColor: '#28a745', 
-  },
-  statusClosedBackground: {
-    backgroundColor: '#dc3545', 
-  },
-  statusToggle: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
-    zIndex: 1, // Ensure toggle is above carousel
-  },
-  shopDetails: {
-    padding: 15,
-  },
-  shopName: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#2c3e50",
-    marginBottom: 8,
-  },
-  shopAddress: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 10,
-  },
-  ratingTimeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f5f5f5',
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  starsContainer: {
-    flexDirection: "row",
-  },
-  ratingText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#555",
-    marginLeft: 5,
-  },
-  timeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  timeText: {
-    fontSize: 14,
-    color: "#666",
-    marginLeft: 5,
-  },
-  modalContent: {
-    width: "90%",
-    backgroundColor: "#fff",
-    padding: 30,
-    borderRadius: 20,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 20,
-  },
-  modalTitle: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 25,
-    color: "#333",
-  },
-  inputLabel: {
-    alignSelf: 'flex-start',
-    fontSize: 15,
-    color: '#555',
-    marginBottom: 6,
-    fontWeight: '600',
-  },
-  input: {
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 18,
-    fontSize: 16,
-    backgroundColor: "#fefefe",
-  },
-  timeInputTouchable: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  timeInputIcon: {
-    position: 'absolute',
-    right: 15,
-    top: 14,
-  },
-  carouselImagesTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#555',
-    marginBottom: 12,
-    alignSelf: 'flex-start',
-  },
-  carouselEditScrollHorizontal: {
-    width: '100%',
-    height: 120,
-    marginBottom: 20,
-  },
-  carouselImagesGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 5,
-  },
-  carouselEditImageContainer: {
-    position: 'relative',
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#eee',
-    marginRight: 10,
-  },
-  carouselEditImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 15,
-    padding: 3,
-  },
-  addImageButton: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#e3f2fd',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#64b5f6',
-    borderStyle: 'dashed',
-    marginRight: 10,
-  },
-  addImageButtonText: {
-    fontSize: 12,
-    color: '#007bff',
-    marginTop: 5,
-    fontWeight: '600',
-  },
-  modalButtonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginTop: 25,
-  },
-  modalButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignItems: "center",
-    flex: 1,
-    marginHorizontal: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 7,
-  },
-  modalButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  saveButton: {
-    backgroundColor: "#28a745",
-  },
-  cancelButton: {
-    backgroundColor: "#6c757d",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-  },
-  loadingText: {
-    marginTop: 15,
-    fontSize: 19,
-    color: '#555',
-    fontWeight: '500',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    padding: 25,
-  },
-  errorText: {
-    fontSize: 19,
-    color: '#dc3545',
-    textAlign: 'center',
-    marginBottom: 20,
-    fontWeight: '600',
-  },
-  retryButton: {
-    backgroundColor: '#007bff',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 10,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: 'bold',
-  },
-  noShopsContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 60,
-    padding: 25,
-    backgroundColor: '#ffffff',
-    borderRadius: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    marginHorizontal: 10,
-  },
-  noShopsText: {
-    fontSize: 19,
-    color: '#777',
-    textAlign: 'center',
-    lineHeight: 28,
-    fontWeight: '500',
-  },
 });
 
 export default ShopSelection;

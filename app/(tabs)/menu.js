@@ -21,8 +21,8 @@ Notifications.setNotificationHandler({
 });
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
-const API_BASE = "https://numbr-p7zc.onrender.com/api";
-const API_BASE2 = "https://numbr-p7zc.onrender.com";
+const API_BASE = "https://numbr-exq6.onrender.com/api";
+const API_BASE2 = "https://numbr-exq6.onrender.com";
 export default function MenuScreen() {
 
   const [queueLength, setQueueLength] = useState(0);

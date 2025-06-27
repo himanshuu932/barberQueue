@@ -27,7 +27,7 @@ const fontScale = PixelRatio.getFontScale();
 const getResponsiveFontSize = (size) => size / fontScale;
 
 // Base API URL
-const API_BASE = "https://numbr-p7zc.onrender.com/api";
+const API_BASE = "https://numbr-exq6.onrender.com/api";
 
 // Define a consistent color palette with reverted colors for specific elements
 const colors = {

@@ -33,7 +33,7 @@ export default function SignupScreen() {
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  const API_BASE = "https://numbr-p7zc.onrender.com";
+  const API_BASE = "https://numbr-exq6.onrender.com";
 
   // Register for push notifications
   useEffect(() => {

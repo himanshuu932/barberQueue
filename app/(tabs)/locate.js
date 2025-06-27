@@ -96,7 +96,7 @@ export default function LocateScreen() {
       if (shopId) {
         // Corrected URL to fetch coordinates for a specific shop
         const response = await fetch(
-          `https://numbr-p7zc.onrender.com/api/shops/${shopId}/coordinates`
+          `https://numbr-exq6.onrender.com/api/shops/${shopId}/coordinates`
         );
         const data = await response.json();
         //console.log("Shop coordinates API response:", data);
