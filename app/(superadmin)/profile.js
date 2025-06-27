@@ -38,7 +38,7 @@ export default function TabProfileScreen() {
         password: "", // Added for optional new password
     });
     const [ownerId, setOwnerId] = useState(null);
-    const API_BASE = "https://numbr-p7zc.onrender.com";
+    const API_BASE = "https://numbr-exq6.onrender.com";
 
     useFocusEffect(
         useCallback(() => {

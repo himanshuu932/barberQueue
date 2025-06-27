@@ -42,7 +42,7 @@ const IST_TIMEZONE = 'Asia/Kolkata';
 const screenWidth = Dimensions.get("window").width - 32;
 
 // --- CONFIGURATION ---
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com';
+const API_BASE_URL = 'https://numbr-exq6.onrender.com';
 
 const History = ({ onClose }) => {
   // Filter States

@@ -22,7 +22,7 @@ import { io } from "socket.io-client";
 import { useFocusEffect } from "@react-navigation/native";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const API_BASE = "https://numbr-p7zc.onrender.com";
+const API_BASE = "https://numbr-exq6.onrender.com";
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);

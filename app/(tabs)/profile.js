@@ -23,7 +23,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import RatingModal from "../../components/user/RatingModal";
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
-const API_BASE = "https://numbr-p7zc.onrender.com/api";
+const API_BASE = "https://numbr-exq6.onrender.com/api";
 
 export default function TabProfileScreen() {
   const router = useRouter();

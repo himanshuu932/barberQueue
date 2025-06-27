@@ -16,7 +16,7 @@ import ServicesList from "./ServicesList";
 import BarbersList from "./BarbersList";
 import DangerZone from "./DangerZone";
 
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
+const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
   try {

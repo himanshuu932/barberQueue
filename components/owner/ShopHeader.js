@@ -27,7 +27,7 @@ import MapView, { Marker } from 'react-native-maps'; // Import for map functiona
 import * as Location from 'expo-location'; // Import for location functionality
 
 const { width: screenWidth } = Dimensions.get("window");
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
+const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0';
 
 const ShopHeader = ({ shop, userToken, onShopUpdate }) => {

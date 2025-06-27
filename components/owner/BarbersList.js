@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 
-const API_BASE_URL = 'https://numbr-p7zc.onrender.com/api';
+const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 
 const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
     const [isAddBarberModalVisible, setIsAddBarberModalVisible] = useState(false);
