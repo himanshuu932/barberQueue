@@ -97,12 +97,12 @@ export default function TabProfileScreen() {
 
   const shineTranslateX = shineAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [-200, 900],
+    outputRange: [-screenWidth * 0.5, screenWidth * 1.8],
   });
 
   const shineTranslateY = shineAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [-200, 250],
+    outputRange: [-screenHeight * 0.9, screenHeight * 0.3],
   });
 
   const confirmLogout = async () => {
@@ -171,105 +171,93 @@ export default function TabProfileScreen() {
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage} resizeMode="cover">
       <View style={styles.overlay} />
       <View style={styles.container}>
-          {/* Profile Card */}
-          <View style={styles.profileBox}>
-            <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => {
-                  setEditedProfile({
-                    name: profile?.name || "",
-                    email: profile?.email || ""
-                  });
-                  setIsModalVisible(true);
-                }}
-              >
-                <Image
-                  source={require("../image/editw.png")}
-                  style={{ width: screenWidth * 0.06, height: screenWidth * 0.06, tintColor: "white" }}
-                />
-              </TouchableOpacity>
+        {/* Profile Card */}
+        <View style={styles.profileBox}>
+          <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => {
+                setEditedProfile({
+                  name: profile?.name || "",
+                  email: profile?.email || ""
+                });
+                setIsModalVisible(true);
+              }}
+            >
+              <Image
+                source={require("../image/editw.png")}
+                style={{ width: screenWidth * 0.06, height: screenWidth * 0.06, tintColor: "white" }}
+              />
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={() => setIsLogoutModalVisible(true)}
-              >
-                <Icon name="sign-out" size={screenWidth * 0.06} color="white" />
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={() => setIsLogoutModalVisible(true)}
+            >
+              <Icon name="sign-out" size={screenWidth * 0.06} color="white" />
+            </TouchableOpacity>
 
-              <Animated.View
-                style={[
-                  styles.shine,
-                  {
-                    transform: [
-                      { translateX: shineAnimation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-200, screenWidth * 2.5],
-                      }) },
-                      { translateY: shineAnimation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-200, screenHeight * 0.3],
-                      }) },
-                      { rotate: "45deg" },
-                    ],
-                  },
-                ]}
-              >
-                <LinearGradient
-                  colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.shineGradient}
-                />
-              </Animated.View>
+            <Animated.View
+              style={[
+                styles.shine,
+                { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] },
+              ]}
+            >
+              <LinearGradient
+                colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.shineGradient}
+              />
+            </Animated.View>
 
-              <View style={styles.profileContent}>
-                <Image source={require("../image/user.png")} style={styles.profileImage} />
-                <View style={styles.profileDetails}>
-                  <Text style={styles.username}>{profile?.name || "User Name"}</Text>
-                  <Text style={styles.userInfo}>{profile?.email || profile?.phone || "N/A"}</Text>
+            <View style={styles.profileContent}>
+              <Image source={require("../image/user.png")} style={styles.profileImage} />
+              <View style={styles.profileDetails}>
+                <Text style={styles.username}>{profile?.name || "User Name"}</Text>
+                <Text style={styles.userInfo}>{profile?.email || profile?.phone || "N/A"}</Text>
 
-                  {profile?.subscription?.status && (
-                    <Text style={styles.subscriptionText}>
-                      Subscription: {profile.subscription.status === 'trial' ? 'Trial' :
+                {profile?.subscription?.status && (
+                  <Text style={styles.subscriptionText}>
+                    Subscription: {profile.subscription.status === 'trial' ? 'Trial' :
                       profile.subscription.status.charAt(0).toUpperCase() + profile.subscription.status.slice(1)}
-                    </Text>
-                  )}
-
-                  {profile?.subscription?.status === 'trial' && profile?.subscription?.trialEndDate && (
-                    <Text style={styles.subscriptionText}>
-                      Trial Ends: {formatTrialEndDate(profile.subscription.trialEndDate)}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            </LinearGradient>
-          </View>
-
-          {/* Service History */}
-          <View style={styles.serviceHistoryContainer}>
-            <Text style={styles.sectionTitle}>Service History</Text>
-            <View style={styles.historyBox}>
-              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} >
-                {profile?.history?.length ? (
-                  profile.history.map((item, index) => (
-                    <TouchableOpacity key={index} style={styles.historyCard} onPress={() => showHistoryDetail(item)}>
-                      <View style={styles.paymentRow}>
-                        <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
-                        <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
-                      </View>
-                      <Text style={styles.historyService}>
-                        {item.services?.map(s => s.name || 'Unknown Service').join(', ')}
-                      </Text>
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <Text style={styles.noHistory}>No service history available.</Text>
+                  </Text>
                 )}
-              </ScrollView>
+
+                {profile?.subscription?.status === 'trial' && profile?.subscription?.trialEndDate && (
+                  <Text style={styles.subscriptionText}>
+                    Trial Ends: {formatTrialEndDate(profile.subscription.trialEndDate)}
+                  </Text>
+                )}
+              </View>
             </View>
+          </LinearGradient>
+        </View>
+
+        {/* Service History */}
+        <View style={styles.serviceHistoryContainer}>
+          <Text style={styles.sectionTitle}>Service History</Text>
+          <View style={styles.historyBox}>
+            <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} >
+              {profile?.history?.length ? (
+                profile.history.map((item, index) => (
+                  <TouchableOpacity key={index} style={styles.historyCard} onPress={() => showHistoryDetail(item)}>
+                    <View style={styles.paymentRow}>
+                      <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
+                      <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
+                    </View>
+                    <Text style={styles.historyService}>
+                      {item.services?.map(s => s.name || 'Unknown Service').join(', ')}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={styles.noHistory}>No service history available.</Text>
+              )}
+            </ScrollView>
           </View>
-        
+        </View>
+
 
         {/* Terms and Privacy Policy */}
         <View style={styles.infoGrid}>
@@ -350,119 +338,119 @@ export default function TabProfileScreen() {
       </Modal>
 
       {/* History Detail Modal */}
-<Modal visible={isHistoryDetailModalVisible} transparent animationType="slide">
-  <View style={styles.modalContainer}>
-    <View style={styles.detailModalContent}>
-      <View style={styles.detailModalHeader}>
-        <Text style={styles.detailModalTitle}>Service Details</Text>
-        <TouchableOpacity 
-          style={styles.detailModalCloseButton}
-          onPress={() => setIsHistoryDetailModalVisible(false)}
-        >
-          <Icon name="times" size={screenWidth * 0.06} color="#666" />
-        </TouchableOpacity>
-      </View>
-      
-      {selectedHistoryItem && (
-        <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={false}>
-          <View style={styles.detailCard}>
-            <View style={styles.detailRow}>
-              <Icon name="calendar" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-              <Text style={styles.detailText}>
-                <Text style={styles.detailLabel}>Date: </Text> 
-                {new Date(selectedHistoryItem.date).toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </Text>
+      <Modal visible={isHistoryDetailModalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.detailModalContent}>
+            <View style={styles.detailModalHeader}>
+              <Text style={styles.detailModalTitle}>Service Details</Text>
+              <TouchableOpacity
+                style={styles.detailModalCloseButton}
+                onPress={() => setIsHistoryDetailModalVisible(false)}
+              >
+                <Icon name="times" size={screenWidth * 0.06} color="#666" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.detailDivider} />
+            {selectedHistoryItem && (
+              <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={false}>
+                <View style={styles.detailCard}>
+                  <View style={styles.detailRow}>
+                    <Icon name="calendar" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                    <Text style={styles.detailText}>
+                      <Text style={styles.detailLabel}>Date: </Text>
+                      {new Date(selectedHistoryItem.date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </Text>
+                  </View>
 
-            <View style={styles.detailRow}>
-              <Icon name="money" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-              <Text style={styles.detailText}>
-                <Text style={styles.detailLabel}>Total Cost: </Text> 
-                <Text style={styles.detailAmount}>₹{selectedHistoryItem.totalCost?.toFixed(2) || '0.00'}</Text>
-              </Text>
-            </View>
+                  <View style={styles.detailDivider} />
 
-            <View style={styles.detailDivider} />
+                  <View style={styles.detailRow}>
+                    <Icon name="money" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                    <Text style={styles.detailText}>
+                      <Text style={styles.detailLabel}>Total Cost: </Text>
+                      <Text style={styles.detailAmount}>₹{selectedHistoryItem.totalCost?.toFixed(2) || '0.00'}</Text>
+                    </Text>
+                  </View>
 
-            <View style={styles.detailSection}>
-              <View style={styles.detailRow}>
-                <Icon name="scissors" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-                <Text style={styles.detailSectionTitle}>Services</Text>
-              </View>
-              {selectedHistoryItem.services?.length > 0 ? (
-                selectedHistoryItem.services.map((s, idx) => (
-                  <View key={idx} style={styles.serviceItem}>
-                    <View style={styles.serviceInfo}>
-                      <Text style={styles.serviceName}>• {s.name || 'Unknown Service'}</Text>
-                      <Text style={styles.servicePrice}>₹{s.price?.toFixed(2) || 'N/A'}</Text>
+                  <View style={styles.detailDivider} />
+
+                  <View style={styles.detailSection}>
+                    <View style={styles.detailRow}>
+                      <Icon name="scissors" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                      <Text style={styles.detailSectionTitle}>Services</Text>
+                    </View>
+                    {selectedHistoryItem.services?.length > 0 ? (
+                      selectedHistoryItem.services.map((s, idx) => (
+                        <View key={idx} style={styles.serviceItem}>
+                          <View style={styles.serviceInfo}>
+                            <Text style={styles.serviceName}>• {s.name || 'Unknown Service'}</Text>
+                            <Text style={styles.servicePrice}>₹{s.price?.toFixed(2) || 'N/A'}</Text>
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.noServicesText}>No services listed</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.detailDivider} />
+
+                  <View style={styles.barberShopContainer}>
+                    {/* Barber Section */}
+                    <View style={styles.barberShopSection}>
+                      <View style={styles.barberShopHeader}>
+                        <Icon name="user" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                        <Text style={styles.barberShopLabel}>Barber</Text>
+                      </View>
+                      <Text style={styles.barberShopValue}>
+                        {selectedHistoryItem.barber?.name || 'Unknown'}
+                      </Text>
+                    </View>
+
+                    {/* Shop Section */}
+                    <View style={styles.barberShopSection}>
+                      <View style={styles.barberShopHeader}>
+                        <Icon name="home" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                        <Text style={styles.barberShopLabel}>Shop</Text>
+                      </View>
+                      <Text style={styles.barberShopValue}>
+                        {selectedHistoryItem.shop?.name || 'Unknown'}
+                      </Text>
                     </View>
                   </View>
-                ))
-              ) : (
-                <Text style={styles.noServicesText}>No services listed</Text>
-              )}
-            </View>
 
-            <View style={styles.detailDivider} />
-
-            <View style={styles.barberShopContainer}>
-              {/* Barber Section */}
-              <View style={styles.barberShopSection}>
-                <View style={styles.barberShopHeader}>
-                  <Icon name="user" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-                  <Text style={styles.barberShopLabel}>Barber</Text>
+                  {selectedHistoryItem.isRated ? (
+                    <>
+                      <View style={styles.detailDivider} />
+                      <View style={styles.ratingdetailSection}>
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailSectionTitle}>Your Rating</Text>
+                        </View>
+                        <View style={styles.ratingContainer}>
+                          <Text style={styles.ratingText}>{selectedHistoryItem.rating}</Text>
+                          <Icon name="star" size={screenWidth * 0.05} color="#FFD700" />
+                        </View>
+                      </View>
+                    </>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.rateButton}
+                      onPress={handleRateService}
+                    >
+                      <Text style={styles.rateButtonText}>Rate This Service</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <Text style={styles.barberShopValue}>
-                  {selectedHistoryItem.barber?.name || 'Unknown'}
-                </Text>
-              </View>
-
-              {/* Shop Section */}
-              <View style={styles.barberShopSection}>
-                <View style={styles.barberShopHeader}>
-                  <Icon name="home" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-                  <Text style={styles.barberShopLabel}>Shop</Text>
-                </View>
-                <Text style={styles.barberShopValue}>
-                  {selectedHistoryItem.shop?.name || 'Unknown'}
-                </Text>
-              </View>
-            </View>
-
-            {selectedHistoryItem.isRated ? (
-              <>
-                <View style={styles.detailDivider} />
-                <View style={styles.ratingdetailSection}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailSectionTitle}>Your Rating</Text>
-                  </View>
-                  <View style={styles.ratingContainer}>
-                    <Text style={styles.ratingText}>{selectedHistoryItem.rating}</Text>
-                    <Icon name="star" size={screenWidth * 0.05} color="#FFD700" />
-                  </View>
-                </View>
-              </>
-            ) : (
-              <TouchableOpacity
-                style={styles.rateButton}
-                onPress={handleRateService}
-              >
-                <Text style={styles.rateButtonText}>Rate This Service</Text>
-              </TouchableOpacity>
+              </ScrollView>
             )}
           </View>
-        </ScrollView>
-      )}
-    </View>
-  </View>
-</Modal>
+        </View>
+      </Modal>
 
       {/* Rating Modal Component */}
       <RatingModal
@@ -482,165 +470,165 @@ export default function TabProfileScreen() {
 const styles = StyleSheet.create({
 
   barberShopContainer: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  marginBottom: screenHeight * 0.02,
-},
-// barberShopSection: {
-//   width: '48%', // Slightly less than half to account for spacing
-// },
-barberShopHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: screenHeight * 0.005,
-},
-barberShopLabel: {
-  fontSize: screenWidth * 0.04,
-  fontWeight: '600',
-  color: '#333',
-  // marginLeft: screenWidth * 0.02,
-},
-barberShopValue: {
-  fontSize: screenWidth * 0.038,
-  color: '#555',
-  // paddingLeft: screenWidth * 0.05, // Align with icon
-},
-ratingdetailSection: {
-  flexDirection: "row",
-  justifyContent: "space-between"
-},
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: screenHeight * 0.02,
+  },
+  // barberShopSection: {
+  //   width: '48%', // Slightly less than half to account for spacing
+  // },
+  barberShopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: screenHeight * 0.005,
+  },
+  barberShopLabel: {
+    fontSize: screenWidth * 0.04,
+    fontWeight: '600',
+    color: '#333',
+    // marginLeft: screenWidth * 0.02,
+  },
+  barberShopValue: {
+    fontSize: screenWidth * 0.038,
+    color: '#555',
+    // paddingLeft: screenWidth * 0.05, // Align with icon
+  },
+  ratingdetailSection: {
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
   // Add these to your StyleSheet
-detailModalContent: {
-  width: "90%",
-  maxWidth: screenWidth * 0.9,
-  backgroundColor: "#fff",
-  borderRadius: screenWidth * 0.04,
-  elevation: 10,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: screenHeight * 0.005 },
-  shadowOpacity: 0.2,
-  shadowRadius: screenWidth * 0.02,
-  maxHeight: screenHeight * 0.8,
-},
-detailModalHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: screenWidth * 0.05,
-  borderBottomWidth: 1,
-  borderBottomColor: '#f0f0f0',
-},
-detailModalTitle: {
-  fontSize: screenWidth * 0.055,
-  fontWeight: '700',
-  color: '#333',
-},
-detailModalCloseButton: {
-  padding: screenWidth * 0.01,
-},
-detailScrollView: {
-  paddingHorizontal: screenWidth * 0.05,
-  paddingBottom: screenHeight * 0.02,
-},
-detailCard: {
-  backgroundColor: '#fff',
-  borderRadius: screenWidth * 0.03,
-  padding: screenWidth * 0.04,
-},
-detailRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: screenHeight * 0.01,
-},
-detailIcon: {
-  marginRight: screenWidth * 0.03,
-},
-detailText: {
-  fontSize: screenWidth * 0.042,
-  color: '#555',
-  lineHeight: screenHeight * 0.028,
-},
-detailLabel: {
-  fontWeight: '600',
-  color: '#333',
-},
-detailAmount: {
-  fontWeight: '700',
-  color: '#28a745',
-},
-detailDivider: {
-  height: 1,
-  backgroundColor: '#f0f0f0',
-  marginBottom: screenHeight * 0.015,
-},
-detailSection: {
-  marginBottom: screenHeight * 0.01,
-},
-detailSectionTitle: {
-  fontSize: screenWidth * 0.045,
-  fontWeight: '600',
-  color: '#333',
-},
-serviceItem: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  paddingVertical: screenHeight * 0.008,
-  paddingHorizontal: screenWidth * 0.02,
-  backgroundColor: '#f9f9f9',
-  borderRadius: screenWidth * 0.02,
-  marginBottom: screenHeight * 0.008,
-},
-serviceInfo: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  flex: 1,
-},
-serviceName: {
-  fontSize: screenWidth * 0.038,
-  color: '#555',
-  flex: 1,
-},
-servicePrice: {
-  fontSize: screenWidth * 0.038,
-  fontWeight: '600',
-  color: '#333',
-  marginLeft: screenWidth * 0.02,
-},
+  detailModalContent: {
+    width: "90%",
+    maxWidth: screenWidth * 0.9,
+    backgroundColor: "#fff",
+    borderRadius: screenWidth * 0.04,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: screenHeight * 0.005 },
+    shadowOpacity: 0.2,
+    shadowRadius: screenWidth * 0.02,
+    maxHeight: screenHeight * 0.8,
+  },
+  detailModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: screenWidth * 0.05,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  detailModalTitle: {
+    fontSize: screenWidth * 0.055,
+    fontWeight: '700',
+    color: '#333',
+  },
+  detailModalCloseButton: {
+    padding: screenWidth * 0.01,
+  },
+  detailScrollView: {
+    paddingHorizontal: screenWidth * 0.05,
+    paddingBottom: screenHeight * 0.02,
+  },
+  detailCard: {
+    backgroundColor: '#fff',
+    borderRadius: screenWidth * 0.03,
+    padding: screenWidth * 0.04,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: screenHeight * 0.01,
+  },
+  detailIcon: {
+    marginRight: screenWidth * 0.03,
+  },
+  detailText: {
+    fontSize: screenWidth * 0.042,
+    color: '#555',
+    lineHeight: screenHeight * 0.028,
+  },
+  detailLabel: {
+    fontWeight: '600',
+    color: '#333',
+  },
+  detailAmount: {
+    fontWeight: '700',
+    color: '#28a745',
+  },
+  detailDivider: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    marginBottom: screenHeight * 0.015,
+  },
+  detailSection: {
+    marginBottom: screenHeight * 0.01,
+  },
+  detailSectionTitle: {
+    fontSize: screenWidth * 0.045,
+    fontWeight: '600',
+    color: '#333',
+  },
+  serviceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: screenHeight * 0.008,
+    paddingHorizontal: screenWidth * 0.02,
+    backgroundColor: '#f9f9f9',
+    borderRadius: screenWidth * 0.02,
+    marginBottom: screenHeight * 0.008,
+  },
+  serviceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  serviceName: {
+    fontSize: screenWidth * 0.038,
+    color: '#555',
+    flex: 1,
+  },
+  servicePrice: {
+    fontSize: screenWidth * 0.038,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: screenWidth * 0.02,
+  },
 
-noServicesText: {
-  fontSize: screenWidth * 0.038,
-  color: '#999',
-  fontStyle: 'italic',
-  textAlign: 'center',
-  marginVertical: screenHeight * 0.01,
-},
-ratingContainer: {
-  flexDirection: 'row',
-  alignItems: "baseline",
-  // marginTop: screenHeight * 0.005,
-},
-ratingText: {
-  fontSize: screenWidth * 0.045,
-  fontWeight: '700',
-  color: '#FFD700',
-  marginRight: screenWidth * 0.01,
-},
-rateButton: {
-  flexDirection: 'row',
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: '#1a1a1a',
-  padding: screenHeight * 0.015,
-  borderRadius: screenWidth * 0.02,
-  marginTop: screenHeight * 0.02,
-},
-rateButtonText: {
-  color: '#fff',
-  fontSize: screenWidth * 0.04,
-  fontWeight: '600',
-  marginRight: screenWidth * 0.01,
-},
+  noServicesText: {
+    fontSize: screenWidth * 0.038,
+    color: '#999',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginVertical: screenHeight * 0.01,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: "baseline",
+    // marginTop: screenHeight * 0.005,
+  },
+  ratingText: {
+    fontSize: screenWidth * 0.045,
+    fontWeight: '700',
+    color: '#FFD700',
+    marginRight: screenWidth * 0.01,
+  },
+  rateButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    padding: screenHeight * 0.015,
+    borderRadius: screenWidth * 0.02,
+    marginTop: screenHeight * 0.02,
+  },
+  rateButtonText: {
+    color: '#fff',
+    fontSize: screenWidth * 0.04,
+    fontWeight: '600',
+    marginRight: screenWidth * 0.01,
+  },
 
   backgroundImage: {
     flex: 1,
@@ -683,10 +671,10 @@ rateButtonText: {
   },
   shine: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    width: screenWidth * 0.8,
-    height: "300%"
+        top: 0,
+        left: 0,
+        width: screenWidth * 0.8,
+        height: screenHeight * 1.5,
   },
   shineGradient: {
     width: "100%",

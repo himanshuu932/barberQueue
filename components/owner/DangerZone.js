@@ -1,7 +1,9 @@
 // FileName: DangerZone.js
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Modal } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions  } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 const DangerZone = ({ shopName, onDelete }) => {
   const [isDeleteShopConfirmModalVisible, setIsDeleteShopConfirmModalVisible] = useState(false);
@@ -24,7 +26,7 @@ const DangerZone = ({ shopName, onDelete }) => {
           style={styles.deleteButton}
           onPress={() => setIsDeleteShopConfirmModalVisible(true)}
         >
-          <Icon name="trash" size={16} color="#fff" />
+          <Icon name="trash" size={screenWidth * 0.05} color="#fff" />
           <Text style={styles.deleteButtonText}>Delete Shop</Text>
         </TouchableOpacity>
       </View>
@@ -65,50 +67,50 @@ const DangerZone = ({ shopName, onDelete }) => {
 const styles = StyleSheet.create({
     card: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 15,
-        padding: 10,
-        marginBottom: 15,
+        borderRadius: screenWidth * 0.04,
+        padding: screenWidth * 0.03,
+        marginBottom: screenHeight * 0.02,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: screenHeight * 0.004 },
         shadowOpacity: 0.08,
-        shadowRadius: 8,
+        shadowRadius: screenWidth * 0.02,
         elevation: 5,
-        paddingHorizontal: 15,
-        paddingVertical: 20
+        paddingHorizontal: screenWidth * 0.04,
+        paddingVertical: screenHeight * 0.025
     },
     cardTitle: {
-        fontSize: 22,
+        fontSize: screenWidth * 0.055,
         fontWeight: '700',
     },
     dangerCard: {
-        borderLeftWidth: 6,
+        borderLeftWidth: screenWidth * 0.015,
         borderLeftColor: '#E74C3C',
     },
     dangerNoteText: {
-        fontSize: 15,
+        fontSize: screenWidth * 0.038,
         color: '#666',
         textAlign: 'center',
-        marginVertical: 20,
-        lineHeight: 22,
+        marginVertical: screenHeight * 0.025,
+        lineHeight: screenHeight * 0.03,
     },
     deleteButton: {
         flexDirection: 'row',
         backgroundColor: '#E74C3C',
-        padding: 15,
-        borderRadius: 12,
+        padding: screenHeight * 0.02,
+        borderRadius: screenWidth * 0.03,
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#E74C3C',
-        shadowOffset: { width: 0, height: 3 },
+        shadowOffset: { width: 0, height: screenHeight * 0.003 },
         shadowOpacity: 0.4,
-        shadowRadius: 5,
+        shadowRadius: screenWidth * 0.01,
         elevation: 5,
     },
     deleteButtonText: {
         color: '#fff',
-        fontSize: 17,
+        fontSize: screenWidth * 0.04,
         fontWeight: 'bold',
-        marginLeft: 10,
+        marginLeft: screenWidth * 0.02,
     },
     confirmModalContainer: {
         flex: 1,
@@ -118,51 +120,51 @@ const styles = StyleSheet.create({
     },
     confirmModalContent: {
         backgroundColor: '#FFFFFF',
-        padding: 20,
-        borderRadius: 20,
+        padding: screenWidth * 0.05,
+        borderRadius: screenWidth * 0.05,
         width: '85%',
         alignItems: 'center',
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0, height: screenHeight * 0.008 },
         shadowOpacity: 0.25,
-        shadowRadius: 15,
+        shadowRadius: screenWidth * 0.04,
         elevation: 15,
     },
     confirmModalTitle: {
-        fontSize: 22,
+        fontSize: screenWidth * 0.055,
         fontWeight: 'bold',
-        marginBottom: 18,
+        marginBottom: screenHeight * 0.02,
         color: '#333',
     },
     confirmModalText: {
-        fontSize: 16,
+        fontSize: screenWidth * 0.04,
         color: '#555',
         textAlign: 'center',
-        marginBottom: 30,
-        lineHeight: 24,
+        marginBottom: screenHeight * 0.035,
+        lineHeight: screenHeight * 0.03,
     },
     modalButtonContainer: {
         flexDirection: "row",
         justifyContent: "space-around",
         width: "100%",
-        marginTop: 10,
+        marginTop: screenHeight * 0.015,
     },
     modalButton: {
-        paddingVertical: 15,
-        paddingHorizontal: 15,
-        borderRadius: 12,
+        paddingVertical: screenHeight * 0.018,
+        paddingHorizontal: screenWidth * 0.04,
+        borderRadius: screenWidth * 0.03,
         alignItems: "center",
         flex: 1,
-        marginHorizontal: 8,
+        marginHorizontal: screenWidth * 0.02,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
+        shadowOffset: { width: 0, height: screenHeight * 0.003 },
         shadowOpacity: 0.2,
-        shadowRadius: 5,
+        shadowRadius: screenWidth * 0.01,
         elevation: 4,
     },
     modalButtonText: {
         color: "#fff",
-        fontSize: 17,
+        fontSize: screenWidth * 0.04,
         fontWeight: "bold",
         textAlign: 'center',
     },

@@ -8,9 +8,11 @@ import {
   Modal,
   TextInput,
   Alert,
+  Dimensions
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 
 const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
@@ -179,11 +181,11 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
                     <Text style={styles.inputLabel}>Password:</Text>
                     <TextInput style={styles.input} value={newBarberData.password} onChangeText={txt => setNewBarberData({ ...newBarberData, password: txt })} secureTextEntry />
                     <View style={styles.modalButtonContainer}>
-                        <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddBarber}>
-                        <Text style={styles.modalButtonText}>Add</Text>
-                        </TouchableOpacity>
                         <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddBarberModalVisible(false)}>
                         <Text style={styles.modalButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddBarber}>
+                        <Text style={styles.modalButtonText}>Add</Text>
                         </TouchableOpacity>
                     </View>
                     </View>
@@ -204,11 +206,11 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
                         <Text style={styles.inputLabel}>New Password (optional):</Text>
                         <TextInput style={styles.input} placeholder="Leave blank to keep current" value={editedBarberData.password} onChangeText={txt => setEditedBarberData({ ...editedBarberData, password: txt })} secureTextEntry />
                         <View style={styles.modalButtonContainer}>
-                            <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveBarberChanges}>
-                                <Text style={styles.modalButtonText}>Save</Text>
-                            </TouchableOpacity>
                             <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsEditBarberModalVisible(false)}>
                                 <Text style={styles.modalButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveBarberChanges}>
+                                <Text style={styles.modalButtonText}>Save</Text>
                             </TouchableOpacity>
                         </View>
                         </>
@@ -243,94 +245,95 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
 const styles = StyleSheet.create({
     card: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 15,
-        padding: 10,
-        marginBottom: 15,
+        borderRadius: screenWidth * 0.04,
+        padding: screenWidth * 0.03,
+        marginBottom: screenHeight * 0.02,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: screenHeight * 0.004 },
         shadowOpacity: 0.08,
-        shadowRadius: 8,
+        shadowRadius: screenWidth * 0.02,
         elevation: 5,
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 18,
-        paddingHorizontal: 10,
-        paddingTop: 5,
-        paddingBottom: 12,
+        marginBottom: screenHeight * 0.02,
+        paddingHorizontal: screenWidth * 0.03,
+        paddingTop: screenHeight * 0.01,
+        paddingBottom: screenHeight * 0.015,
         borderBottomWidth: 1,
         borderBottomColor: '#EFEFEF',
     },
     cardTitle: {
-        fontSize: 22,
+        fontSize: screenWidth * 0.055,
         fontWeight: '700',
         color: '#333',
     },
     addButton: {
         backgroundColor: '#28A745',
-        padding: 10,
-        borderRadius: 25,
-        width: 40,
-        height: 40,
+        padding: screenWidth * 0.03,
+        borderRadius: screenWidth * 0.06,
+        width: screenWidth * 0.1,
+        height: screenWidth * 0.1,
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#28A745',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: screenHeight * 0.002 },
         shadowOpacity: 0.3,
-        shadowRadius: 4,
+        shadowRadius: screenWidth * 0.01,
         elevation: 3,
     },
     listItem: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
         backgroundColor: '#FDFDFD',
-        borderRadius: 10,
-        paddingVertical: 15,
-        paddingHorizontal: 15,
-        marginBottom: 10,
+        borderRadius: screenWidth * 0.03,
+        paddingVertical: screenHeight * 0.02,
+        paddingHorizontal: screenWidth * 0.04,
+        marginBottom: screenHeight * 0.01,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: screenHeight * 0.002 },
         shadowOpacity: 0.05,
-        shadowRadius: 4,
+        shadowRadius: screenWidth * 0.01,
         elevation: 2,
     },
     listItemInfo: {
         flex: 1,
-        marginLeft: 15,
+        marginLeft: screenWidth * 0.04,
     },
     itemName: {
-        fontSize: 17,
+        fontSize: screenWidth * 0.045,
         fontWeight: '700',
         color: '#333',
-        marginBottom: 2,
+        marginBottom: screenHeight * 0.002,
     },
     itemSubText: {
-        fontSize: 14,
+        fontSize: screenWidth * 0.038,
         color: '#777',
-        marginTop: 2,
+        marginTop: screenHeight * 0.002,
     },
     listItemActions: {
         flexDirection: 'row',
     },
     listItemActionButton: {
-        paddingHorizontal: 10,
-        paddingVertical: 8,
+        paddingHorizontal: screenWidth * 0.03,
+        paddingVertical: screenHeight * 0.01,
         backgroundColor: '#F0F8FF',
-        borderRadius: 15,
-        marginLeft: 8,
+        borderRadius: screenWidth * 0.04,
+        marginLeft: screenWidth * 0.02,
     },
     barberAvatar: {
-        borderRadius: 20,
+        borderRadius: "40%",
         backgroundColor: '#E8EAF6',
-        padding: 5,
+        padding: screenWidth * 0.015,
     },
     noDataText: {
-        fontSize: 16,
+        fontSize: screenWidth * 0.04,
         color: '#999',
         textAlign: 'center',
-        paddingVertical: 25,
+        paddingVertical: screenHeight * 0.03,
         fontStyle: 'italic',
     },
     modalContainer: {
@@ -343,36 +346,36 @@ const styles = StyleSheet.create({
         width: "90%",
         maxHeight: '90%',
         backgroundColor: "#FFFFFF",
-        padding: 20,
-        borderRadius: 25,
+        padding: screenWidth * 0.05,
+        borderRadius: screenWidth * 0.06,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
+        shadowOffset: { width: 0, height: screenHeight * 0.01 },
         shadowOpacity: 0.25,
-        shadowRadius: 25,
+        shadowRadius: screenWidth * 0.06,
         elevation: 20,
     },
     modalTitle: {
-        fontSize: 24,
+        fontSize: screenWidth * 0.06,
         fontWeight: "bold",
-        marginBottom: 20,
+        marginBottom: screenHeight * 0.025,
         color: "#007BFF",
         textAlign: 'center',
     },
     inputLabel: {
         alignSelf: 'flex-start',
-        fontSize: 16,
+        fontSize: screenWidth * 0.04,
         color: '#444',
-        marginBottom: 6,
+        marginBottom: screenHeight * 0.01,
         fontWeight: '600',
     },
     input: {
         width: "100%",
         borderWidth: 1,
         borderColor: "#E0E0E0",
-        borderRadius: 10,
-        padding: 15,
-        marginBottom: 15,
-        fontSize: 16,
+        borderRadius: screenWidth * 0.03,
+        padding: screenHeight * 0.015,
+        marginBottom: screenHeight * 0.015,
+        fontSize: screenWidth * 0.04,
         backgroundColor: "#F9F9F9",
         color: '#333',
     },
@@ -380,24 +383,24 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-around",
         width: "100%",
-        marginTop: 25,
+        marginTop: screenHeight * 0.03,
     },
     modalButton: {
-        paddingVertical: 15,
-        paddingHorizontal: 15,
-        borderRadius: 12,
+        paddingVertical: screenHeight * 0.02,
+        paddingHorizontal: screenWidth * 0.04,
+        borderRadius: screenWidth * 0.03,
         alignItems: "center",
         flex: 1,
-        marginHorizontal: 8,
+        marginHorizontal: screenWidth * 0.02,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
+        shadowOffset: { width: 0, height: screenHeight * 0.003 },
         shadowOpacity: 0.2,
-        shadowRadius: 5,
+        shadowRadius: screenWidth * 0.01,
         elevation: 4,
     },
     modalButtonText: {
         color: "#fff",
-        fontSize: 17,
+        fontSize: screenWidth * 0.04,
         fontWeight: "bold",
         textAlign: 'center',
     },
@@ -415,28 +418,28 @@ const styles = StyleSheet.create({
     },
     confirmModalContent: {
         backgroundColor: '#FFFFFF',
-        padding: 20,
-        borderRadius: 20,
+        padding: screenWidth * 0.05,
+        borderRadius: screenWidth * 0.05,
         width: '85%',
         alignItems: 'center',
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0, height: screenHeight * 0.008 },
         shadowOpacity: 0.25,
-        shadowRadius: 15,
+        shadowRadius: screenWidth * 0.04,
         elevation: 15,
     },
     confirmModalTitle: {
-        fontSize: 22,
+        fontSize: screenWidth * 0.055,
         fontWeight: 'bold',
-        marginBottom: 18,
+        marginBottom: screenHeight * 0.02,
         color: '#333',
     },
     confirmModalText: {
-        fontSize: 16,
+        fontSize: screenWidth * 0.04,
         color: '#555',
         textAlign: 'center',
-        marginBottom: 30,
-        lineHeight: 24,
+        marginBottom: screenHeight * 0.03,
+        lineHeight: screenHeight * 0.025,
     },
     modalDeleteButton: {
         backgroundColor: '#E74C3C',

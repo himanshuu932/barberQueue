@@ -31,15 +31,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // --- CONFIGURATION ---
 
-const fontScale = PixelRatio.getFontScale();
-const getResponsiveFontSize = (size) => size / fontScale;
-const responsiveHeight = (h) => screenHeight * (h / 100);
-const responsiveWidth = (w) => screenWidth * (w / 100);
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 registerTranslation('en', en);
 
 const IST_TIMEZONE = 'Asia/Kolkata';
-const screenWidth = Dimensions.get("window").width - 32;
 
 // --- CONFIGURATION ---
 const API_BASE_URL = 'https://numbr-exq6.onrender.com';
@@ -760,7 +756,7 @@ const History = ({ onClose }) => {
                       <LineChart
                         data={revenueTimelineData}
                         width={screenWidth * 0.9}
-                        height={300}
+                        height={screenHeight * 0.35}
                         chartConfig={{
                           backgroundColor: '#ffffff',
                           backgroundGradientFrom: '#ffffff',
@@ -791,7 +787,7 @@ const History = ({ onClose }) => {
                             datasets: [{ data: barberContributionData.map(item => item.revenue) }]
                           }}
                           width={screenWidth * 0.9}
-                          height={350}
+                          height={screenHeight * 0.4}
                           fromZero
                           verticalLabelRotation={50}
                           chartConfig={{
@@ -891,409 +887,409 @@ const History = ({ onClose }) => {
 };
 
 const styles = StyleSheet.create({
-  xyz:{
-    height : 400
-  },
-  header: {
-    height: "6%",
-    backgroundColor: "black",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 15,
-  },
-  title: {
-    color: "#fff",
-    fontSize: 20,
-    marginLeft: 15,
-  },
-  backgroundImage: {
-    flex: 1,
-    resizeMode: "cover",
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(237,236,236,0.77)",
-    top: "6%",
-  },
-  fullscreenContainer: {
-    flex: 1,
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "transparent",
-  },
-  fixedHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-    position: "relative",
-    zIndex: 10,
-  },
-  headerTitle: {
-    fontSize: 40,
-    fontWeight: "900",
-    color: "#2d3436",
-    textAlign: "center",
-    flex: 1,
-  },
-  fixedCloseButton: {
-    position: 'absolute',
-    bottom: 20,
-    alignSelf: 'center',
-    zIndex: 100,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 5,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  scrollableContent: {
-    flex: 1,
-    padding: 16,
-  },
-  scrollContentContainer: {
-    paddingBottom: 20,
-  },
-  buttonContainer: {
-    borderRadius: 15,
-    overflow: "hidden",
-  },
-  pdfButton: {
-    padding: 7,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 6,
-    width: 40,
-    height: 40,
-  },
-  recentTransactionsContainer: {
-    maxHeight: 550,
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 15,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    marginBottom: 20,
-  },
-  recentTransactionsScroll: {
-    maxHeight: 450,
-  },
-  controlsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 5,
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  outerContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-    paddingHorizontal: 0,
-    marginBottom: 20,
-  },
-  filterGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: 'wrap',
-    rowGap: 10,
-    columnGap: 10,
-    flexShrink: 1,
-  },
-  filterButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    alignItems: "center",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  filterButtonText: {
-    color: "#2d3436",
-    fontWeight: "600",
-    fontSize: 15,
-  },
-  shopMenuItem: {
-    paddingLeft: 10,
-  },
-  barberMenuItem: {
-    paddingLeft: 30,
-  },
-  visualizeGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  toggleLabel: {
-    fontWeight: "900",
-    marginRight: 8,
-    color: "#333",
-    fontSize: 16,
-  },
-  summaryContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 20,
-  },
-  summaryCard: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 12,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-  },
-  revenueCard: {
-    backgroundColor: '#00b894',
-  },
-  customersCard: {
-    backgroundColor: '#0984e3',
-  },
-  summaryTitle: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  summaryValue: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  chartContainer: {
-    width: "100%",
-    alignItems: "center",
-    marginBottom: 20,
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    paddingVertical: 15,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-  },
-  revenueText: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 15,
-    color: "#333",
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  centeredChartContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navigationContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  navButton: {
-    padding: 10,
-    backgroundColor: "#ddd",
-    borderRadius: 8,
-    elevation: 2,
-  },
-  navButtonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#0984e3",
-  },
-  paginationContainer: {
-    flexDirection: "row",
-  },
-  paginationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#ccc",
-    marginHorizontal: 5,
-  },
-  paginationDotActive: {
-    backgroundColor: "#0984e3",
-  },
-  calendarWrapper: {
-    width: "100%",
-    padding: 10,
-  },
-  calendarInnerContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 15,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  calendarHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  calendarNavButton: {
-    padding: 8,
-  },
-  calendarNavButtonText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  calendarTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  calendarDaysHeader: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 10,
-  },
-  calendarDayHeaderText: {
-    fontWeight: "bold",
-    width: `${100 / 7}%`,
-    textAlign: "center",
-    color: "#555",
-  },
-  calendarGrid: {
-    width: "100%",
-  },
-  calendarRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 2,
-  },
-  calendarCell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 0.5,
-    borderColor: "#eee",
-    borderRadius: 5,
-  },
-  calendarEmptyCell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-  },
-  calendarDayText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  calendarDayCount: {
-    fontSize: 10,
-    color: "#666",
-  },
-  calendarLegend: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 20,
-    flexWrap: "wrap",
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 5,
-    marginBottom: 5,
-  },
-  legendColor: {
-    width: 15,
-    height: 15,
-    borderRadius: 3,
-    marginRight: 5,
-    borderWidth: 0.5,
-    borderColor: "#ccc",
-  },
-  legendText: {
-    fontSize: 12,
-    color: "#555",
-  },
-  transactionCard: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  transactionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 5,
-  },
-  barberName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#00b894",
-  },
-  servicesList: {
-    fontSize: 14,
-    color: "#555",
-    marginBottom: 5,
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: "#777",
-    textAlign: "right",
-  },
-  noTransactionsText: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16,
-    color: '#666',
-  },
-  noChartDataText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#666',
-    paddingHorizontal: 20,
-  }
-});
+    header: {
+      height: screenHeight * 0.06,
+      backgroundColor: "black",
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: screenWidth * 0.04,
+    },
+    title: {
+      color: "#fff",
+      fontSize: screenWidth * 0.05,
+      marginLeft: screenWidth * 0.04,
+    },
+    backgroundImage: {
+      flex: 1,
+      resizeMode: "cover",
+      width: "100%",
+      height: "100%",
+    },
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(237,236,236,0.77)",
+      top: screenHeight * 0.06,
+    },
+    fullscreenContainer: {
+      flex: 1,
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: "transparent",
+    },
+    fixedHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: screenWidth * 0.05,
+      paddingBottom: screenHeight * 0.02,
+      position: "relative",
+      zIndex: 10,
+    },
+    headerTitle: {
+      fontSize: screenWidth * 0.1,
+      fontWeight: "900",
+      color: "#2d3436",
+      textAlign: "center",
+      flex: 1,
+    },
+    fixedCloseButton: {
+      position: 'absolute',
+      bottom: screenHeight * 0.02,
+      alignSelf: 'center',
+      zIndex: 100,
+      backgroundColor: 'white',
+      borderRadius: screenWidth * 0.05,
+      padding: screenWidth * 0.01,
+      elevation: 5,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: screenHeight * 0.002 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+    },
+    scrollableContent: {
+      flex: 1,
+      padding: screenWidth * 0.04,
+    },
+    scrollContentContainer: {
+      paddingBottom: screenHeight * 0.02,
+    },
+    buttonContainer: {
+      borderRadius: screenWidth * 0.04,
+      overflow: "hidden",
+    },
+    pdfButton: {
+      padding: screenWidth * 0.01,
+      borderRadius: screenWidth * 0.04,
+      alignItems: "center",
+      justifyContent: "center",
+      elevation: 6,
+      width: screenWidth * 0.11,
+      height: screenWidth * 0.11,
+    },
+    recentTransactionsContainer: {
+      maxHeight: screenHeight * 0.6,
+      backgroundColor: "#ffffff",
+      borderRadius: screenWidth * 0.03,
+      padding: screenWidth * 0.04,
+      elevation: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: screenHeight * 0.002 },
+      shadowOpacity: 0.15,
+      shadowRadius: screenWidth * 0.01,
+      marginBottom: screenHeight * 0.02,
+    },
+    recentTransactionsScroll: {
+      maxHeight: screenHeight * 0.5,
+    },
+    controlsContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: screenWidth * 0.01,
+      marginBottom: screenHeight * 0.02,
+    },
+    sectionTitle: {
+      fontSize: screenWidth * 0.055,
+      fontWeight: "bold",
+      color: "#333",
+    },
+    outerContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      paddingHorizontal: 0,
+      marginBottom: screenHeight * 0.02,
+    },
+    filterGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: 'wrap',
+      rowGap: screenHeight * 0.01,
+      columnGap: screenWidth * 0.02,
+      flexShrink: 1,
+    },
+    filterButton: {
+      paddingVertical: screenHeight * 0.015,
+      paddingHorizontal: screenWidth * 0.04,
+      backgroundColor: "#ffffff",
+      borderRadius: screenWidth * 0.02,
+      alignItems: "center",
+      elevation: 3,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: screenHeight * 0.001 },
+      shadowOpacity: 0.1,
+      shadowRadius: screenWidth * 0.008,
+    },
+    filterButtonText: {
+      color: "#2d3436",
+      fontWeight: "600",
+      fontSize: screenWidth * 0.04,
+    },
+    shopMenuItem: {
+      paddingLeft: screenWidth * 0.03,
+    },
+    barberMenuItem: {
+      paddingLeft: screenWidth * 0.07,
+    },
+    visualizeGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    toggleLabel: {
+      fontWeight: "900",
+      marginRight: screenWidth * 0.02,
+      color: "#333",
+      fontSize: screenWidth * 0.04,
+    },
+    summaryContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: screenWidth * 0.02,
+      marginBottom: screenHeight * 0.02,
+    },
+    summaryCard: {
+      flex: 1,
+      padding: screenWidth * 0.04,
+      borderRadius: screenWidth * 0.03,
+      elevation: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: screenHeight * 0.002 },
+      shadowOpacity: 0.15,
+      shadowRadius: screenWidth * 0.01,
+    },
+    revenueCard: {
+      backgroundColor: '#00b894',
+    },
+    customersCard: {
+      backgroundColor: '#0984e3',
+    },
+    summaryTitle: {
+      color: '#fff',
+      fontSize: screenWidth * 0.045,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      marginBottom: screenHeight * 0.01,
+    },
+    summaryValue: {
+      color: '#fff',
+      fontSize: screenWidth * 0.07,
+      fontWeight: 'bold',
+      textAlign: 'center',
+    },
+    chartContainer: {
+      width: "100%",
+      alignItems: "center",
+      marginBottom: screenHeight * 0.02,
+      backgroundColor: "#ffffff",
+      borderRadius: screenWidth * 0.03,
+      paddingVertical: screenHeight * 0.02,
+      elevation: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: screenHeight * 0.002 },
+      shadowOpacity: 0.15,
+      shadowRadius: screenWidth * 0.01,
+    },
+    revenueText: {
+      fontSize: screenWidth * 0.05,
+      fontWeight: "bold",
+      marginBottom: screenHeight * 0.02,
+      color: "#333",
+    },
+    chart: {
+      marginVertical: screenHeight * 0.01,
+      borderRadius: screenWidth * 0.04,
+    },
+    centeredChartContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    navigationContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      paddingHorizontal: screenWidth * 0.05,
+      marginBottom: screenHeight * 0.02,
+    },
+    navButton: {
+      padding: screenWidth * 0.03,
+      backgroundColor: "#ddd",
+      borderRadius: screenWidth * 0.02,
+      elevation: 2,
+    },
+    navButtonText: {
+      fontSize: screenWidth * 0.05,
+      fontWeight: "bold",
+      color: "#0984e3",
+    },
+    paginationContainer: {
+      flexDirection: "row",
+    },
+    paginationDot: {
+      width: screenWidth * 0.02,
+      height: screenWidth * 0.02,
+      borderRadius: screenWidth * 0.01,
+      backgroundColor: "#ccc",
+      marginHorizontal: screenWidth * 0.01,
+    },
+    paginationDotActive: {
+      backgroundColor: "#0984e3",
+    },
+    calendarWrapper: {
+      width: "100%",
+      padding: screenWidth * 0.03,
+    },
+    calendarInnerContainer: {
+      backgroundColor: "#fff",
+      borderRadius: screenWidth * 0.03,
+      padding: screenWidth * 0.04,
+      elevation: 3,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: screenHeight * 0.002 },
+      shadowOpacity: 0.1,
+      shadowRadius: screenWidth * 0.01,
+    },
+    calendarHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: screenHeight * 0.02,
+    },
+    calendarNavButton: {
+      padding: screenWidth * 0.02,
+    },
+    calendarNavButtonText: {
+      fontSize: screenWidth * 0.06,
+      fontWeight: "bold",
+      color: "#333",
+    },
+    calendarTitle: {
+      fontSize: screenWidth * 0.045,
+      fontWeight: "bold",
+      color: "#333",
+    },
+    calendarDaysHeader: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginBottom: screenHeight * 0.01,
+    },
+    calendarDayHeaderText: {
+      fontWeight: "bold",
+      width: `${100 / 7}%`,
+      textAlign: "center",
+      color: "#555",
+      fontSize: screenWidth * 0.035,
+    },
+    calendarGrid: {
+      width: "100%",
+    },
+    calendarRow: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginBottom: screenHeight * 0.002,
+    },
+    calendarCell: {
+      width: `${100 / 7}%`,
+      aspectRatio: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 0.5,
+      borderColor: "#eee",
+      borderRadius: screenWidth * 0.01,
+    },
+    calendarEmptyCell: {
+      width: `${100 / 7}%`,
+      aspectRatio: 1,
+    },
+    calendarDayText: {
+      fontSize: screenWidth * 0.035,
+      fontWeight: "bold",
+      color: "#333",
+    },
+    calendarDayCount: {
+      fontSize: screenWidth * 0.025,
+      color: "#666",
+    },
+    calendarLegend: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginTop: screenHeight * 0.02,
+      flexWrap: "wrap",
+    },
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginHorizontal: screenWidth * 0.01,
+      marginBottom: screenHeight * 0.005,
+    },
+    legendColor: {
+      width: screenWidth * 0.04,
+      height: screenWidth * 0.04,
+      borderRadius: screenWidth * 0.01,
+      marginRight: screenWidth * 0.01,
+      borderWidth: 0.5,
+      borderColor: "#ccc",
+    },
+    legendText: {
+      fontSize: screenWidth * 0.03,
+      color: "#555",
+    },
+    transactionCard: {
+      backgroundColor: "#f9f9f9",
+      borderRadius: screenWidth * 0.02,
+      padding: screenWidth * 0.04,
+      marginBottom: screenHeight * 0.01,
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: screenHeight * 0.001 },
+      shadowOpacity: 0.1,
+      shadowRadius: screenWidth * 0.008,
+    },
+    transactionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: screenHeight * 0.005,
+    },
+    barberName: {
+      fontSize: screenWidth * 0.04,
+      fontWeight: "bold",
+      color: "#333",
+    },
+    transactionAmount: {
+      fontSize: screenWidth * 0.04,
+      fontWeight: "bold",
+      color: "#00b894",
+    },
+    servicesList: {
+      fontSize: screenWidth * 0.035,
+      color: "#555",
+      marginBottom: screenHeight * 0.005,
+    },
+    transactionDate: {
+      fontSize: screenWidth * 0.03,
+      color: "#777",
+      textAlign: "right",
+    },
+    noTransactionsText: {
+      textAlign: 'center',
+      marginTop: screenHeight * 0.02,
+      fontSize: screenWidth * 0.04,
+      color: '#666',
+    },
+    noChartDataText: {
+      textAlign: 'center',
+      marginTop: screenHeight * 0.05,
+      fontSize: screenWidth * 0.04,
+      color: '#666',
+      paddingHorizontal: screenWidth * 0.05,
+    },
+    xyz: {
+      height: screenHeight * 0.5
+    }
+  });
 
 export default History;

@@ -101,11 +101,11 @@ export default function TabProfileScreen() {
 
     const shineTranslateX = shineAnimation.interpolate({
         inputRange: [0, 1],
-        outputRange: [-200, 900],
+        outputRange: [-screenWidth * 0.5, screenWidth * 1.8],
     });
     const shineTranslateY = shineAnimation.interpolate({
         inputRange: [0, 1],
-        outputRange: [-200, 250],
+        outputRange: [-screenHeight * 0.9, screenHeight * 0.3],
     });
 
     const confirmLogout = async () => {
@@ -164,8 +164,7 @@ export default function TabProfileScreen() {
         <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
             <View style={styles.overlay} />
             <View style={styles.container}>
-                <ScrollView contentContainerStyle={styles.scrollViewContent}>
-                    {/* Profile Box - Upgraded to match first code */}
+                    {/* Profile Box */}
                     <View style={styles.profileBox}>
                         <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
                             {/* Edit Button */}
@@ -180,10 +179,10 @@ export default function TabProfileScreen() {
                                     setIsModalVisible(true);
                                 }}
                             >
-                                <Image source={require("../image/editw.png")} style={{ width: screenWidth * 0.06, height: screenWidth * 0.06, tintColor: "white" }} />
+                                <Image source={require("../image/editw.png")} style={styles.editIcon} />
                             </TouchableOpacity>
 
-                            {/* Logout Button - Positioned like first code */}
+                            {/* Logout Button */}
                             <TouchableOpacity style={styles.logoutButton} onPress={() => setIsLogoutModalVisible(true)}>
                                 <Icon name="sign-out" size={screenWidth * 0.06} color="white" />
                             </TouchableOpacity>
@@ -226,31 +225,27 @@ export default function TabProfileScreen() {
                                 Bludgers Technologies is dedicated to crafting seamless and intuitive mobile applications,
                                 ensuring the best user experience with cutting-edge solutions.
                             </Text>
-                            <View style={styles.divider} />
-                            <TouchableOpacity style={styles.contactItem} onPress={() => Linking.openURL("mailto:bludgers52@gmail.com")}>
-                                <Text style={styles.companyWebsite}>📧 Mail: bludgers52@gmail.com</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.contactItem} onPress={() => Linking.openURL("tel:8601346652")}>
-                                <View style={styles.phoneContainer}>
-                                    <Icon name="phone" size={18} color="#00aaff" />
-                                    <Text style={styles.numberText}>Phone: 8601346652</Text>
-                                </View>
-                            </TouchableOpacity>
-                            <View style={styles.divider} />
-                            <View style={styles.infoGrid}>
+                        </LinearGradient>
+                    </View>
+
+                    <View style={styles.infoContainer}>
+                        <LinearGradient colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} style={styles.infoBackground}>
+                        <View style={styles.infoGrid}>
                                 <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/terms")}>
-                                    <Text style={styles.infoLinkText}>Terms and Conditions</Text>
+                                    <Text style={styles.infoLinkText}>Terms & Conditions</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/cancellation")}>
+                                    <Text style={styles.infoLinkText}>Cancellation & Refunds</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/privacy")}>
                                     <Text style={styles.infoLinkText}>Privacy Policy</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/cancellation")}>
-                                    <Text style={styles.infoLinkText}>Cancellation and Refunds</Text>
+                                    <Text style={styles.infoLinkText}>Contact Us</Text>
                                 </TouchableOpacity>
                             </View>
-                        </LinearGradient>
+                            </LinearGradient>
                     </View>
-                </ScrollView>
 
                 {/* Modal for editing profile */}
                 <Modal visible={isModalVisible} transparent animationType="slide">
@@ -334,7 +329,6 @@ const styles = StyleSheet.create({
     backgroundImage: {
         flex: 1,
         resizeMode: "cover",
-        position: "absolute",
         width: "100%",
         height: "100%",
     },
@@ -344,119 +338,123 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        width: "100%",
+        width: screenWidth,
+        padding: screenWidth * 0.05,
+        // paddingBottom: screenHeight * 0.05,
+        // alignItems: "center",
     },
-    scrollViewContent: {
-        padding: 20,
-        paddingBottom: 20,
-        alignItems: "center",
-    },
-    // --- Profile Card Styling ---
+    
+    // Profile Box
     profileBox: {
-    width: '100%',
-    height: screenHeight * 0.20,
-    borderRadius: screenWidth * 0.04,
-    overflow: "hidden",
-    marginBottom: screenHeight * 0.02,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: screenHeight * 0.005 },
-    shadowOpacity: 0.3,
-    shadowRadius: screenWidth * 0.02,
-  },
+        width: screenWidth * 0.9,
+        height: screenHeight * 0.2,
+        borderRadius: screenWidth * 0.04,
+        overflow: "hidden",
+        marginBottom: screenHeight * 0.02,
+        elevation: 5,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.005 },
+        shadowOpacity: 0.3,
+        shadowRadius: screenWidth * 0.02,
+    },
     profileBackground: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: screenWidth * 0.05,
-  },
+        width: "100%",
+        height: "100%",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: screenWidth * 0.05,
+    },
     shine: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: screenWidth * 0.8,
-    height: "300%"
-  },
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: screenWidth * 0.8,
+        height: screenHeight * 1.5,
+    },
     shineGradient: {
         width: "100%",
-        height: "100%"
+        height: "100%",
     },
     profileContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-  },
+        flexDirection: "row",
+        alignItems: "center",
+        width: "100%",
+    },
     profileImage: {
-    width: screenWidth * 0.22,
-    height: screenWidth * 0.22,
-    borderRadius: screenWidth * 0.11,
-    borderWidth: screenWidth * 0.007,
-    borderColor: "#eee",
-    marginRight: screenWidth * 0.05,
-  },
+        width: screenWidth * 0.22,
+        height: screenWidth * 0.22,
+        borderRadius: screenWidth * 0.11,
+        borderWidth: screenWidth * 0.007,
+        borderColor: "#eee",
+        marginRight: screenWidth * 0.05,
+    },
     profileDetails: {
         flex: 1,
     },
     username: {
-    fontSize: screenWidth * 0.06,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: screenHeight * 0.005,
-  },
+        fontSize: screenWidth * 0.06,
+        fontWeight: "bold",
+        color: "#fff",
+        marginBottom: screenHeight * 0.005,
+    },
     userInfo: {
-    fontSize: screenWidth * 0.04,
-    fontWeight: "400",
-    color: "#f0f0f0",
-    marginTop: screenHeight * 0.002,
-  },
+        fontSize: screenWidth * 0.04,
+        fontWeight: "400",
+        color: "#f0f0f0",
+        marginTop: screenHeight * 0.002,
+    },
     editButton: {
-    position: "absolute",
-    top: screenHeight * 0.02,
-    right: screenWidth * 0.15,
-    padding: screenWidth * 0.02,
-    borderRadius: screenWidth * 0.04,
-    alignItems: "center",
-    zIndex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
+        position: "absolute",
+        top: screenHeight * 0.02,
+        right: screenWidth * 0.15,
+        padding: screenWidth * 0.02,
+        borderRadius: screenWidth * 0.04,
+        alignItems: "center",
+        zIndex: 1,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    editIcon: {
+        width: screenWidth * 0.06,
+        height: screenWidth * 0.06,
+        tintColor: "white",
+    },
     logoutButton: {
-    position: 'absolute',
-    top: screenHeight * 0.02,
-    right: screenWidth * 0.04,
-    padding: screenWidth * 0.02,
-    borderRadius: screenWidth * 0.04,
-    alignItems: 'center',
-    zIndex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-    // --- Company Info Section ---
+        position: 'absolute',
+        top: screenHeight * 0.02,
+        right: screenWidth * 0.04,
+        padding: screenWidth * 0.02,
+        borderRadius: screenWidth * 0.04,
+        alignItems: 'center',
+        zIndex: 1,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    // Company Info Section
     companyContainer: {
-        width: "95%",
-        borderRadius: 15,
+        width: screenWidth * 0.9,
+        borderRadius: screenWidth * 0.04,
         overflow: "hidden",
-        marginBottom: 20,
+        marginBottom: screenHeight * 0.03,
         elevation: 8,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: screenHeight * 0.005 },
         shadowOpacity: 0.2,
-        shadowRadius: 6,
+        shadowRadius: screenWidth * 0.02,
     },
     companyBackground: {
-        padding: 20,
-        borderRadius: 15,
+        padding: screenWidth * 0.05,
+        borderRadius: screenWidth * 0.04,
     },
     companyTitle: {
         fontSize: screenWidth * 0.065,
         fontWeight: "bold",
         color: "#fff",
-        marginBottom: 10,
+        marginBottom: screenHeight * 0.01,
         textAlign: "center",
     },
     companyTagline: {
         fontSize: screenWidth * 0.045,
         color: "#ddd",
-        marginBottom: 15,
+        marginBottom: screenHeight * 0.02,
         fontStyle: "italic",
         textAlign: "center",
     },
@@ -464,48 +462,36 @@ const styles = StyleSheet.create({
         fontSize: screenWidth * 0.04,
         color: "#ccc",
         textAlign: "justify",
-        marginBottom: 20,
-        paddingHorizontal: 10,
+        marginBottom: screenHeight * 0.02,
+        paddingHorizontal: screenWidth * 0.02,
     },
-    companyWebsite: {
-        fontSize: screenWidth * 0.04,
-        color: "#00c0ff",
-        fontWeight: "bold",
+    infoContainer: {
+        width: screenWidth * 0.9,
+        borderRadius: screenWidth * 0.04,
+        overflow: "hidden",
+        marginBottom: screenHeight * 0.03,
+        elevation: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.005 },
+        shadowOpacity: 0.2,
+        shadowRadius: screenWidth * 0.02,
     },
-    divider: {
-        height: 1,
-        backgroundColor: "#555",
-        width: "80%",
-        marginVertical: 18,
-        alignSelf: 'center',
-    },
-    contactItem: {
-        alignSelf: 'flex-start',
-        marginBottom: 5,
-    },
-    phoneContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-start",
-    },
-    numberText: {
-        fontSize: screenWidth * 0.04,
-        fontWeight: "bold",
-        color: "#00c0ff",
-        marginLeft: 8,
+    infoBackground: {
+        padding: screenWidth * 0.05,
+        borderRadius: screenWidth * 0.04,
     },
     infoGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-around',
-        marginTop: 15,
-        paddingHorizontal: 10,
+        justifyContent: "center",
+        // marginTop: screenHeight * 0.02,
+        paddingHorizontal: screenWidth * 0.02,
     },
     infoGridItem: {
-        width: '45%',
-        paddingVertical: 8,
-        marginBottom: 10,
-        alignItems: 'flex-start',
+        width: '50%',
+        paddingVertical: screenHeight * 0.01,
+        // marginBottom: screenHeight * 0.01,
+        alignItems: "center",
     },
     infoLinkText: {
         fontSize: screenWidth * 0.035,
@@ -513,7 +499,7 @@ const styles = StyleSheet.create({
         textDecorationLine: "underline",
         textAlign: "left",
     },
-    // --- Modal Styling ---
+    // Modal Styling
     modalContainer: {
         flex: 1,
         justifyContent: "center",
@@ -521,34 +507,34 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(0,0,0,0.6)",
     },
     modalContent: {
-        width: "88%",
+        width: screenWidth * 0.85,
         backgroundColor: "#fff",
-        padding: 25,
-        borderRadius: 15,
+        padding: screenWidth * 0.06,
+        borderRadius: screenWidth * 0.04,
         elevation: 8,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: screenHeight * 0.005 },
         shadowOpacity: 0.25,
-        shadowRadius: 5,
+        shadowRadius: screenWidth * 0.02,
     },
     modalTitle: {
         fontSize: screenWidth * 0.055,
         fontWeight: "bold",
-        marginBottom: 20,
+        marginBottom: screenHeight * 0.02,
         textAlign: "center",
         color: '#333',
     },
     modalMessage: {
         fontSize: screenWidth * 0.045,
         textAlign: 'center',
-        marginBottom: 20,
+        marginBottom: screenHeight * 0.02,
         color: '#555',
     },
     inputContainer: {
-        marginBottom: 15,
+        marginBottom: screenHeight * 0.02,
     },
     inputLabel: {
-        marginBottom: 5,
+        marginBottom: screenHeight * 0.005,
         fontSize: screenWidth * 0.04,
         fontWeight: "bold",
         color: "#333",
@@ -557,8 +543,8 @@ const styles = StyleSheet.create({
         width: "100%",
         borderWidth: 1,
         borderColor: "#ddd",
-        borderRadius: 8,
-        padding: 12,
+        borderRadius: screenWidth * 0.02,
+        padding: screenWidth * 0.04,
         fontSize: screenWidth * 0.04,
         color: '#333',
         backgroundColor: '#f9f9f9',
@@ -566,15 +552,15 @@ const styles = StyleSheet.create({
     modalButtonContainer: {
         flexDirection: "row",
         justifyContent: "space-around",
-        marginTop: 15,
+        marginTop: screenHeight * 0.02,
     },
     modalButton: {
         flex: 1,
         backgroundColor: "#1a1a1a",
-        padding: 12,
-        borderRadius: 8,
+        padding: screenHeight * 0.015,
+        borderRadius: screenWidth * 0.02,
         alignItems: "center",
-        marginHorizontal: 8,
+        marginHorizontal: screenWidth * 0.02,
     },
     modalButtonText: {
         color: "#fff",

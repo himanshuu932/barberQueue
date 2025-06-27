@@ -11,11 +11,13 @@ import {
   Alert,
   ImageBackground,
   ActivityIndicator,
-  Platform 
+   Platform,
+  Dimensions 
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 
 const RateList = () => {
@@ -264,7 +266,7 @@ const RateList = () => {
             style={styles.shopSelectButton}
             onPress={() => setShowShopPicker(true)}
           >
-            <Icon name="store" size={30} color="#000" />
+            <Icon name="store" size={screenWidth * 0.083} color="#000" />
           </TouchableOpacity>
           
           <Text style={styles.shopName} numberOfLines={1} ellipsizeMode="tail">
@@ -276,7 +278,7 @@ const RateList = () => {
             onPress={() => setIsAddModalVisible(true)}
             disabled={!selectedShopId}
           >
-            <Icon name="add" size={30} color="#fff" />
+            <Icon name="add" size={screenWidth * 0.083} color="#fff" />
           </TouchableOpacity>
         </View>
 
@@ -319,13 +321,13 @@ const RateList = () => {
             </Text>
           </View>
         ) : isLoading ? (
-          <ActivityIndicator size="large" color="#0000ff" style={{marginTop: 20}}/>
+          <ActivityIndicator size="large" color="#0000ff" style={{marginTop: screenHeight * 0.02}}/>
         ) : rateList.length > 0 ? (
           <FlatList
             data={rateList}
             keyExtractor={(item) => item._id.toString()}
             renderItem={({ item }) => <ServiceCard item={item} />}
-            style={{marginTop: 10}}
+            style={{marginTop: screenHeight * 0.01}}
           />
         ) : (
           <Text style={styles.noDataText}>No services found for this shop. Add some!</Text>
@@ -428,35 +430,34 @@ const RateList = () => {
 };
 
 const styles = StyleSheet.create({
-
   selectShopMessageContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: screenWidth * 0.05,
   },
   selectShopMessage: {
-    fontSize: 18,
+    fontSize: screenWidth * 0.045,
     color: '#555',
     textAlign: 'center',
-    paddingHorizontal: 20,
   },
-
   loadingView: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   noShopsText: {
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     color: '#555',
-    marginTop: 30,
-    paddingHorizontal: 20,
+    marginTop: screenHeight * 0.03,
+    paddingHorizontal: screenWidth * 0.05,
   },
   noDataText: {
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     color: '#555',
-    marginTop: 20,
+    marginTop: screenHeight * 0.02,
+    paddingHorizontal: screenWidth * 0.05,
   },
   confirmContainer: {
     flex: 1,
@@ -467,15 +468,15 @@ const styles = StyleSheet.create({
   confirmBox: {
     width: "80%",
     backgroundColor: "#fff",
-    padding: 20,
+    padding: screenWidth * 0.05,
     borderRadius: 10,
     alignItems: "center",
   },
   confirmText: {
-    fontSize: 18,
+    fontSize: screenWidth * 0.045,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: screenHeight * 0.02,
     color: '#333',
   },
   confirmButtonContainer: {
@@ -486,14 +487,14 @@ const styles = StyleSheet.create({
   confirmButton: {
     flex: 1,
     backgroundColor: "rgb(80,80,80)",
-    padding: 10,
+    padding: screenHeight * 0.015,
     borderRadius: 8,
     alignItems: "center",
-    margin: 5,
+    margin: screenWidth * 0.01,
   },
   confirmButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
   },
   confirmDeleteButton: {
     backgroundColor: "#dc3545",
@@ -510,35 +511,34 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingLeft: 15,
-    paddingRight: 15,
-    paddingTop: Platform.OS === 'android' ? 25 : 40,
+    paddingHorizontal: screenWidth * 0.04,
+    paddingTop: Platform.OS === 'android' ? screenHeight * 0.04 : screenHeight * 0.06,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: screenHeight * 0.02,
   },
   shopSelectButton: {
-    padding: 5, 
-    backgroundColor: 'rgba(0,0,200,0.7)', 
-    borderRadius: "20%", 
-    justifyContent: 'center', 
+    padding: screenWidth * 0.015,
+    backgroundColor: 'rgba(0,0,200,0.7)',
+    borderRadius: "25%",
+    justifyContent: 'center',
     alignItems: 'center'
   },
   shopName: {
-    fontSize: 24,
+    fontSize: screenWidth * 0.066,
     fontWeight: 'bold',
     flex: 1,
     textAlign: 'center',
-    marginHorizontal: 10,
+    marginHorizontal: screenWidth * 0.02,
   },
   addButton: {
     backgroundColor: "rgb(51, 154, 28)",
-    borderRadius: 10,
-    width: 40,
-    height: 40,
+    borderRadius: "25%",
+    width: screenWidth * 0.11,
+    height: screenWidth * 0.11,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 6,
@@ -553,39 +553,39 @@ const styles = StyleSheet.create({
     width: '80%',
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
+    padding: screenWidth * 0.05,
     maxHeight: '60%',
   },
   pickerTitle: {
-    fontSize: 20,
+    fontSize: screenWidth * 0.05,
     fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: screenHeight * 0.02,
     textAlign: 'center',
   },
   shopItem: {
-    padding: 15,
+    padding: screenHeight * 0.02,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   shopItemText: {
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
   },
   cancelButton: {
-    marginTop: 15,
-    padding: 10,
+    marginTop: screenHeight * 0.02,
+    padding: screenHeight * 0.015,
     backgroundColor: 'rgb(0, 0, 0)',
     borderRadius: 8,
     alignItems: 'center',
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     color: 'rgb(255, 255, 255)',
   },
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
+    padding: screenWidth * 0.04,
+    marginBottom: screenHeight * 0.01,
     flexDirection: "row",
     alignItems: "center",
     elevation: 3,
@@ -598,19 +598,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontSize: 18,
+    fontSize: screenWidth * 0.045,
     fontWeight: "bold",
     color: "#333",
   },
   detail: {
-    fontSize: 14,
+    fontSize: screenWidth * 0.035,
     color: "#555",
-    marginVertical: 2,
+    marginVertical: screenHeight * 0.002,
   },
   editButton: {
-    padding: 8,
+    padding: screenWidth * 0.02,
     borderRadius: 20,
     alignItems: "center",
+  },
+  editIcon: {
+    width: screenWidth * 0.06,
+    height: screenWidth * 0.06,
   },
   modalContainer: {
     flex: 1,
@@ -621,14 +625,14 @@ const styles = StyleSheet.create({
   modalContent: {
     width: "85%",
     backgroundColor: "#fff",
-    padding: 20,
+    padding: screenWidth * 0.05,
     borderRadius: 12,
     alignItems: "center",
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: screenWidth * 0.05,
     fontWeight: "bold",
-    marginBottom: 15,
+    marginBottom: screenHeight * 0.02,
     color: '#333',
   },
   input: {
@@ -636,29 +640,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+    padding: screenHeight * 0.015,
+    marginBottom: screenHeight * 0.015,
     backgroundColor: '#f9f9f9',
+    fontSize: screenWidth * 0.04,
   },
   modalButtonContainer: {
     flexDirection: "row",
     justifyContent: "space-evenly",
     width: "100%",
-    marginTop: 10,
+    marginTop: screenHeight * 0.02,
   },
   modalButton: {
     backgroundColor: "#007bff",
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingVertical: screenHeight * 0.015,
+    paddingHorizontal: screenWidth * 0.03,
     borderRadius: 8,
     alignItems: "center",
     elevation: 3,
     minWidth: "30%",
-    marginHorizontal: 5,
+    marginHorizontal: screenWidth * 0.01,
   },
   modalButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     fontWeight: "bold",
   },
   deleteButton: {

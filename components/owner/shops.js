@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Dimensions
 } from "react-native";
 
 import ShopHeader from "./ShopHeader";
@@ -16,6 +17,7 @@ import ServicesList from "./ServicesList";
 import BarbersList from "./BarbersList";
 import DangerZone from "./DangerZone";
 
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
@@ -255,23 +257,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8EDF2',
   },
   header: {
-    height: "6%",
+    height: screenHeight * 0.06,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center",
-    // justifyContent: 'flex-start',
-    // paddingTop: 15,
-    paddingHorizontal: 15,
-    // shadowColor: '#000',
-    // shadowOffset: { width: 0, height: 4 },
-    // shadowOpacity: 0.25,
-    // shadowRadius: 8,
-    // elevation: 8,
+    paddingHorizontal: screenWidth * 0.042,
   },
   title: {
     color: "#fff",
-    fontSize: 20,
-    marginLeft: 15
+    fontSize: screenWidth * 0.055,
+    marginLeft: screenWidth * 0.042
     // fontWeight: '800',
     // letterSpacing: 1.2,
   },
@@ -279,31 +274,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContentContainer: {
-    paddingHorizontal: 15,
-    paddingBottom: 100,
-    paddingTop: 15,
+    paddingHorizontal: screenWidth * 0.042,
+    paddingBottom: screenHeight * 0.1,
+    paddingTop: screenHeight * 0.015,
   },
   backButton: {
     position: 'absolute',
-    bottom: 20,
-    left: 15,
-    right: 15,
+    bottom: screenHeight * 0.02,
+    left: screenWidth * 0.042,
+    right: screenWidth * 0.042,
     backgroundColor: 'black',
-    padding: 20,
-    borderRadius: 15,
+    padding: screenWidth * 0.05,
+    borderRadius: screenWidth * 0.04,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: screenHeight * 0.007 },
     shadowOpacity: 0.35,
-    shadowRadius: 10,
+    shadowRadius: screenWidth * 0.025,
     elevation: 10,
   },
   backButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: screenWidth * 0.05,
     fontWeight: 'bold',
-    letterSpacing: 0.8,
+    // letterSpacing: screenWidth * 0.005,
   },
   loadingContainer: {
     flex: 1,
@@ -312,20 +307,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8EDF2',
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 18,
+    marginTop: screenHeight * 0.01,
+    fontSize: screenWidth * 0.045,
     color: '#333'
   },
   retryButton: {
-    marginTop: 20,
+    marginTop: screenHeight * 0.02,
     backgroundColor: '#007BFF',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    paddingVertical: screenHeight * 0.015,
+    paddingHorizontal: screenWidth * 0.07,
+    borderRadius: screenWidth * 0.025,
   },
   retryButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     fontWeight: 'bold',
   }
 });
