@@ -48,8 +48,8 @@ const RatingModal = ({ isVisible, onClose, shopId, barberId,historyId }) => { //
 
     });
  
-    console.log(res);
-    console.log(`User rated: ${currentRating} stars, Shop ID: ${shopId}, Barber ID: ${barberId}`);
+    //console.log(res);
+    //console.log(`User rated: ${currentRating} stars, Shop ID: ${shopId}, Barber ID: ${barberId}`);
     setCurrentRating(0); // Reset rating after submission
     onClose(); // Close the modal through the parent's handler
   };

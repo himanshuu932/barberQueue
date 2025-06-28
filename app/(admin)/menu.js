@@ -242,7 +242,7 @@ export default function MenuScreen() {
             body: JSON.stringify({ uid: queueEntry.data.userId, title: "Removed from queue", body: `You have been removed from the queue.` }),
           });
         }
-        fetchQueueData();
+       await fetchQueueData();
       } else {
         const errorText = await response.text();
         console.error("Remove person failed:", errorText);

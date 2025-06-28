@@ -28,23 +28,23 @@ Notifications.setNotificationHandler({
 
 // Function to register push notifications
 async function registerForPushNotifications(ownerId, token) {
-  console.log("Registering for push notifications for ownerId:", ownerId);
-  console.log("Expo Push Token:", token);
+  //console.log("Registering for push notifications for ownerId:", ownerId);
+  //console.log("Expo Push Token:", token);
 
   try {
     // Step 1: Check and request permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    console.log("Existing permission status:", existingStatus);
+    //console.log("Existing permission status:", existingStatus);
 
     let finalStatus = existingStatus;
     if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
-      console.log("Requested permission status:", finalStatus);
+      //console.log("Requested permission status:", finalStatus);
     }
 
     if (finalStatus !== "granted") {
-      console.log("Failed to get push token for push notifications!");
+      //console.log("Failed to get push token for push notifications!");
       Alert.alert(
         "Permission Denied",
         "Push notifications permission is required to receive notifications. Please enable it in your device settings."
@@ -84,7 +84,7 @@ async function registerForPushNotifications(ownerId, token) {
       }
 
       const resData = await response.json();
-      console.log("Backend response for push token update:", resData);
+      //console.log("Backend response for push token update:", resData);
     } catch (error) {
       console.error("Error sending push token to backend:", error);
       Alert.alert(
@@ -140,8 +140,8 @@ export default function LoginScreen() {
         setLoading(false);
         return;
       }
-      console.log("Login successful:", data);
-      console.log("Owner ID:", data.data._id); // Access _id from data.data
+      //console.log("Login successful:", data);
+      //console.log("Owner ID:", data.data._id); // Access _id from data.data
 
       // Store token and owner data
       await AsyncStorage.setItem("userToken", data.data.token);

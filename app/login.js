@@ -30,7 +30,7 @@ const API_BASE = "https://numbr-exq6.onrender.com";
 
 // Function to register push notifications
 async function registerForPushNotifications(uid, userToken) {
-  console.log("Registering for push notifications for uid:", uid);
+  //console.log("Registering for push notifications for uid:", uid);
 
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -42,7 +42,7 @@ async function registerForPushNotifications(uid, userToken) {
     }
 
     if (finalStatus !== "granted") {
-      console.log("Failed to get push token for push notifications!");
+      //console.log("Failed to get push token for push notifications!");
       return;
     }
 
@@ -50,7 +50,7 @@ async function registerForPushNotifications(uid, userToken) {
       projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
     })).data;
 
-    console.log("Expo push token:", expoPushToken);
+    //console.log("Expo push token:", expoPushToken);
 
     // Use the passed userToken instead of getting from AsyncStorage
     const response = await fetch(`${API_BASE}/api/users/profile`, {
@@ -68,7 +68,7 @@ async function registerForPushNotifications(uid, userToken) {
       return;
     }
 
-    console.log("Push token registered successfully");
+    //console.log("Push token registered successfully");
 
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
@@ -96,7 +96,7 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    console.log("Logging in with email:", email, "and password:", password); // Changed from phone to email
+    //console.log("Logging in with email:", email, "and password:", password); // Changed from phone to email
     try {
       const response = await fetch(`${API_BASE}/api/users/login`, { // Updated endpoint
         method: "POST",
@@ -110,7 +110,7 @@ export default function LoginScreen() {
         setLoading(false);
         return;
       }
-      console.log(responseData);
+      //console.log(responseData);
 
       // Store token and user data from responseData.data
       await AsyncStorage.setItem("userToken", responseData.data.token);

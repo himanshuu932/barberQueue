@@ -138,7 +138,7 @@ export const ShopList = ({ onSelect, onClose }) => {
       return;
     }
     setSelectedShopId(shopId);
-    console.log("Selected shop ID:", shopId);
+    //console.log("Selected shop ID:", shopId);
     await AsyncStorage.setItem("pinnedShop", shopId);
     onSelect?.(shopId);
   };

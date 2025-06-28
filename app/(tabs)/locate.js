@@ -208,7 +208,6 @@ export default function LocateScreen() {
   // Animate map to the user's current location
   const handleCurrentLocation = () => {
     if (currentRegion && mapRef.current) {
-      //console.log("Animating map to current location:", currentRegion);
       mapRef.current.animateToRegion(currentRegion, 1000);
     }
   };
@@ -221,7 +220,6 @@ export default function LocateScreen() {
         ios: `maps://app?daddr=${shopDestination.latitude},${shopDestination.longitude}&dirflg=d`,
         android: `google.navigation:q=${shopDestination.latitude},${shopDestination.longitude}`,
       });
-      //console.log("Opening Google Maps with URL:", url);
       Linking.openURL(url).catch(err => Alert.alert("Error", "Could not open navigation app. Please ensure you have Google Maps installed."));
     } else {
       Alert.alert("Destination not available", "Shop coordinates not fetched yet.");

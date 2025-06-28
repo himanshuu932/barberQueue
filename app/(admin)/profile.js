@@ -91,7 +91,7 @@ export default function TabProfileScreen() {
         throw new Error(errorData.message || "Failed to fetch barber details");
       }
       const data = await response.json();
-      // console.log("Fetched barber details:", data);
+    
       setBarber(data.data);
       setLoading(false); // Only set loading to false after successful fetch
     } catch (error) {
@@ -127,8 +127,7 @@ export default function TabProfileScreen() {
         shop: item.shop || { name: 'N/A' }
       }));
 
-      console.log("Validated history:", JSON.stringify(validatedHistory, null, 2));
-
+  
       setHistory(validatedHistory);
     } catch (error) {
       console.error("Error fetching barber history:", error);
@@ -177,9 +176,10 @@ export default function TabProfileScreen() {
 
   const confirmLogout = async () => {
     try {
-      await AsyncStorage.removeItem("userToken");
-      await AsyncStorage.removeItem("userType");
-      await AsyncStorage.removeItem("uid");
+     await AsyncStorage.removeItem("userToken");
+            await AsyncStorage.removeItem("uid");
+            await AsyncStorage.removeItem("userType");
+            await AsyncStorage.removeItem("userName");
       await AsyncStorage.removeItem("shopId");
       router.replace("../pre-login");
     } catch (error) {
@@ -294,10 +294,10 @@ export default function TabProfileScreen() {
               <Image source={require("../image/user.png")} style={styles.profileImage} />
               <View style={styles.profileDetails}>
                 <Text style={styles.username}>{barber?.name || "Barber Name"}</Text>
-                <Text style={styles.userInfo}>{barber?.phone || "N/A"}</Text>
+                <Text style={styles.userInfo}>{barber?.email|| "N/A"}</Text>
                 <Text style={styles.userInfo}>Customers Served: {barber?.customersServed || 0}</Text>
                 <Text style={styles.userInfo}>
-                  Average Rating: {barber?.rating !== undefined ? barber.rating.toFixed(1) : "N/A"}
+                  Average Rating: {barber?.rating !== undefined ? barber.rating.toFixed(1) : "N/A"} ⭐ 
                 </Text>
               </View>
             </View>

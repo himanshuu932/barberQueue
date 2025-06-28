@@ -32,9 +32,10 @@ export default function TabProfileScreen() {
     const [loading, setLoading] = useState(true);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+    // --- CHANGED: State now holds email instead of phone ---
     const [editedProfile, setEditedProfile] = useState({
         name: "",
-        phone: "",
+        email: "",
         password: "", // Added for optional new password
     });
     const [ownerId, setOwnerId] = useState(null);
@@ -123,15 +124,17 @@ export default function TabProfileScreen() {
         }
     };
 
-    // Update owner profile
+    // --- CHANGED: This function now sends email instead of phone ---
     async function updateOwnerProfile() {
         try {
-            const { name, phone, password } = editedProfile;
+            // Destructure email instead of phone
+            const { name, email, password } = editedProfile;
             const token = await AsyncStorage.getItem("userToken");
 
-            const updateData = { name, phone };
+            // Build the update payload with email
+            const updateData = { name, email };
             if (password) {
-                updateData.password = password;
+                updateData.pass = password; // Backend expects 'pass' for password
             }
 
             const response = await fetch(`${API_BASE}/api/owners/profile`, {
@@ -152,7 +155,7 @@ export default function TabProfileScreen() {
 
             const data = await response.json();
             setIsModalVisible(false);
-            fetchProfile(ownerId);
+            fetchProfile(ownerId); // Refetch profile to show updated data
             Alert.alert("Success", "Profile updated successfully!");
         } catch (error) {
             console.error("Error updating profile:", error);
@@ -171,9 +174,10 @@ export default function TabProfileScreen() {
                             <TouchableOpacity
                                 style={styles.editButton}
                                 onPress={() => {
+                                    // --- CHANGED: Initialize modal with email ---
                                     setEditedProfile({
                                         name: profile?.name || "",
-                                        phone: profile?.phone || "",
+                                        email: profile?.email || "",
                                         password: "",
                                     });
                                     setIsModalVisible(true);
@@ -208,7 +212,8 @@ export default function TabProfileScreen() {
                                     ) : (
                                         <View>
                                             <Text style={styles.username}>{profile?.name || "Owner Name"}</Text>
-                                            <Text style={styles.userInfo}>Phone: {profile?.phone || "N/A"}</Text>
+                                            {/* --- CHANGED: Display email instead of phone --- */}
+                                            <Text style={styles.userInfo}>Email: {profile?.email || "N/A"}</Text>
                                         </View>
                                     )}
                                 </View>
@@ -247,7 +252,7 @@ export default function TabProfileScreen() {
                             </LinearGradient>
                     </View>
 
-                {/* Modal for editing profile */}
+                {/* --- CHANGED: Modal now edits email instead of phone --- */}
                 <Modal visible={isModalVisible} transparent animationType="slide">
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
@@ -265,18 +270,20 @@ export default function TabProfileScreen() {
                                 />
                             </View>
 
+                            {/* --- Start of Changes for Email Input --- */}
                             <View style={styles.inputContainer}>
-                                <Text style={styles.inputLabel}>Phone</Text>
+                                <Text style={styles.inputLabel}>Email</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Phone"
-                                    value={editedProfile.phone}
-                                    keyboardType="phone-pad"
+                                    placeholder="Email"
+                                    value={editedProfile.email}
+                                    keyboardType="email-address" // Use email keyboard
                                     onChangeText={(text) => {
-                                        setEditedProfile({ ...editedProfile, phone: text });
+                                        setEditedProfile({ ...editedProfile, email: text });
                                     }}
                                 />
                             </View>
+                            {/* --- End of Changes for Email Input --- */}
 
                             <View style={styles.inputContainer}>
                                 <Text style={styles.inputLabel}>New Password (optional)</Text>
@@ -325,6 +332,7 @@ export default function TabProfileScreen() {
     );
 }
 
+// --- Styles remain the same ---
 const styles = StyleSheet.create({
     backgroundImage: {
         flex: 1,

@@ -108,6 +108,11 @@ export default function TabProfileScreen() {
   const confirmLogout = async () => {
     try {
       await AsyncStorage.removeItem("userToken");
+            await AsyncStorage.removeItem("uid");
+            await AsyncStorage.removeItem("userType");
+            await AsyncStorage.removeItem("userName");
+            await AsyncStorage.removeItem("pinnedShop");
+      await AsyncStorage.removeItem("shopId");
       router.replace("../pre-login");
     } catch (error) {
       console.error("Error logging out:", error);
@@ -234,7 +239,6 @@ export default function TabProfileScreen() {
           </LinearGradient>
         </View>
 
-        {/* Service History */}
         <View style={styles.serviceHistoryContainer}>
           <Text style={styles.sectionTitle}>Service History</Text>
           <View style={styles.historyBox}>

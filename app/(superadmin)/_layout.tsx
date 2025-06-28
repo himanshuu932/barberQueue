@@ -31,7 +31,7 @@ export default function Layout() {
             fontSize: screenWidth * 0.03, // Adjust font size based on screen width
           },
           tabBarIconStyle: {
-            paddingTop: screenHeight * 0.005, // Small padding for icon on top
+            paddingTop: screenHeight * 0.0005, // Small padding for icon on top
           }
         }}
       >
@@ -72,15 +72,7 @@ export default function Layout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="History"
-          options={{
-            title: "History",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="book-outline" size={size} color={color} />
-            ),
-          }}
-        />
+     
         <Tabs.Screen
           name="profile"
           options={{
@@ -101,12 +93,11 @@ const styles = StyleSheet.create({
     backgroundColor: "black", // Ensures background behind status bar is black
   },
   header: {
-    height: screenHeight * 0.1,
+    height: screenHeight * 0.08,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center", // Vertically centers content in the header
     paddingHorizontal: screenWidth * 0.042, // Horizontal padding remains fixed, but can be percentage if desired
-    paddingTop: screenHeight * 0.042,
   },
   title: {
     color: "#fff",

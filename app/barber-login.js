@@ -19,25 +19,25 @@ import Constants from "expo-constants";
 const API_BASE_URL = "https://numbr-exq6.onrender.com/api";
 
 async function registerForPushNotifications(uid, userToken) { // Pass userToken here
-  console.log("Registering for push notifications for uid:", uid);
+  //console.log("Registering for push notifications for uid:", uid);
   if (!Constants.isDevice) {
-    console.log("Must use a physical device for Push Notifications");
+    //console.log("Must use a physical device for Push Notifications");
     return;
   }
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  console.log("Existing permission status:", existingStatus);
+  //console.log("Existing permission status:", existingStatus);
   let finalStatus = existingStatus;
   if (existingStatus !== "granted") {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
-    console.log("Requested permission status:", finalStatus);
+    //console.log("Requested permission status:", finalStatus);
   }
   if (finalStatus !== "granted") {
-    console.log("Failed to get push token for push notifications!");
+    //console.log("Failed to get push token for push notifications!");
     return;
   }
   const token = (await Notifications.getExpoPushTokenAsync()).data;
-  console.log("Expo Push Token generated:", token);
+  //console.log("Expo Push Token generated:", token);
 
   // Send token to your backend
   try {
@@ -50,7 +50,7 @@ async function registerForPushNotifications(uid, userToken) { // Pass userToken 
       body: JSON.stringify({ uid, token }), // uid is technically not needed by backend if protect is used, but harmless
     });
     const resData = await response.json();
-    console.log("Backend response for push token registration:", resData);
+    //console.log("Backend response for push token registration:", resData);
   } catch (error) {
     console.error("Error sending push token to backend:", error);
   }
@@ -90,7 +90,7 @@ export default function BarberLoginScreen() {
       await AsyncStorage.setItem("userName", data.barber.name);
       await AsyncStorage.setItem("uid", data.barber._id);
       await AsyncStorage.setItem("shopId", data.barber.shopId);
-      console.log(data.barber._id);
+      //console.log(data.barber._id);
       await AsyncStorage.setItem("userType", "barber");
 
       // Register push notifications for this user AFTER successful login

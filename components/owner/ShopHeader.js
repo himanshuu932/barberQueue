@@ -91,7 +91,7 @@ const formatTime = (date) => {
   return `${hours}:${minutes}`;
 };
 
-  //console.log("ShopHeader received shop:", shop); //
+  ////console.log("ShopHeader received shop:", shop); //
 
   useEffect(() => {
     let interval;
@@ -142,7 +142,7 @@ const formatTime = (date) => {
   };
 
   const pickShopImage = async () => {
-   // console.log("pickShopImage is being executed"); //
+   // //console.log("pickShopImage is being executed"); //
     const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync(); //
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync(); //
     if (mediaStatus !== 'granted' || cameraStatus !== 'granted') { //
@@ -176,7 +176,7 @@ const formatTime = (date) => {
         }
 
         if (result && !result.canceled && result.assets && result.assets.length > 0) { //
-          console.log('Selected image:', result.assets[0]); //
+          //console.log('Selected image:', result.assets[0]); //
 
           // Create FormData
           const formData = new FormData(); //
@@ -186,7 +186,7 @@ const formatTime = (date) => {
             type: 'image/jpeg' //
           });
 
-          console.log('FormData created:', formData); //
+          //console.log('FormData created:', formData); //
 
           // Upload to backend
           const response = await fetch(`${API_BASE_URL}/shops/${shop._id}/photos`, { //
@@ -198,7 +198,7 @@ const formatTime = (date) => {
             body: formData, //
           });
 
-          console.log('Upload response status:', response.status); //
+          //console.log('Upload response status:', response.status); //
 
           if (!response.ok) { //
             const errorText = await response.text(); //
@@ -207,7 +207,7 @@ const formatTime = (date) => {
           }
 
           const responseData = await response.json(); //
-          console.log('Upload successful:', responseData); //
+          //console.log('Upload successful:', responseData); //
 
           setEditedShopData(prev => ({ //
             ...prev,
@@ -250,7 +250,7 @@ const formatTime = (date) => {
           onPress: async () => {
             try {
               setIsLoading(true); //
-              console.log('Removing image with public_id:', public_id); //
+              //console.log('Removing image with public_id:', public_id); //
               const response = await fetch( //
                 `${API_BASE_URL}/shops/${shop._id}/photos/${public_id}`, //
                 {
@@ -258,7 +258,7 @@ const formatTime = (date) => {
                   headers: { 'Authorization': `Bearer ${userToken}` }, //
                 }
               );
-              console.log('Delete response status:', response.status); //
+              //console.log('Delete response status:', response.status); //
               if (!response.ok) throw new Error('Failed to delete image'); //
 
               // Update UI by filtering out the deleted photo

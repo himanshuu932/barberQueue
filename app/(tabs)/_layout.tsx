@@ -29,7 +29,8 @@ export default function Layout() {
             fontSize: screenWidth * 0.03, // Adjust font size based on screen width
           },
           tabBarIconStyle: {
-            paddingTop: screenHeight * 0.005, // Small padding for icon on top
+            height: screenHeight * 0.04, // Adjust icon height for better visibility
+            paddingTop: screenHeight * 0.0091, // Small padding for icon on top
           }
         }}
       >
@@ -71,13 +72,11 @@ const styles = StyleSheet.create({
     backgroundColor: "black", // Ensures background behind status bar is black
   },
   header: {
-    height: screenHeight * 0.1, 
+    height: screenHeight * 0.08,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center", // Vertically centers content in the header
     paddingHorizontal: screenWidth * 0.042, // Horizontal padding remains fixed, but can be percentage if desired
-    paddingTop: screenHeight * 0.042,
-
   },
   title: {
     color: "#fff",
