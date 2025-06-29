@@ -23,7 +23,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import RatingModal from "../../components/user/RatingModal";
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
-const API_BASE = "https://numbr-p7zc.onrender.com/api/api";
+const API_BASE = "https://numbr-exq6.onrender.com/api";
 
 export default function TabProfileScreen() {
   const router = useRouter();
@@ -105,22 +105,17 @@ export default function TabProfileScreen() {
 
   const shineTranslateX = shineAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [-screenWidth * 0.5, screenWidth * 1.8],
+    outputRange: [-200, 900],
   });
 
   const shineTranslateY = shineAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [-screenHeight * 0.9, screenHeight * 0.3],
+    outputRange: [-200, 250],
   });
 
   const confirmLogout = async () => {
     try {
       await AsyncStorage.removeItem("userToken");
-            await AsyncStorage.removeItem("uid");
-            await AsyncStorage.removeItem("userType");
-            await AsyncStorage.removeItem("userName");
-            await AsyncStorage.removeItem("pinnedShop");
-      await AsyncStorage.removeItem("shopId");
       router.replace("../pre-login");
     } catch (error) {
       console.error("Error logging out:", error);
@@ -228,6 +223,7 @@ const handleInitiatePasswordChange = async () => {
   }
 };
 
+
   const handleConfirmPasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       Alert.alert("Error", "Passwords don't match");
@@ -315,73 +311,86 @@ const handleInitiatePasswordChange = async () => {
                 <Text style={styles.changePasswordButtonText}>Change Password</Text>
               </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={() => setIsLogoutModalVisible(true)}
-            >
-              <Icon name="sign-out" size={screenWidth * 0.06} color="white" />
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutButton}
+                onPress={() => setIsLogoutModalVisible(true)}
+              >
+                <Icon name="sign-out" size={screenWidth * 0.06} color="white" />
+              </TouchableOpacity>
 
-            <Animated.View
-              style={[
-                styles.shine,
-                { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] },
-              ]}
-            >
-              <LinearGradient
-                colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.shineGradient}
-              />
-            </Animated.View>
+              <Animated.View
+                style={[
+                  styles.shine,
+                  {
+                    transform: [
+                      { translateX: shineAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-200, screenWidth * 2.5],
+                      }) },
+                      { translateY: shineAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-200, screenHeight * 0.3],
+                      }) },
+                      { rotate: "45deg" },
+                    ],
+                  },
+                ]}
+              >
+                <LinearGradient
+                  colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.shineGradient}
+                />
+              </Animated.View>
 
-            <View style={styles.profileContent}>
-              <Image source={require("../image/user.png")} style={styles.profileImage} />
-              <View style={styles.profileDetails}>
-                <Text style={styles.username}>{profile?.name || "User Name"}</Text>
-                <Text style={styles.userInfo}>{profile?.email || profile?.phone || "N/A"}</Text>
+              <View style={styles.profileContent}>
+                <Image source={require("../image/user.png")} style={styles.profileImage} />
+                <View style={styles.profileDetails}>
+                  <Text style={styles.username}>{profile?.name || "User Name"}</Text>
+                  <Text style={styles.userInfo}>{profile?.email || profile?.phone || "N/A"}</Text>
 
-                {profile?.subscription?.status && (
-                  <Text style={styles.subscriptionText}>
-                    Subscription: {profile.subscription.status === 'trial' ? 'Trial' :
+                  {profile?.subscription?.status && (
+                    <Text style={styles.subscriptionText}>
+                      Subscription: {profile.subscription.status === 'trial' ? 'Trial' :
                       profile.subscription.status.charAt(0).toUpperCase() + profile.subscription.status.slice(1)}
-                  </Text>
-                )}
-
-                {profile?.subscription?.status === 'trial' && profile?.subscription?.trialEndDate && (
-                  <Text style={styles.subscriptionText}>
-                    Trial Ends: {formatTrialEndDate(profile.subscription.trialEndDate)}
-                  </Text>
-                )}
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
-
-        <View style={styles.serviceHistoryContainer}>
-          <Text style={styles.sectionTitle}>Service History</Text>
-          <View style={styles.historyBox}>
-            <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} >
-              {profile?.history?.length ? (
-                profile.history.map((item, index) => (
-                  <TouchableOpacity key={index} style={styles.historyCard} onPress={() => showHistoryDetail(item)}>
-                    <View style={styles.paymentRow}>
-                      <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
-                      <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
-                    </View>
-                    <Text style={styles.historyService}>
-                      {item.services?.map(s => s.name || 'Unknown Service').join(', ')}
                     </Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <Text style={styles.noHistory}>No service history available.</Text>
-              )}
-            </ScrollView>
-          </View>
-        </View>
+                  )}
 
+                  {profile?.subscription?.status === 'trial' && profile?.subscription?.trialEndDate && (
+                    <Text style={styles.subscriptionText}>
+                      Trial Ends: {formatTrialEndDate(profile.subscription.trialEndDate)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* Service History */}
+          <View style={styles.serviceHistoryContainer}>
+            <Text style={styles.sectionTitle}>Service History</Text>
+            <View style={styles.historyBox}>
+              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} >
+                {profile?.history?.length ? (
+                  profile.history.map((item, index) => (
+                    <TouchableOpacity key={index} style={styles.historyCard} onPress={() => showHistoryDetail(item)}>
+                      <View style={styles.paymentRow}>
+                        <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
+                        <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
+                      </View>
+                      <Text style={styles.historyService}>
+                        {item.services?.map(s => s.name || 'Unknown Service').join(', ')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text style={styles.noHistory}>No service history available.</Text>
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        
 
         {/* Terms and Privacy Policy */}
         <View style={styles.infoGrid}>
@@ -593,7 +602,6 @@ const handleInitiatePasswordChange = async () => {
                   </View>
 
                   <View style={styles.detailDivider} />
-                  <View style={styles.detailDivider} />
 
                   <View style={styles.detailRow}>
                     <Icon name="money" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
@@ -604,7 +612,6 @@ const handleInitiatePasswordChange = async () => {
                   </View>
 
                   <View style={styles.detailDivider} />
-                  <View style={styles.detailDivider} />
 
                   <View style={styles.detailSection}>
                     <View style={styles.detailRow}>
@@ -624,39 +631,9 @@ const handleInitiatePasswordChange = async () => {
                       <Text style={styles.noServicesText}>No services listed</Text>
                     )}
                   </View>
-                  <View style={styles.detailSection}>
-                    <View style={styles.detailRow}>
-                      <Icon name="scissors" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-                      <Text style={styles.detailSectionTitle}>Services</Text>
-                    </View>
-                    {selectedHistoryItem.services?.length > 0 ? (
-                      selectedHistoryItem.services.map((s, idx) => (
-                        <View key={idx} style={styles.serviceItem}>
-                          <View style={styles.serviceInfo}>
-                            <Text style={styles.serviceName}>• {s.name || 'Unknown Service'}</Text>
-                            <Text style={styles.servicePrice}>₹{s.price?.toFixed(2) || 'N/A'}</Text>
-                          </View>
-                        </View>
-                      ))
-                    ) : (
-                      <Text style={styles.noServicesText}>No services listed</Text>
-                    )}
-                  </View>
 
                   <View style={styles.detailDivider} />
-                  <View style={styles.detailDivider} />
 
-                  <View style={styles.barberShopContainer}>
-                    {/* Barber Section */}
-                    <View style={styles.barberShopSection}>
-                      <View style={styles.barberShopHeader}>
-                        <Icon name="user" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-                        <Text style={styles.barberShopLabel}>Barber</Text>
-                      </View>
-                      <Text style={styles.barberShopValue}>
-                        {selectedHistoryItem.barber?.name || 'Unknown'}
-                      </Text>
-                    </View>
                   <View style={styles.barberShopContainer}>
                     {/* Barber Section */}
                     <View style={styles.barberShopSection}>
@@ -680,45 +657,7 @@ const handleInitiatePasswordChange = async () => {
                       </Text>
                     </View>
                   </View>
-                    {/* Shop Section */}
-                    <View style={styles.barberShopSection}>
-                      <View style={styles.barberShopHeader}>
-                        <Icon name="home" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-                        <Text style={styles.barberShopLabel}>Shop</Text>
-                      </View>
-                      <Text style={styles.barberShopValue}>
-                        {selectedHistoryItem.shop?.name || 'Unknown'}
-                      </Text>
-                    </View>
-                  </View>
 
-                  {selectedHistoryItem.isRated ? (
-                    <>
-                      <View style={styles.detailDivider} />
-                      <View style={styles.ratingdetailSection}>
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailSectionTitle}>Your Rating</Text>
-                        </View>
-                        <View style={styles.ratingContainer}>
-                          <Text style={styles.ratingText}>{selectedHistoryItem.rating}</Text>
-                          <Icon name="star" size={screenWidth * 0.05} color="#FFD700" />
-                        </View>
-                      </View>
-                    </>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.rateButton}
-                      onPress={handleRateService}
-                    >
-                      <Text style={styles.rateButtonText}>Rate This Service</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
                   {selectedHistoryItem.isRated ? (
                     <>
                       <View style={styles.detailDivider} />
@@ -971,10 +910,10 @@ const styles = StyleSheet.create({
   },
   shine: {
     position: "absolute",
-        top: 0,
-        left: 0,
-        width: screenWidth * 0.8,
-        height: screenHeight * 1.5,
+    top: 0,
+    left: 0,
+    width: screenWidth * 0.8,
+    height: "300%"
   },
   shineGradient: {
     width: "100%",
