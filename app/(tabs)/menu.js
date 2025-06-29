@@ -734,10 +734,11 @@ const updateUserServices = async () => {
         {loading && <View style={styles.centered}><ActivityIndicator size="large" color="#007bff" /><Text>Loading Queue...</Text></View>}
 
         {!loading && (
-            <ScrollView style={{width: '100%'}} contentContainerStyle={{alignItems: 'center'}}>
+            <>
             {currentUserQueueEntry ? (
-                <View style={styles.ticketContainer}>
+                <ScrollView style={{width: '100%'}} contentContainerStyle={{alignItems: 'center'}}>
                 {/* ... Ticket rendering as in previous response ... */}
+                  <View style={styles.ticketContainer}>
                   <View style={styles.ticketHeader}><Text style={styles.ticketHeaderText}>QUEUE TICKET</Text></View>
                   <View style={styles.ticketBody}>
                     <View style={styles.positionContainer}>
@@ -754,14 +755,14 @@ const updateUserServices = async () => {
                           {currentUserQueueEntry.services.map((serviceObj, index) => (
                           <View key={index} style={styles.servicePill}>
                               <Text style={styles.serviceName}>{serviceObj.name}</Text>
-                              <Text style={styles.servicePrice}>₹{serviceObj.price}</Text>
+                              <Text style={styles.servicePrice}>&#x20B9;{serviceObj.price}</Text>
                           </View>
                           ))}
                       </ScrollView>
                     </View>
                     <View style={styles.totalContainer}>
                       <Text style={styles.totalLabel}>TOTAL</Text>
-                      <Text style={styles.totalPrice}>₹{currentUserQueueEntry.totalCost}</Text>
+                      <Text style={styles.totalPrice}>&#x20B9;{currentUserQueueEntry.totalCost}</Text>
                     </View>
                   </View>
                   <View style={styles.ticketFooter}><Text style={styles.footerText}>Present this ticket when called</Text></View>
@@ -784,42 +785,44 @@ const updateUserServices = async () => {
                     </TouchableOpacity>
                   </View>
                 </View>
-            ) : ( // User is NOT in the queue
-                <>
-                {defaultChecklist.length > 0 ? (
+                </ScrollView>
+            ) : ( 
+                // [MODIFIED] User is NOT in the queue - Refactored Layout
+                <View style={styles.notInQueueContainer}>
                     <View style={styles.rateListContainer}>
-                        <Text style={styles.servicesTitle}>Available Services</Text>
-                        <FlatList
-                            data={defaultChecklist}
-                            keyExtractor={item => item.id.toString()}
-                            renderItem={({ item }) => (
-                            <View style={styles.rateItem}>
-                                <Text style={styles.rateText}>{item.text}</Text>
-                                <Text style={styles.ratePrice}>₹{item.price}</Text>
+                        {defaultChecklist.length > 0 ? (
+                            <FlatList
+                                data={defaultChecklist}
+                                keyExtractor={item => item.id.toString()}
+                                ListHeaderComponent={() => (
+                                    <Text style={styles.servicesTitle}>Available Services</Text>
+                                )}
+                                renderItem={({ item }) => (
+                                    <View style={styles.rateItem}>
+                                        <Text style={styles.rateText}>{item.text}</Text>
+                                        <Text style={styles.ratePrice}>&#x20B9;{item.price}</Text>
+                                    </View>
+                                )}
+                            />
+                        ) : (
+                            <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                                <Text>No services listed for this shop.</Text>
                             </View>
-                            )}
-                            ListEmptyComponent={<Text>No services available for this shop.</Text>}
-                        />
+                        )}
                     </View>
-                ) : (
-                    <View style={styles.centered}><Text>No services listed for this shop.</Text></View>
-                )}
-                <TouchableOpacity
-                    style={[styles.joinButton, (defaultChecklist.length === 0 || loading) && styles.disabledButton]}
-                    onPress={() => {
-                        setChecklist(defaultChecklist.map(i => ({ ...i, checked: false })));
-                        setModalVisible(true);
-                    }}
-                    disabled={defaultChecklist.length === 0 || loading}
-                >
-                    <View style={styles.joinButtonContent}>
-                    <Svg fill="white" width={22} height={22} viewBox="0 0 16 16"><Path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/></Svg>
-                    <Text style={styles.joinButtonText}>Join Queue</Text>
-                    </View>
-                </TouchableOpacity>
-                </>
+                    <TouchableOpacity
+                        style={[styles.joinButton, (defaultChecklist.length === 0 || loading) && styles.disabledButton]}
+                        onPress={() => {
+                            setChecklist(defaultChecklist.map(i => ({ ...i, checked: false })));
+                            setModalVisible(true);
+                        }}
+                        disabled={defaultChecklist.length === 0 || loading}
+                    >
+                        <Text style={styles.joinButtonText}>Join Queue</Text>
+                    </TouchableOpacity>
+                </View>
             )}
-            </ScrollView>
+            </>
         )}
       </View>
 
@@ -844,13 +847,12 @@ const updateUserServices = async () => {
   );
 }
 
-// Styles (ensure these match your application's theme and requirements)
+// [MODIFIED] Styles
 const styles = StyleSheet.create({
   centered: { 
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center', 
-   
   },
   backgroundImage: { 
     flex: 1 
@@ -875,13 +877,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    
     zIndex: 3,
   },
   chooseShopButton: { 
     padding: screenWidth * 0.022, 
     backgroundColor: 'rgba(0,0,200,0.7)', 
-    borderRadius: "20%", 
+    borderRadius: 20, 
     justifyContent: 'center', 
     alignItems: 'center' 
   },
@@ -891,7 +892,6 @@ const styles = StyleSheet.create({
     fontSize: screenWidth * 0.06, 
     fontWeight: 'bold', 
     color: '#333', 
-    // marginHorizontal: 8, 
   },
   queue: { 
     fontSize: screenWidth * 0.041, 
@@ -909,22 +909,15 @@ const styles = StyleSheet.create({
     marginBottom: screenHeight * 0.02, 
     textAlign: 'center' 
   },
-  
   ticketContainer: { 
     width: '100%', 
     maxWidth: 400, 
     backgroundColor: '#fff', 
-    borderRadius: "4%", 
+    borderRadius: 16, 
     overflow: 'hidden', 
-    // marginBottom: 20, 
-    // shadowColor: '#000', 
-    // shadowOffset: { width: 0, height: 2 }, 
-    // shadowOpacity: 0.15, 
-    // shadowRadius: 8, 
-    // elevation: 6, 
     borderWidth: 1, 
     borderColor: '#ddd' 
-},
+  },
   ticketHeader: { 
     backgroundColor: '#333', 
     paddingVertical: screenHeight * 0.012, 
@@ -949,7 +942,6 @@ const styles = StyleSheet.create({
     fontWeight: '600', 
     textTransform: 'uppercase', 
     letterSpacing: screenWidth * 0.001, 
-    // marginBottom: 1 
   },
   positionValue: { 
     fontSize: screenWidth * 0.12, 
@@ -966,7 +958,6 @@ const styles = StyleSheet.create({
     fontWeight: '600', 
     textTransform: 'uppercase', 
     letterSpacing: screenWidth * 0.001, 
-    // marginBottom: 1 
   },
   waitTimeValue: { 
     fontSize: screenWidth * 0.06, 
@@ -974,7 +965,6 @@ const styles = StyleSheet.create({
     color: '#d32f2f'
    },
   servicesSection: { 
-    // marginBottom: 12 
   },
   sectionTitle: { 
     fontSize: screenWidth * 0.036, 
@@ -1072,21 +1062,29 @@ const styles = StyleSheet.create({
     letterSpacing: screenWidth * 0.0015 
   },
   
+  // Styles for "Not in Queue" view
+  notInQueueContainer: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+  },
   rateListContainer: { 
+    flex: 1, // Make the card grow to push the button down
     width: '100%', 
-    maxHeight: screenHeight * 0.45, 
     marginBottom: screenHeight * 0.02, 
     backgroundColor: 'rgba(255,255,255,0.9)', 
     borderRadius: 10, 
-    padding: screenWidth * 0.041, 
+    paddingHorizontal: screenWidth * 0.041,
+    paddingVertical: screenHeight * 0.015,
     borderWidth:1, 
-    borderColor:'#eee' 
+    borderColor:'#eee',
+    maxHeight: '80%' // Set a max height to ensure button is always visible
   },
   servicesTitle: { 
     fontSize: screenWidth * 0.048, 
     fontWeight: 'bold', 
     color: '#333', 
-    marginBottom: screenHeight * 0.01, 
+    marginBottom: screenHeight * 0.015, 
     textAlign:'center' 
   },
   rateItem: { 
@@ -1095,9 +1093,6 @@ const styles = StyleSheet.create({
     paddingVertical: screenHeight * 0.013, 
     borderBottomWidth: 1, 
     borderBottomColor: '#f0f0f0' 
-  },
-  rateItemLast: { 
-    borderBottomWidth: 0 
   },
   rateText: { 
     fontSize: screenWidth * 0.04, 
@@ -1108,33 +1103,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold', 
     color: '#28a745',
   },
-  
   joinButton: { 
     backgroundColor: '#28a745', 
     height: screenHeight * 0.068, 
     width: '90%', 
     borderRadius: 8, 
     justifyContent: 'center', 
-    alignItems: 'center', 
-    marginVertical: screenHeight * 0.018, 
-    flexDirection: 'row', 
-    // elevation: 2, 
-    // shadowColor: '#000', 
-    // shadowOffset: { width: 0, height: 1 }, 
-    // shadowOpacity: 0.1, 
-    // shadowRadius: 2, 
+    alignItems: 'center',
+    marginBottom: screenHeight * 0.018,
   },
   disabledButton: { 
     backgroundColor: '#aaa' 
   },
-  joinButtonContent: { 
-    flexDirection: 'row', 
-    alignItems: 'center' 
-  },
   joinButtonText: { 
     fontSize: screenWidth * 0.048, 
     fontWeight: 'bold', 
-    color: '#fff', 
-    marginLeft: screenWidth * 0.025 
+    color: '#fff',
   },
 });

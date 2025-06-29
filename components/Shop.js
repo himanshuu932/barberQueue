@@ -13,11 +13,13 @@ import {
   PixelRatio,
   TouchableWithoutFeedback,
   Platform,
+  Alert, // Import Alert for error messages
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from "expo-location"; // Import Location for current user location
 
 // Get screen dimensions for responsive styling, consistent with menu.js
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -62,9 +64,52 @@ export const ShopList = ({ onSelect, onClose }) => {
   const [queueCounts, setQueueCounts] = useState({});
   const [sortCriteria, setSortCriteria] = useState([]);
   const [showSortOptions, setShowSortOptions] = useState(false);
+  const [userLocation, setUserLocation] = useState(null); // New state for user's current location
+
+  // Helper: convert degrees to radians.
+  const toRad = (value) => (value * Math.PI) / 180;
+
+  // Helper: calculate haversine distance (in km) between two coordinates.
+  const calculateDistance = useCallback((lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth radius in km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }, []); // Memoize calculateDistance
+
+  // Request permission and get current user location
+  const requestLocationPermissionAndSetLocation = useCallback(async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      setError("Permission to access location was denied. Distance calculation will not be available.");
+      Alert.alert(
+        "Location Permission Denied",
+        "Permission to access your location was denied. We cannot calculate distances to shops without this. Please enable it in your device settings.",
+        [{ text: "OK" }]
+      );
+      return null;
+    }
+    try {
+      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setUserLocation(location.coords);
+      return location.coords;
+    } catch (locError) {
+      console.error("Error fetching current location:", locError);
+      setError("Could not fetch your current location. Distance calculation will not be available.");
+      Alert.alert("Location Error", "Failed to get your current location. Please check your GPS settings.", [{ text: "OK" }]);
+      return null;
+    }
+  }, []);
 
   // Memoized fetchShops to prevent unnecessary re-creations
-  const fetchShops = useCallback(async () => {
+  const fetchShops = useCallback(async (currentUserLocation) => {
     setLoading(true);
     setError("");
     try {
@@ -77,11 +122,24 @@ export const ShopList = ({ onSelect, onClose }) => {
       } else {
         console.warn("API response 'data' property is missing or not an array:", shopsData);
       }
-
-      const shopsWithExtraData = shops.map((shop) => ({
-        ...shop,
-        distance: parseFloat((Math.random() * 10 + 0.5).toFixed(1)),
-      }));
+      
+      const shopsWithExtraData = shops.map((shop) => {
+        let distance = null;
+        if (currentUserLocation && shop.address && shop.address.coordinates && shop.address.coordinates.coordinates && shop.address.coordinates.coordinates.length === 2) {
+          // Backend provides [longitude, latitude], need to swap for calculateDistance which expects (lat, lon)
+          const [shopLongitude, shopLatitude] = shop.address.coordinates.coordinates;
+          distance = calculateDistance(
+            currentUserLocation.latitude,
+            currentUserLocation.longitude,
+            shopLatitude,
+            shopLongitude
+          );
+        }
+        return {
+          ...shop,
+          distance: distance !== null ? parseFloat(distance.toFixed(1)) : null, // Assign calculated distance or null
+        };
+      });
 
       setShopRatings(shopsWithExtraData);
     } catch (err) {
@@ -91,7 +149,7 @@ export const ShopList = ({ onSelect, onClose }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [calculateDistance]); // Add calculateDistance to dependencies
 
   // Memoized fetchQueueCounts for efficiency
   const fetchQueueCounts = useCallback(async (shops) => {
@@ -112,9 +170,13 @@ export const ShopList = ({ onSelect, onClose }) => {
   }, []);
 
   useEffect(() => {
-    fetchShops();
-    loadCurrentShop();
-  }, [fetchShops]);
+    const initialize = async () => {
+      const locationCoords = await requestLocationPermissionAndSetLocation();
+      await fetchShops(locationCoords);
+      loadCurrentShop();
+    };
+    initialize();
+  }, [fetchShops, requestLocationPermissionAndSetLocation]);
 
   useEffect(() => {
     if (shopRatings.length > 0) {
@@ -138,7 +200,6 @@ export const ShopList = ({ onSelect, onClose }) => {
       return;
     }
     setSelectedShopId(shopId);
-    //console.log("Selected shop ID:", shopId);
     await AsyncStorage.setItem("pinnedShop", shopId);
     onSelect?.(shopId);
   };
@@ -209,7 +270,11 @@ export const ShopList = ({ onSelect, onClose }) => {
         if (key === "rating") {
           comparison = a.rating - b.rating;
         } else if (key === "distance") {
-          comparison = a.distance - b.distance;
+          // Handle null distances by pushing them to the end
+          if (a.distance === null && b.distance === null) comparison = 0;
+          else if (a.distance === null) comparison = 1; // a comes after b
+          else if (b.distance === null) comparison = -1; // a comes before b
+          else comparison = a.distance - b.distance;
         } else if (key === "queue") {
           comparison = (queueCounts[a._id] || 0) - (queueCounts[b._id] || 0);
         }
@@ -354,7 +419,9 @@ export const ShopList = ({ onSelect, onClose }) => {
           <View style={styles.shopMeta}>
             <View style={styles.metaItem}>
               <FontAwesome5 name="map-marker-alt" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
-              <Text style={styles.metaText}>{shop.distance.toFixed(1)} km</Text>
+              <Text style={styles.metaText}>
+                {shop.distance !== null ? `${shop.distance.toFixed(1)} km` : "N/A km"}
+              </Text>
             </View>
             <View style={styles.metaItem}>
               <FontAwesome5 name="clock" size={getResponsiveFontSize(12)} color={colors.textSecondary} />
@@ -384,7 +451,10 @@ export const ShopList = ({ onSelect, onClose }) => {
       <View style={styles.errorContainer}>
         <FontAwesome5 name="exclamation-circle" size={getResponsiveFontSize(40)} color={colors.error} />
         <Text style={styles.errorText}>Error: {error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchShops}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => {
+          setError(""); // Clear error before retrying
+          requestLocationPermissionAndSetLocation().then(fetchShops); // Re-fetch location and then shops
+        }}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </View>

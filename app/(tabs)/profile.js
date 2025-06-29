@@ -303,13 +303,7 @@ const handleInitiatePasswordChange = async () => {
                 />
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.changePasswordButton}
-                onPress={() => setIsPasswordModalVisible(true)}
-              >
-                <Icon name="lock" size={screenWidth * 0.05} color="white" />
-                <Text style={styles.changePasswordButtonText}>Change Password</Text>
-              </TouchableOpacity>
+              {/* [MODIFIED] Removed Change Password Button from here */}
 
               <TouchableOpacity
                 style={styles.logoutButton}
@@ -426,6 +420,18 @@ const handleInitiatePasswordChange = async () => {
                 onChangeText={(text) => setEditedProfile({ ...editedProfile, email: text })}
               />
             </View>
+            
+            {/* [MODIFIED] Added Change Password link/button here */}
+            <TouchableOpacity
+              style={styles.changePasswordLink}
+              onPress={() => {
+                setIsModalVisible(false); // Hide edit modal
+                setIsPasswordModalVisible(true); // Show password modal
+              }}
+            >
+              <Text style={styles.changePasswordLinkText}>Change Password?</Text>
+            </TouchableOpacity>
+
             <View style={styles.modalButtonContainer}>
               <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsModalVisible(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
@@ -702,6 +708,17 @@ const handleInitiatePasswordChange = async () => {
 }
 
 const styles = StyleSheet.create({
+  changePasswordLink: {
+    marginTop: 15,
+    marginBottom: 5,
+    alignItems: 'center',
+  },
+  changePasswordLinkText: {
+    color: '#1a1a1a',
+    fontWeight: '600',
+    fontSize: screenWidth * 0.04,
+    textDecorationLine: 'underline',
+  },
   barberShopContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -853,22 +870,6 @@ const styles = StyleSheet.create({
     fontSize: screenWidth * 0.04,
     fontWeight: '600',
     marginRight: screenWidth * 0.01,
-  },
-  changePasswordButton: {
-    position: "absolute",
-    top: screenHeight * 0.02,
-    right: screenWidth * 0.3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: screenWidth * 0.02,
-    borderRadius: screenWidth * 0.04,
-    zIndex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  changePasswordButtonText: {
-    color: "white",
-    fontSize: screenWidth * 0.035,
-    marginLeft: screenWidth * 0.01,
   },
   backgroundImage: {
     flex: 1,
