@@ -77,7 +77,7 @@ exports.createShop = asyncHandler(async (req, res) => {
         throw new ApiError('Owner not found.', 404);
     }
 
-    const trialPeriodInDays = 30; // Default trial period for shops
+    const trialPeriodInDays = 60; // Default trial period for shops
     const trialStartDate = new Date();
     const trialEndDate = calculateEndDate(trialStartDate, trialPeriodInDays, 'days');
 

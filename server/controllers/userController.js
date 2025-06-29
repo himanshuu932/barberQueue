@@ -64,7 +64,7 @@ exports.registerUser = asyncHandler(async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(pass, salt);
 
-    const trialPeriodInDays = 7; 
+    const trialPeriodInDays = 60; 
     const trialStartDate = new Date();
     const trialEndDate = calculateEndDate(trialStartDate, trialPeriodInDays, 'days');
 
