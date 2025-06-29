@@ -12,6 +12,9 @@ router.post('/login', ownerController.loginOwner);
 router.post('/change-password/initiate',  protect(['owner']), ownerController.initiatePasswordChange);
 router.post('/change-password/confirm', protect(['owner']), ownerController.confirmPasswordChange);
 
+router.post('/forgot-password', ownerController.initiatePasswordReset);
+router.post('/reset-password', ownerController.resetPassword);
+
 
 // Private routes for authenticated owners
 router.get('/profile', protect(['owner']), ownerController.getOwnerProfile);

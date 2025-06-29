@@ -17,6 +17,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
+// API Base URL
+const API_BASE = "https://numbr-exq6.onrender.com";
+
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -25,9 +28,6 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
-
-// Updated API_BASE URL
-const API_BASE = "https://numbr-exq6.onrender.com";
 
 // Function to register push notifications
 async function registerForPushNotifications(uid, userToken) {
@@ -89,7 +89,7 @@ export default function LoginScreen() {
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [forgotPasswordStep, setForgotPasswordStep] = useState(1); // 1: email, 2: otp, 3: new password
+  const [forgotPasswordStep, setForgotPasswordStep] = useState(1); // 1: email, 2: otp & new password
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -161,16 +161,10 @@ export default function LoginScreen() {
   };
 
   const verifyOtpAndResetPassword = async () => {
-    if (!otp) {
-      Alert.alert("Error", "Please enter the OTP.");
+    if (!otp || !newPassword || !confirmNewPassword) {
+      Alert.alert("Error", "Please fill all fields.");
       return;
     }
-    
-    if (!newPassword || !confirmNewPassword) {
-      Alert.alert("Error", "Please enter and confirm your new password.");
-      return;
-    }
-    
     if (newPassword !== confirmNewPassword) {
       Alert.alert("Error", "Passwords do not match.");
       return;
@@ -181,17 +175,12 @@ export default function LoginScreen() {
       const response = await fetch(`${API_BASE}/api/users/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: forgotPasswordEmail,
-          otp,
-          newPassword,
-        }),
+        body: JSON.stringify({ email: forgotPasswordEmail, otp, newPassword }),
       });
 
       const data = await response.json();
       if (!response.ok) {
         Alert.alert("Error", data.message || "Failed to reset password");
-        setForgotPasswordLoading(false);
         return;
       }
 
@@ -211,128 +200,83 @@ export default function LoginScreen() {
     setOtp("");
     setNewPassword("");
     setConfirmNewPassword("");
+    setForgotPasswordLoading(false);
   };
 
   const renderForgotPasswordModalContent = () => {
-    switch (forgotPasswordStep) {
-      case 1: // Email input
-        return (
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Forgot Password</Text>
-            <Text style={styles.modalSubtitle}>Enter your email address to receive a reset OTP</Text>
-            
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Email"
-              placeholderTextColor="#999"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={forgotPasswordEmail}
-              onChangeText={setForgotPasswordEmail}
-            />
-            
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]} 
-                onPress={resetForgotPasswordFlow}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.submitButton]} 
-                onPress={handleForgotPassword}
-                disabled={forgotPasswordLoading}
-              >
-                {forgotPasswordLoading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalButtonText}>Send OTP</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
-      
-      case 2: // OTP input
-        return (
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Verify OTP</Text>
-            <Text style={styles.modalSubtitle}>Enter the OTP sent to {forgotPasswordEmail}</Text>
-            
-            <TextInput
-              style={styles.modalInput}
-              placeholder="OTP"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-              value={otp}
-              onChangeText={setOtp}
-            />
-            
-            <TouchableOpacity onPress={() => setForgotPasswordStep(3)}>
-              <Text style={styles.nextStepText}>Next</Text>
+    if (forgotPasswordStep === 1) { // Step 1: Email Input
+      return (
+        <>
+          <Text style={styles.modalTitle}>Forgot Password</Text>
+          <Text style={styles.modalSubtitle}>Enter your email to receive a reset OTP.</Text>
+          <TextInput
+            style={styles.modalInput}
+            placeholder="Email Address"
+            placeholderTextColor="#999"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={forgotPasswordEmail}
+            onChangeText={setForgotPasswordEmail}
+          />
+          <View style={styles.modalButtonContainer}>
+            <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={resetForgotPasswordFlow}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.submitButton]}
+              onPress={handleForgotPassword}
+              disabled={forgotPasswordLoading}
+            >
+              {forgotPasswordLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitButtonText}>Send OTP</Text>}
             </TouchableOpacity>
           </View>
-        );
-      
-      case 3: // New password input
-        return (
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Set New Password</Text>
-            
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[styles.modalInput, styles.passwordInput]}
-                placeholder="New Password"
-                placeholderTextColor="#999"
-                secureTextEntry={!passwordVisible}
-                value={newPassword}
-                onChangeText={setNewPassword}
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setPasswordVisible(!passwordVisible)}
-              >
-                <Icon name={passwordVisible ? "visibility" : "visibility-off"} size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[styles.modalInput, styles.passwordInput]}
-                placeholder="Confirm New Password"
-                placeholderTextColor="#999"
-                secureTextEntry={!passwordVisible}
-                value={confirmNewPassword}
-                onChangeText={setConfirmNewPassword}
-              />
-            </View>
-            
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]} 
-                onPress={() => setForgotPasswordStep(2)}
-              >
-                <Text style={styles.modalButtonText}>Back</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.submitButton]} 
-                onPress={verifyOtpAndResetPassword}
-                disabled={forgotPasswordLoading}
-              >
-                {forgotPasswordLoading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.modalButtonText}>Reset Password</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+        </>
+      );
+    }
+
+    if (forgotPasswordStep === 2) { // Step 2: OTP and New Password
+      return (
+        <>
+          <Text style={styles.modalTitle}>Reset Password</Text>
+          <Text style={styles.modalSubtitle}>Enter the OTP sent to {forgotPasswordEmail} and set a new password.</Text>
+          <TextInput
+            style={styles.modalInput}
+            placeholder="OTP"
+            placeholderTextColor="#999"
+            keyboardType="numeric"
+            value={otp}
+            onChangeText={setOtp}
+          />
+          <TextInput
+            style={styles.modalInput}
+            placeholder="New Password"
+            placeholderTextColor="#999"
+            secureTextEntry
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+          <TextInput
+            style={styles.modalInput}
+            placeholder="Confirm New Password"
+            placeholderTextColor="#999"
+            secureTextEntry
+            value={confirmNewPassword}
+            onChangeText={setConfirmNewPassword}
+          />
+          <View style={styles.modalButtonContainer}>
+            <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setForgotPasswordStep(1)}>
+                 <Text style={styles.cancelButtonText}>Back</Text>
+             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.submitButton]}
+              onPress={verifyOtpAndResetPassword}
+              disabled={forgotPasswordLoading}
+            >
+              {forgotPasswordLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitButtonText}>Reset Password</Text>}
+            </TouchableOpacity>
           </View>
-        );
-      
-      default:
-        return null;
+        </>
+      );
     }
   };
 
@@ -399,7 +343,6 @@ export default function LoginScreen() {
         </View>
       </View>
 
-      {/* Forgot Password Modal */}
       <Modal
         visible={showForgotPasswordModal}
         animationType="slide"
@@ -408,7 +351,9 @@ export default function LoginScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            {renderForgotPasswordModalContent()}
+            <View style={styles.modalContent}>
+              {renderForgotPasswordModalContent()}
+            </View>
           </View>
         </View>
       </Modal>
@@ -507,24 +452,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
   modalContainer: {
-    width: "85%",
+    width: "90%",
     backgroundColor: "#FFF",
     borderRadius: 15,
-    padding: 20,
+    padding: 25,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
   },
   modalContent: {
     width: "100%",
+    alignItems: 'center',
   },
   modalTitle: {
     fontSize: 22,
@@ -541,10 +484,11 @@ const styles = StyleSheet.create({
   },
   modalInput: {
     width: "100%",
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
     borderRadius: 8,
     marginBottom: 15,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#f0f2f5",
     color: "#333",
     borderWidth: 1,
     borderColor: "#ddd",
@@ -552,30 +496,40 @@ const styles = StyleSheet.create({
   modalButtonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 10,
+    marginTop: 15,
+    width: '100%',
   },
   modalButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: "center",
+    justifyContent: 'center',
     marginHorizontal: 5,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: {width: 0, height: 1},
+    shadowRadius: 2,
   },
   cancelButton: {
-    backgroundColor: "#e0e0e0",
+    backgroundColor: "#f0f2f5",
+    borderWidth: 1,
+    borderColor: '#dcdfe6',
   },
   submitButton: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#2c3e50",
   },
-  modalButtonText: {
-    color: "#FFF",
-    fontWeight: "bold",
+  cancelButtonText: {
+    color: '#333333',
+    fontWeight: '600',
     fontSize: 16,
+    textAlign: 'center',
   },
-  nextStepText: {
-    color: "rgb(3, 75, 163)",
-    fontWeight: "bold",
-    textAlign: "center",
-    marginTop: 10,
+  submitButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 16,
+    textAlign: 'center',
   },
 });

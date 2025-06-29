@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,91 +9,63 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
+  Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
-import { useFocusEffect } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialIcons";
+
+// API Base URL
+const API_BASE = "https://numbr-exq6.onrender.com";
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true, // Show an alert when the app is in the foreground
-    shouldPlaySound: true, // Play a sound when the notification is received
-    shouldSetBadge: true, // Set the app badge count
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
   }),
 });
 
 // Function to register push notifications
 async function registerForPushNotifications(ownerId, token) {
-  //console.log("Registering for push notifications for ownerId:", ownerId);
-  //console.log("Expo Push Token:", token);
-
   try {
-    // Step 1: Check and request permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    //console.log("Existing permission status:", existingStatus);
-
     let finalStatus = existingStatus;
     if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
-      //console.log("Requested permission status:", finalStatus);
     }
 
     if (finalStatus !== "granted") {
-      //console.log("Failed to get push token for push notifications!");
       Alert.alert(
         "Permission Denied",
-        "Push notifications permission is required to receive notifications. Please enable it in your device settings."
+        "Push notifications permission is required to receive notifications."
       );
       return;
     }
+    
+    const expoPushToken = (await Notifications.getExpoPushTokenAsync({
+        projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
+    })).data;
 
-    // Step 2: Send token to your custom backend to update owner profile
-    try {
-      // Retrieve the user token from AsyncStorage for authentication
-      const userToken = await AsyncStorage.getItem("userToken");
-      if (!userToken) {
+    const userToken = await AsyncStorage.getItem("userToken");
+    if (!userToken) {
         console.error("No user token found for push notification registration.");
         return;
-      }
-
-      const response = await fetch(
-        "https://numbr-exq6.onrender.com/api/owners/profile", // Correct route for updating owner profile
-        {
-          method: "PUT", // Use PUT for updating profile
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${userToken}`, // Send the user token
-          },
-          body: JSON.stringify({ expopushtoken: token }), // Send the push token
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Backend error updating push token:", errorData);
-        Alert.alert(
-          "Backend Error",
-          `Failed to register push token: ${errorData.message || "Unknown error"}`
-        );
-        return;
-      }
-
-      const resData = await response.json();
-      //console.log("Backend response for push token update:", resData);
-    } catch (error) {
-      console.error("Error sending push token to backend:", error);
-      Alert.alert(
-        "Network Error",
-        "Failed to send push token to the backend. Please check your internet connection."
-      );
     }
 
-    // Step 3: Configure Android notification channel
+    await fetch(`${API_BASE}/api/owners/profile`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({ expopushtoken: expoPushToken }),
+    });
+
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "default",
@@ -104,72 +76,209 @@ async function registerForPushNotifications(ownerId, token) {
     }
   } catch (error) {
     console.error("Error in registerForPushNotifications:", error);
-    Alert.alert(
-      "Error",
-      "An unexpected error occurred while setting up push notifications. Please try again later."
-    );
   }
 }
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState(""); // Changed from phone to email
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Forgot password states
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [forgotPasswordStep, setForgotPasswordStep] = useState(1); // 1: email, 2: otp & new password
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+
   const handleLogin = async () => {
-    if (!email || !password) { // Changed from email to phone
+    if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
       return;
     }
     setLoading(true);
     try {
-      const response = await fetch(
-        "https://numbr-exq6.onrender.com/api/owners/login", // Corrected endpoint
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, pass: password }), // Corrected fields
-        }
-      );
+      const response = await fetch(`${API_BASE}/api/owners/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, pass: password }),
+      });
 
       const data = await response.json();
       if (!response.ok) {
-        Alert.alert("Error", data.message || "Login failed"); // Use data.message
+        Alert.alert("Error", data.message || "Login failed");
         setLoading(false);
         return;
       }
-      //console.log("Login successful:", data);
-      //console.log("Owner ID:", data.data._id); // Access _id from data.data
-
-      // Store token and owner data
+      
       await AsyncStorage.setItem("userToken", data.data.token);
       await AsyncStorage.setItem("userName", data.data.name);
-      await AsyncStorage.setItem("uid", data.data._id); // Store owner ID
-      let userType = "owner"; 
-      await AsyncStorage.setItem("userType", userType);
+      await AsyncStorage.setItem("uid", data.data._id);
+      await AsyncStorage.setItem("userType", "owner");
 
-      // Get Expo Push Token and then register it with the backend
-      let expoPushToken;
-      try {
-        expoPushToken = (
-          await Notifications.getExpoPushTokenAsync({
-            projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246", // Use your Expo project ID
-          })
-        ).data;
-        await registerForPushNotifications(data.data._id, expoPushToken); // Pass owner ID and token
-      } catch (error) {
-        console.error("Error getting Expo Push Token or registering:", error);
-      }
+      await registerForPushNotifications(data.data._id, data.data.token);
 
-
-      // Navigate immediately and remove this screen from the stack
-      router.replace("/(superadmin)/menu"); // Assuming the owner's menu path is /owner/menu
+      router.replace("/(superadmin)/menu");
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert("Error", "Something went wrong during login.");
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!forgotPasswordEmail) {
+      Alert.alert("Error", "Please enter your email address.");
+      return;
+    }
+    
+    setForgotPasswordLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/owners/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotPasswordEmail }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        Alert.alert("Error", data.message || "Failed to send OTP");
+        setForgotPasswordLoading(false);
+        return;
+      }
+
+      Alert.alert("Success", "OTP has been sent to your email address.");
+      setForgotPasswordStep(2); // Move to OTP and new password step
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      Alert.alert("Error", "Something went wrong while sending OTP.");
+    } finally {
+        setForgotPasswordLoading(false);
+    }
+  };
+
+  const verifyOtpAndResetPassword = async () => {
+    if (!otp || !newPassword || !confirmNewPassword) {
+      Alert.alert("Error", "Please fill all fields.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert("Error", "Passwords do not match.");
+      return;
+    }
+    
+    setForgotPasswordLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/owners/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotPasswordEmail, otp, newPassword }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        Alert.alert("Error", data.message || "Failed to reset password");
+        return;
+      }
+
+      Alert.alert("Success", "Password has been reset successfully. You can now login with your new password.");
+      resetForgotPasswordFlow();
+    } catch (error) {
+      console.error("Reset password error:", error);
+      Alert.alert("Error", "Something went wrong while resetting password.");
+    } finally {
+        setForgotPasswordLoading(false);
+    }
+  };
+
+  const resetForgotPasswordFlow = () => {
+    setShowForgotPasswordModal(false);
+    setForgotPasswordStep(1);
+    setForgotPasswordEmail("");
+    setOtp("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setForgotPasswordLoading(false);
+  };
+
+  const renderForgotPasswordModalContent = () => {
+    if (forgotPasswordStep === 1) { // Step 1: Email Input
+      return (
+        <>
+          <Text style={styles.modalTitle}>Forgot Password</Text>
+          <Text style={styles.modalSubtitle}>Enter your email to receive a reset OTP.</Text>
+          <TextInput
+            style={styles.modalInput}
+            placeholder="Email Address"
+            placeholderTextColor="#999"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={forgotPasswordEmail}
+            onChangeText={setForgotPasswordEmail}
+          />
+          <View style={styles.modalButtonContainer}>
+            <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={resetForgotPasswordFlow}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.submitButton]}
+              onPress={handleForgotPassword}
+              disabled={forgotPasswordLoading}
+            >
+              {forgotPasswordLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitButtonText}>Send OTP</Text>}
+            </TouchableOpacity>
+          </View>
+        </>
+      );
+    }
+
+    if (forgotPasswordStep === 2) { // Step 2: OTP and New Password
+      return (
+        <>
+          <Text style={styles.modalTitle}>Reset Password</Text>
+          <Text style={styles.modalSubtitle}>Enter the OTP sent to {forgotPasswordEmail} and set a new password.</Text>
+          <TextInput
+            style={styles.modalInput}
+            placeholder="OTP"
+            placeholderTextColor="#999"
+            keyboardType="numeric"
+            value={otp}
+            onChangeText={setOtp}
+          />
+          <TextInput
+            style={styles.modalInput}
+            placeholder="New Password"
+            placeholderTextColor="#999"
+            secureTextEntry
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+          <TextInput
+            style={styles.modalInput}
+            placeholder="Confirm New Password"
+            placeholderTextColor="#999"
+            secureTextEntry
+            value={confirmNewPassword}
+            onChangeText={setConfirmNewPassword}
+          />
+          <View style={styles.modalButtonContainer}>
+             <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setForgotPasswordStep(1)}>
+                 <Text style={styles.cancelButtonText}>Back</Text>
+             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.submitButton]}
+              onPress={verifyOtpAndResetPassword}
+              disabled={forgotPasswordLoading}
+            >
+              {forgotPasswordLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitButtonText}>Reset Password</Text>}
+            </TouchableOpacity>
+          </View>
+        </>
+      );
     }
   };
 
@@ -181,12 +290,12 @@ export default function LoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Email" // Changed placeholder
+            placeholder="Email"
             placeholderTextColor="rgb(0, 0, 0)"
-            keyboardType="email-address" // Changed keyboardType
+            keyboardType="email-address"
             autoCapitalize="none"
             value={email}
-            onChangeText={setEmail} // Changed setter
+            onChangeText={setEmail}
           />
 
           <View style={styles.passwordContainer}>
@@ -202,6 +311,13 @@ export default function LoginScreen() {
               <Icon name={passwordVisible ? "visibility" : "visibility-off"} size={24} color="#000" />
             </TouchableOpacity>
           </View>
+          
+          <TouchableOpacity 
+            style={styles.forgotPasswordButton} 
+            onPress={() => setShowForgotPasswordModal(true)}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.buttonContainer} onPress={handleLogin} disabled={loading}>
             <LinearGradient
@@ -210,11 +326,7 @@ export default function LoginScreen() {
               end={{ x: 1, y: 1 }}
               style={styles.button}
             >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buttonText}>Login</Text>
-              )}
+              {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Login</Text>}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -225,6 +337,21 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <Modal
+        visible={showForgotPasswordModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={resetForgotPasswordFlow}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              {renderForgotPasswordModalContent()}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ImageBackground>
   );
 }
@@ -273,7 +400,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   passwordInput: {
-    paddingRight: 45, // Extra right padding to avoid text overlap with the eye icon
+    paddingRight: 45,
   },
   eyeButton: {
     position: "absolute",
@@ -304,5 +431,99 @@ const styles = StyleSheet.create({
   link: {
     color: "#FFFFFF",
     fontWeight: "900",
+  },
+  forgotPasswordButton: {
+    alignSelf: "flex-end",
+    marginBottom: 15,
+  },
+  forgotPasswordText: {
+    color: "rgb(220, 220, 220)",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  modalContainer: {
+    width: "90%",
+    backgroundColor: "#FFF",
+    borderRadius: 15,
+    padding: 25,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalContent: {
+    width: "100%",
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#333",
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  modalInput: {
+    width: "100%",
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    marginBottom: 15,
+    backgroundColor: "#f0f2f5",
+    color: "#333",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  modalButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 15,
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: 'center',
+    marginHorizontal: 5,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: {width: 0, height: 1},
+    shadowRadius: 2,
+  },
+  cancelButton: {
+    backgroundColor: "#f0f2f5",
+    borderWidth: 1,
+    borderColor: '#dcdfe6',
+  },
+  submitButton: {
+    backgroundColor: "#2c3e50",
+  },
+  cancelButtonText: {
+    color: '#333333',
+    fontWeight: '600',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  submitButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
