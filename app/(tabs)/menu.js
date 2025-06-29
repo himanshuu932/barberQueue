@@ -185,7 +185,7 @@ useEffect(() => {
     Alert.alert(
       data.title, 
       data.message,
-      [{ text: "OK", onPress: () => fetchQueueData() }] // Refresh queue when alert dismissed
+      [{ text: "OK", onPress: () => fetchQueueData() }] 
     );
   };
    

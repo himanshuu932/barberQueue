@@ -41,7 +41,7 @@ photos: [{
     required: true
   }
 }],
-    rating: { // Overall rating of the shop
+    rating: { 
         type: Number,
         min: 0,
         max: 5,

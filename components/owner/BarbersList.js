@@ -148,8 +148,8 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
                         </View>
                         <View style={styles.listItemInfo}>
                             <Text style={styles.itemName}>{barber.name}</Text>
-                            <Text style={styles.itemSubText}>{barber.email}</Text> {/* Changed 'phone' to 'email' */}
                             <Text style={styles.itemSubText}>Served: {barber.customersServed || 0}</Text>
+                            <Text style={styles.itemSubText}>Rating: {barber.rating || 0}⭐ </Text>
                         </View>
                         <View style={styles.listItemActions}>
                             <TouchableOpacity
