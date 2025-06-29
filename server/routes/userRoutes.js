@@ -13,6 +13,10 @@ router.get('/profile', protect(['user']), userController.getUserProfile);
 router.put('/profile', protect(['user']), userController.updateUserProfile);
 router.delete('/me', protect(['user']), userController.deleteUserAccount); // Delete own account
 
+//change password
+router.post('/change-password/initiate',  protect(['user']), userController.initiatePasswordChange);
+router.post('/change-password/confirm', protect(['user']), userController.confirmPasswordChange);
+
 // Pinned Shop functionality
 router.put('/pin-shop/:shopId', protect(['user']), userController.pinShop);
 router.put('/unpin-shop', protect(['user']), userController.unpinShop);

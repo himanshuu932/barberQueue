@@ -22,7 +22,7 @@ import { io } from "socket.io-client";
 import { useFocusEffect } from "@react-navigation/native";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const API_BASE = "https://numbr-p7zc.onrender.com";
+const API_BASE = "http://10.0.2.2:5000";
 
 export default function MenuScreen() {
   const [queueLength, setQueueLength] = useState(null);
@@ -110,6 +110,7 @@ export default function MenuScreen() {
   useEffect(() => {
     if (socket) {
       socket.on("queue:updated", () => {
+        console.log("updating the queue cause of queue:updated event by socket in barber frontend");
         fetchQueueData();
       });
     }

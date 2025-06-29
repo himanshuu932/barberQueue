@@ -19,10 +19,10 @@ require('dotenv').config();
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'FdhuPV1HIA5bRYAIu2gYSoXh';
 // IMPORTANT: Configure this URL based on your testing environment:
-// - For Android Emulator: 'https://numbr-p7zc.onrender.com'
+// - For Android Emulator: 'http://10.0.2.2:5000'
 // - For iOS Simulator/Device or Physical Android Device: Replace '10.0.2.2' with your computer's actual local IP address (e.g., 'http://192.168.1.X:5000')
 // - For Production/Public access: This should be your deployed backend's public URL (e.g., 'https://api.yourdomain.com')
-const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-p7zc.onrender.com'; 
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'http://10.0.2.2:5000'; 
 
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({
@@ -244,6 +244,9 @@ exports.updateShopDetails = asyncHandler(async (req, res) => {
 // @desc    Delete a shop (by Owner)add
 // @route   DELETE /api/shops/:id
 // @access  Private (Owner)
+// @desc    Delete a shop (by Owner)
+// @route   DELETE /api/shops/:id
+// @access  Private (Owner)
 exports.deleteShop = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
@@ -265,13 +268,25 @@ exports.deleteShop = asyncHandler(async (req, res) => {
         await owner.save();
     }
 
-    // Consider deleting associated barbers, queue entries, and history records
-    // For simplicity, we'll just delete the shop document here.
-    await shop.deleteOne(); // Mongoose v6+ uses deleteOne() on a document
+    // Delete all barbers associated with this shop
+    try {
+        const deleteResult = await Barber.deleteMany({ shopId: id });
+        console.log(`Deleted ${deleteResult.deletedCount} barbers associated with shop ${id}`);
+    } catch (error) {
+        console.error('Error deleting associated barbers:', error);
+        // You might want to handle this error differently depending on your requirements
+        // For now, we'll continue with shop deletion even if barber deletion fails
+    }
+
+    // Consider deleting associated services, queue entries, and history records if needed
+    // For example:
+    // await History.deleteMany({ shop: id });
+
+    await shop.deleteOne();
 
     res.json({
         success: true,
-        message: 'Shop deleted successfully',
+        message: 'Shop and associated barbers deleted successfully',
     });
 });
 

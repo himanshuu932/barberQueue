@@ -23,7 +23,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import RatingModal from "../../components/user/RatingModal";
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
-const API_BASE = "https://numbr-p7zc.onrender.com/api";
+const API_BASE = "http://10.0.2.2:5000/api";
 
 export default function TabProfileScreen() {
   const router = useRouter();
@@ -32,6 +32,14 @@ export default function TabProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [passwordStep, setPasswordStep] = useState(1); // 1 = initiate, 2 = confirm
+  const [passwordData, setPasswordData] = useState({
+    otp: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [editedProfile, setEditedProfile] = useState({ name: "", email: "" });
   const [isUpdating, setIsUpdating] = useState(false);
   const [isHistoryDetailModalVisible, setIsHistoryDetailModalVisible] = useState(false);
@@ -150,6 +158,112 @@ export default function TabProfileScreen() {
     }
   };
 
+const handleInitiatePasswordChange = async () => {
+  console.log("[Password Change] 1. Initiate function called");
+  
+  try {
+    console.log("[Password Change] 2. Setting loading state to true");
+    setIsPasswordLoading(true);
+
+    console.log("[Password Change] 3. Retrieving user token from AsyncStorage");
+    const userToken = await AsyncStorage.getItem("userToken");
+    console.log("[Password Change] 4. Retrieved token:", userToken ? "exists" : "missing");
+
+    if (!userToken) {
+      console.error("[Password Change] Error: No user token found");
+      throw new Error("Authentication token missing");
+    }
+
+    console.log("[Password Change] 5. Making API request to:", `${API_BASE}/users/change-password/initiate`);
+    const startTime = Date.now();
+    const response = await fetch(`${API_BASE}/users/change-password/initiate`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${userToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const responseTime = Date.now() - startTime;
+    console.log(`[Password Change] 6. API response received in ${responseTime}ms`);
+
+    console.log("[Password Change] 7. Response status:", response.status);
+    console.log("[Password Change] 8. Response ok:", response.ok);
+
+    if (!response.ok) {
+      const errorResponse = await response.json().catch(() => ({}));
+      console.error("[Password Change] 9. Error response:", errorResponse);
+      throw new Error(errorResponse.message || "Failed to initiate password change");
+    }
+
+    const responseData = await response.json().catch(() => ({}));
+    console.log("[Password Change] 10. Success response:", responseData);
+
+    Alert.alert("Success", "OTP sent to your registered email");
+    console.log("[Password Change] 11. Moving to step 2 (OTP confirmation)");
+    setPasswordStep(2);
+  } catch (error) {
+    console.error("[Password Change] ERROR:", error);
+    console.error("[Password Change] Error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+
+    let errorMessage = "Failed to initiate password change";
+    if (error.message.includes("Network request failed")) {
+      errorMessage = "Network error - please check your internet connection";
+    } else if (error.message.includes("token")) {
+      errorMessage = "Session expired - please login again";
+    }
+
+    Alert.alert("Error", errorMessage);
+  } finally {
+    console.log("[Password Change] 12. Setting loading state to false");
+    setIsPasswordLoading(false);
+  }
+};
+
+  const handleConfirmPasswordChange = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      Alert.alert("Error", "Passwords don't match");
+      return;
+    }
+
+    try {
+      setIsPasswordLoading(true);
+      const userToken = await AsyncStorage.getItem("userToken");
+      const response = await fetch(`${API_BASE}/users/change-password/confirm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({
+          otp: passwordData.otp,
+          newPassword: passwordData.newPassword
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to change password");
+      }
+
+      Alert.alert("Success", "Password changed successfully");
+      setIsPasswordModalVisible(false);
+      setPasswordStep(1);
+      setPasswordData({
+        otp: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      Alert.alert("Error", "Failed to change password. Please check your OTP.");
+    } finally {
+      setIsPasswordLoading(false);
+    }
+  };
+
   const formatTrialEndDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString();
@@ -160,12 +274,10 @@ export default function TabProfileScreen() {
     setIsHistoryDetailModalVisible(true);
   };
 
-  // Updated handleRateService to show the rating modal
   const handleRateService = () => {
-    setIsHistoryDetailModalVisible(false); // Close history detail modal first
-    setIsRatingModalVisible(true); // Open the rating modal
+    setIsHistoryDetailModalVisible(false);
+    setIsRatingModalVisible(true);
   };
-
 
   return (
     <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage} resizeMode="cover">
@@ -188,6 +300,14 @@ export default function TabProfileScreen() {
                   source={require("../image/editw.png")}
                   style={{ width: screenWidth * 0.06, height: screenWidth * 0.06, tintColor: "white" }}
                 />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.changePasswordButton}
+                onPress={() => setIsPasswordModalVisible(true)}
+              >
+                <Icon name="lock" size={screenWidth * 0.05} color="white" />
+                <Text style={styles.changePasswordButtonText}>Change Password</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -325,6 +445,107 @@ export default function TabProfileScreen() {
         </View>
       </Modal>
 
+      {/* Change Password Modal */}
+      <Modal visible={isPasswordModalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {passwordStep === 1 ? 'Initiate Password Change' : 'Confirm New Password'}
+            </Text>
+            
+            {passwordStep === 1 ? (
+              <>
+                <Text style={styles.modalMessage}>
+                  We'll send an OTP to your registered email to verify your identity.
+                </Text>
+                <View style={styles.modalButtonContainer}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => {
+                      setIsPasswordModalVisible(false);
+                      setPasswordStep(1);
+                    }}
+                  >
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.saveButton]}
+                    onPress={handleInitiatePasswordChange}
+                    disabled={isPasswordLoading}
+                  >
+                    {isPasswordLoading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.modalButtonText}>Send OTP</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>OTP</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter OTP"
+                    value={passwordData.otp}
+                    onChangeText={(text) => setPasswordData({...passwordData, otp: text})}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>New Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter new password"
+                    value={passwordData.newPassword}
+                    onChangeText={(text) => setPasswordData({...passwordData, newPassword: text})}
+                    secureTextEntry
+                  />
+                </View>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Confirm Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Confirm new password"
+                    value={passwordData.confirmPassword}
+                    onChangeText={(text) => setPasswordData({...passwordData, confirmPassword: text})}
+                    secureTextEntry
+                  />
+                </View>
+                <View style={styles.modalButtonContainer}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => {
+                      setIsPasswordModalVisible(false);
+                      setPasswordStep(1);
+                      setPasswordData({
+                        otp: '',
+                        newPassword: '',
+                        confirmPassword: ''
+                      });
+                    }}
+                  >
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.saveButton]}
+                    onPress={handleConfirmPasswordChange}
+                    disabled={isPasswordLoading}
+                  >
+                    {isPasswordLoading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.modalButtonText}>Change Password</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Logout Confirmation Modal */}
       <Modal visible={isLogoutModalVisible} transparent animationType="fade">
         <View style={styles.modalContainer}>
@@ -350,119 +571,119 @@ export default function TabProfileScreen() {
       </Modal>
 
       {/* History Detail Modal */}
-<Modal visible={isHistoryDetailModalVisible} transparent animationType="slide">
-  <View style={styles.modalContainer}>
-    <View style={styles.detailModalContent}>
-      <View style={styles.detailModalHeader}>
-        <Text style={styles.detailModalTitle}>Service Details</Text>
-        <TouchableOpacity 
-          style={styles.detailModalCloseButton}
-          onPress={() => setIsHistoryDetailModalVisible(false)}
-        >
-          <Icon name="times" size={screenWidth * 0.06} color="#666" />
-        </TouchableOpacity>
-      </View>
-      
-      {selectedHistoryItem && (
-        <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={false}>
-          <View style={styles.detailCard}>
-            <View style={styles.detailRow}>
-              <Icon name="calendar" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-              <Text style={styles.detailText}>
-                <Text style={styles.detailLabel}>Date: </Text> 
-                {new Date(selectedHistoryItem.date).toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </Text>
+      <Modal visible={isHistoryDetailModalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.detailModalContent}>
+            <View style={styles.detailModalHeader}>
+              <Text style={styles.detailModalTitle}>Service Details</Text>
+              <TouchableOpacity 
+                style={styles.detailModalCloseButton}
+                onPress={() => setIsHistoryDetailModalVisible(false)}
+              >
+                <Icon name="times" size={screenWidth * 0.06} color="#666" />
+              </TouchableOpacity>
             </View>
+            
+            {selectedHistoryItem && (
+              <ScrollView style={styles.detailScrollView} showsVerticalScrollIndicator={false}>
+                <View style={styles.detailCard}>
+                  <View style={styles.detailRow}>
+                    <Icon name="calendar" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                    <Text style={styles.detailText}>
+                      <Text style={styles.detailLabel}>Date: </Text> 
+                      {new Date(selectedHistoryItem.date).toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </Text>
+                  </View>
 
-            <View style={styles.detailDivider} />
+                  <View style={styles.detailDivider} />
 
-            <View style={styles.detailRow}>
-              <Icon name="money" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-              <Text style={styles.detailText}>
-                <Text style={styles.detailLabel}>Total Cost: </Text> 
-                <Text style={styles.detailAmount}>₹{selectedHistoryItem.totalCost?.toFixed(2) || '0.00'}</Text>
-              </Text>
-            </View>
+                  <View style={styles.detailRow}>
+                    <Icon name="money" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                    <Text style={styles.detailText}>
+                      <Text style={styles.detailLabel}>Total Cost: </Text> 
+                      <Text style={styles.detailAmount}>₹{selectedHistoryItem.totalCost?.toFixed(2) || '0.00'}</Text>
+                    </Text>
+                  </View>
 
-            <View style={styles.detailDivider} />
+                  <View style={styles.detailDivider} />
 
-            <View style={styles.detailSection}>
-              <View style={styles.detailRow}>
-                <Icon name="scissors" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-                <Text style={styles.detailSectionTitle}>Services</Text>
-              </View>
-              {selectedHistoryItem.services?.length > 0 ? (
-                selectedHistoryItem.services.map((s, idx) => (
-                  <View key={idx} style={styles.serviceItem}>
-                    <View style={styles.serviceInfo}>
-                      <Text style={styles.serviceName}>• {s.name || 'Unknown Service'}</Text>
-                      <Text style={styles.servicePrice}>₹{s.price?.toFixed(2) || 'N/A'}</Text>
+                  <View style={styles.detailSection}>
+                    <View style={styles.detailRow}>
+                      <Icon name="scissors" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                      <Text style={styles.detailSectionTitle}>Services</Text>
+                    </View>
+                    {selectedHistoryItem.services?.length > 0 ? (
+                      selectedHistoryItem.services.map((s, idx) => (
+                        <View key={idx} style={styles.serviceItem}>
+                          <View style={styles.serviceInfo}>
+                            <Text style={styles.serviceName}>• {s.name || 'Unknown Service'}</Text>
+                            <Text style={styles.servicePrice}>₹{s.price?.toFixed(2) || 'N/A'}</Text>
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.noServicesText}>No services listed</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.detailDivider} />
+
+                  <View style={styles.barberShopContainer}>
+                    {/* Barber Section */}
+                    <View style={styles.barberShopSection}>
+                      <View style={styles.barberShopHeader}>
+                        <Icon name="user" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                        <Text style={styles.barberShopLabel}>Barber</Text>
+                      </View>
+                      <Text style={styles.barberShopValue}>
+                        {selectedHistoryItem.barber?.name || 'Unknown'}
+                      </Text>
+                    </View>
+
+                    {/* Shop Section */}
+                    <View style={styles.barberShopSection}>
+                      <View style={styles.barberShopHeader}>
+                        <Icon name="home" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
+                        <Text style={styles.barberShopLabel}>Shop</Text>
+                      </View>
+                      <Text style={styles.barberShopValue}>
+                        {selectedHistoryItem.shop?.name || 'Unknown'}
+                      </Text>
                     </View>
                   </View>
-                ))
-              ) : (
-                <Text style={styles.noServicesText}>No services listed</Text>
-              )}
-            </View>
 
-            <View style={styles.detailDivider} />
-
-            <View style={styles.barberShopContainer}>
-              {/* Barber Section */}
-              <View style={styles.barberShopSection}>
-                <View style={styles.barberShopHeader}>
-                  <Icon name="user" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-                  <Text style={styles.barberShopLabel}>Barber</Text>
+                  {selectedHistoryItem.isRated ? (
+                    <>
+                      <View style={styles.detailDivider} />
+                      <View style={styles.ratingdetailSection}>
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailSectionTitle}>Your Rating</Text>
+                        </View>
+                        <View style={styles.ratingContainer}>
+                          <Text style={styles.ratingText}>{selectedHistoryItem.rating}</Text>
+                          <Icon name="star" size={screenWidth * 0.05} color="#FFD700" />
+                        </View>
+                      </View>
+                    </>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.rateButton}
+                      onPress={handleRateService}
+                    >
+                      <Text style={styles.rateButtonText}>Rate This Service</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <Text style={styles.barberShopValue}>
-                  {selectedHistoryItem.barber?.name || 'Unknown'}
-                </Text>
-              </View>
-
-              {/* Shop Section */}
-              <View style={styles.barberShopSection}>
-                <View style={styles.barberShopHeader}>
-                  <Icon name="home" size={screenWidth * 0.05} color="#666" style={styles.detailIcon} />
-                  <Text style={styles.barberShopLabel}>Shop</Text>
-                </View>
-                <Text style={styles.barberShopValue}>
-                  {selectedHistoryItem.shop?.name || 'Unknown'}
-                </Text>
-              </View>
-            </View>
-
-            {selectedHistoryItem.isRated ? (
-              <>
-                <View style={styles.detailDivider} />
-                <View style={styles.ratingdetailSection}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailSectionTitle}>Your Rating</Text>
-                  </View>
-                  <View style={styles.ratingContainer}>
-                    <Text style={styles.ratingText}>{selectedHistoryItem.rating}</Text>
-                    <Icon name="star" size={screenWidth * 0.05} color="#FFD700" />
-                  </View>
-                </View>
-              </>
-            ) : (
-              <TouchableOpacity
-                style={styles.rateButton}
-                onPress={handleRateService}
-              >
-                <Text style={styles.rateButtonText}>Rate This Service</Text>
-              </TouchableOpacity>
+              </ScrollView>
             )}
           </View>
-        </ScrollView>
-      )}
-    </View>
-  </View>
-</Modal>
+        </View>
+      </Modal>
 
       {/* Rating Modal Component */}
       <RatingModal
@@ -480,168 +701,174 @@ export default function TabProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-
   barberShopContainer: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  marginBottom: screenHeight * 0.02,
-},
-// barberShopSection: {
-//   width: '48%', // Slightly less than half to account for spacing
-// },
-barberShopHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: screenHeight * 0.005,
-},
-barberShopLabel: {
-  fontSize: screenWidth * 0.04,
-  fontWeight: '600',
-  color: '#333',
-  // marginLeft: screenWidth * 0.02,
-},
-barberShopValue: {
-  fontSize: screenWidth * 0.038,
-  color: '#555',
-  // paddingLeft: screenWidth * 0.05, // Align with icon
-},
-ratingdetailSection: {
-  flexDirection: "row",
-  justifyContent: "space-between"
-},
-  // Add these to your StyleSheet
-detailModalContent: {
-  width: "90%",
-  maxWidth: screenWidth * 0.9,
-  backgroundColor: "#fff",
-  borderRadius: screenWidth * 0.04,
-  elevation: 10,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: screenHeight * 0.005 },
-  shadowOpacity: 0.2,
-  shadowRadius: screenWidth * 0.02,
-  maxHeight: screenHeight * 0.8,
-},
-detailModalHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: screenWidth * 0.05,
-  borderBottomWidth: 1,
-  borderBottomColor: '#f0f0f0',
-},
-detailModalTitle: {
-  fontSize: screenWidth * 0.055,
-  fontWeight: '700',
-  color: '#333',
-},
-detailModalCloseButton: {
-  padding: screenWidth * 0.01,
-},
-detailScrollView: {
-  paddingHorizontal: screenWidth * 0.05,
-  paddingBottom: screenHeight * 0.02,
-},
-detailCard: {
-  backgroundColor: '#fff',
-  borderRadius: screenWidth * 0.03,
-  padding: screenWidth * 0.04,
-},
-detailRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: screenHeight * 0.01,
-},
-detailIcon: {
-  marginRight: screenWidth * 0.03,
-},
-detailText: {
-  fontSize: screenWidth * 0.042,
-  color: '#555',
-  lineHeight: screenHeight * 0.028,
-},
-detailLabel: {
-  fontWeight: '600',
-  color: '#333',
-},
-detailAmount: {
-  fontWeight: '700',
-  color: '#28a745',
-},
-detailDivider: {
-  height: 1,
-  backgroundColor: '#f0f0f0',
-  marginBottom: screenHeight * 0.015,
-},
-detailSection: {
-  marginBottom: screenHeight * 0.01,
-},
-detailSectionTitle: {
-  fontSize: screenWidth * 0.045,
-  fontWeight: '600',
-  color: '#333',
-},
-serviceItem: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  paddingVertical: screenHeight * 0.008,
-  paddingHorizontal: screenWidth * 0.02,
-  backgroundColor: '#f9f9f9',
-  borderRadius: screenWidth * 0.02,
-  marginBottom: screenHeight * 0.008,
-},
-serviceInfo: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  flex: 1,
-},
-serviceName: {
-  fontSize: screenWidth * 0.038,
-  color: '#555',
-  flex: 1,
-},
-servicePrice: {
-  fontSize: screenWidth * 0.038,
-  fontWeight: '600',
-  color: '#333',
-  marginLeft: screenWidth * 0.02,
-},
-
-noServicesText: {
-  fontSize: screenWidth * 0.038,
-  color: '#999',
-  fontStyle: 'italic',
-  textAlign: 'center',
-  marginVertical: screenHeight * 0.01,
-},
-ratingContainer: {
-  flexDirection: 'row',
-  alignItems: "baseline",
-  // marginTop: screenHeight * 0.005,
-},
-ratingText: {
-  fontSize: screenWidth * 0.045,
-  fontWeight: '700',
-  color: '#FFD700',
-  marginRight: screenWidth * 0.01,
-},
-rateButton: {
-  flexDirection: 'row',
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: '#1a1a1a',
-  padding: screenHeight * 0.015,
-  borderRadius: screenWidth * 0.02,
-  marginTop: screenHeight * 0.02,
-},
-rateButtonText: {
-  color: '#fff',
-  fontSize: screenWidth * 0.04,
-  fontWeight: '600',
-  marginRight: screenWidth * 0.01,
-},
-
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: screenHeight * 0.02,
+  },
+  barberShopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: screenHeight * 0.005,
+  },
+  barberShopLabel: {
+    fontSize: screenWidth * 0.04,
+    fontWeight: '600',
+    color: '#333',
+  },
+  barberShopValue: {
+    fontSize: screenWidth * 0.038,
+    color: '#555',
+  },
+  ratingdetailSection: {
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  detailModalContent: {
+    width: "90%",
+    maxWidth: screenWidth * 0.9,
+    backgroundColor: "#fff",
+    borderRadius: screenWidth * 0.04,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: screenHeight * 0.005 },
+    shadowOpacity: 0.2,
+    shadowRadius: screenWidth * 0.02,
+    maxHeight: screenHeight * 0.8,
+  },
+  detailModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: screenWidth * 0.05,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  detailModalTitle: {
+    fontSize: screenWidth * 0.055,
+    fontWeight: '700',
+    color: '#333',
+  },
+  detailModalCloseButton: {
+    padding: screenWidth * 0.01,
+  },
+  detailScrollView: {
+    paddingHorizontal: screenWidth * 0.05,
+    paddingBottom: screenHeight * 0.02,
+  },
+  detailCard: {
+    backgroundColor: '#fff',
+    borderRadius: screenWidth * 0.03,
+    padding: screenWidth * 0.04,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: screenHeight * 0.01,
+  },
+  detailIcon: {
+    marginRight: screenWidth * 0.03,
+  },
+  detailText: {
+    fontSize: screenWidth * 0.042,
+    color: '#555',
+    lineHeight: screenHeight * 0.028,
+  },
+  detailLabel: {
+    fontWeight: '600',
+    color: '#333',
+  },
+  detailAmount: {
+    fontWeight: '700',
+    color: '#28a745',
+  },
+  detailDivider: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    marginBottom: screenHeight * 0.015,
+  },
+  detailSection: {
+    marginBottom: screenHeight * 0.01,
+  },
+  detailSectionTitle: {
+    fontSize: screenWidth * 0.045,
+    fontWeight: '600',
+    color: '#333',
+  },
+  serviceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: screenHeight * 0.008,
+    paddingHorizontal: screenWidth * 0.02,
+    backgroundColor: '#f9f9f9',
+    borderRadius: screenWidth * 0.02,
+    marginBottom: screenHeight * 0.008,
+  },
+  serviceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  serviceName: {
+    fontSize: screenWidth * 0.038,
+    color: '#555',
+    flex: 1,
+  },
+  servicePrice: {
+    fontSize: screenWidth * 0.038,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: screenWidth * 0.02,
+  },
+  noServicesText: {
+    fontSize: screenWidth * 0.038,
+    color: '#999',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginVertical: screenHeight * 0.01,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: "baseline",
+  },
+  ratingText: {
+    fontSize: screenWidth * 0.045,
+    fontWeight: '700',
+    color: '#FFD700',
+    marginRight: screenWidth * 0.01,
+  },
+  rateButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    padding: screenHeight * 0.015,
+    borderRadius: screenWidth * 0.02,
+    marginTop: screenHeight * 0.02,
+  },
+  rateButtonText: {
+    color: '#fff',
+    fontSize: screenWidth * 0.04,
+    fontWeight: '600',
+    marginRight: screenWidth * 0.01,
+  },
+  changePasswordButton: {
+    position: "absolute",
+    top: screenHeight * 0.02,
+    right: screenWidth * 0.3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: screenWidth * 0.02,
+    borderRadius: screenWidth * 0.04,
+    zIndex: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  changePasswordButtonText: {
+    color: "white",
+    fontSize: screenWidth * 0.035,
+    marginLeft: screenWidth * 0.01,
+  },
   backgroundImage: {
     flex: 1,
     width: '100%',
@@ -661,7 +888,6 @@ rateButtonText: {
     justifyContent: "center",
     alignItems: "center"
   },
-  // Profile Card Styles
   profileBox: {
     width: '100%',
     height: screenHeight * 0.20,
@@ -745,7 +971,6 @@ rateButtonText: {
     zIndex: 1,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  // Service History Styles
   serviceHistoryContainer: {
     width: "100%",
     alignItems: "center",
@@ -811,19 +1036,16 @@ rateButtonText: {
     marginTop: screenHeight * 0.02,
     fontStyle: 'italic',
   },
-  // Info Grid Styles
   infoGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     position: 'absolute',
     bottom: screenHeight * 0.01,
     width: '100%',
-    // paddingBottom: screenHeight * 0.02,
     backgroundColor: 'transparent',
     zIndex: 10,
   },
   infoGridItem: {
-    // paddingVertical: screenHeight * 0.01,
     alignItems: 'center',
     marginLeft: screenWidth * 0.07
   },
@@ -833,7 +1055,6 @@ rateButtonText: {
     color: "#000000",
     textDecorationLine: "underline",
   },
-  // Modal Styles
   modalContainer: {
     flex: 1,
     justifyContent: "center",
@@ -868,7 +1089,7 @@ rateButtonText: {
   inputContainer: {
     marginBottom: screenHeight * 0.015,
   },
-  inputLabel: {
+   inputLabel: {
     marginBottom: screenHeight * 0.005,
     fontSize: screenWidth * 0.04,
     fontWeight: "bold",
