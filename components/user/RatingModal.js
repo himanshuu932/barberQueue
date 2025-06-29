@@ -36,7 +36,12 @@ const RatingModal = ({ isVisible, onClose, shopId, barberId,historyId }) => { //
     const token=await AsyncStorage.getItem('userToken')
     Alert.alert(
       "Rating Submitted",
-      `User rated ${currentRating} stars!\nShop ID: ${historyId || 'N/A'}\nBarber ID: ${barberId || 'N/A'}`
+      `You rated ${currentRating} stars Thank you for your feedback!`,
+      [
+        { text: "OK", onPress: () => {
+          
+        } }
+      ]
     );
     const res=await fetch(`https://numbr-exq6.onrender.com/api/barbers/rate/${barberId}`,{
         method: "PUT", 
