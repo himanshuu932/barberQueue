@@ -23,6 +23,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
+const API_BASE = "https://numbr-exq6.onrender.com";
 
 export default function TabProfileScreen() {
     const router = useRouter();
@@ -32,23 +33,30 @@ export default function TabProfileScreen() {
     const [loading, setLoading] = useState(true);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
-    // --- CHANGED: State now holds email instead of phone ---
     const [editedProfile, setEditedProfile] = useState({
         name: "",
         email: "",
-        password: "", // Added for optional new password
     });
     const [ownerId, setOwnerId] = useState(null);
-    const API_BASE = "https://numbr-exq6.onrender.com";
+
+    // [MODIFIED] State for the new password change flow
+    const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+    const [passwordStep, setPasswordStep] = useState(1); // 1 = initiate, 2 = confirm
+    const [passwordData, setPasswordData] = useState({
+        otp: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+    const [isPasswordLoading, setIsPasswordLoading] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
             const getOwnerIdAndProfile = async () => {
                 try {
-                    const token = await AsyncStorage.getItem("userToken");
                     const uid = await AsyncStorage.getItem("uid");
                     if (!uid) {
                         console.error("Owner ID not found in AsyncStorage");
+                        router.replace("../pre-login");
                         return;
                     }
                     setOwnerId(uid);
@@ -124,18 +132,13 @@ export default function TabProfileScreen() {
         }
     };
 
-    // --- CHANGED: This function now sends email instead of phone ---
+    // [MODIFIED] This function now ONLY updates name and email.
     async function updateOwnerProfile() {
         try {
-            // Destructure email instead of phone
-            const { name, email, password } = editedProfile;
+            const { name, email } = editedProfile;
             const token = await AsyncStorage.getItem("userToken");
 
-            // Build the update payload with email
             const updateData = { name, email };
-            if (password) {
-                updateData.pass = password; // Backend expects 'pass' for password
-            }
 
             const response = await fetch(`${API_BASE}/api/owners/profile`, {
                 method: "PUT",
@@ -148,20 +151,82 @@ export default function TabProfileScreen() {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                console.error("Error updating profile:", errorData);
-                Alert.alert("Error", errorData.message || "Failed to update profile");
-                return;
+                throw new Error(errorData.message || "Failed to update profile");
             }
 
-            const data = await response.json();
             setIsModalVisible(false);
             fetchProfile(ownerId); // Refetch profile to show updated data
             Alert.alert("Success", "Profile updated successfully!");
         } catch (error) {
             console.error("Error updating profile:", error);
-            Alert.alert("Error", "Failed to update profile");
+            Alert.alert("Error", error.message || "Failed to update profile");
         }
     }
+
+    // [ADDED] Function to initiate password change
+    const handleInitiatePasswordChange = async () => {
+        try {
+            setIsPasswordLoading(true);
+            const token = await AsyncStorage.getItem("userToken");
+            if (!token) throw new Error("Authentication token missing");
+
+            const response = await fetch(`${API_BASE}/api/owners/change-password/initiate`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Failed to initiate password change");
+            }
+
+            Alert.alert("Success", "An OTP has been sent to your registered email.");
+            setPasswordStep(2);
+        } catch (error) {
+            Alert.alert("Error", error.message);
+        } finally {
+            setIsPasswordLoading(false);
+        }
+    };
+
+    // [ADDED] Function to confirm password change
+    const handleConfirmPasswordChange = async () => {
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            Alert.alert("Error", "Passwords do not match.");
+            return;
+        }
+
+        try {
+            setIsPasswordLoading(true);
+            const token = await AsyncStorage.getItem("userToken");
+            const response = await fetch(`${API_BASE}/api/owners/change-password/confirm`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    otp: passwordData.otp,
+                    newPassword: passwordData.newPassword
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Failed to change password");
+            }
+
+            Alert.alert("Success", "Password changed successfully.");
+            setIsPasswordModalVisible(false);
+            setPasswordStep(1); // Reset for next time
+            setPasswordData({ otp: '', newPassword: '', confirmPassword: '' });
+        } catch (error) {
+            Alert.alert("Error", error.message);
+        } finally {
+            setIsPasswordLoading(false);
+        }
+    };
+
 
     return (
         <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage}>
@@ -174,11 +239,9 @@ export default function TabProfileScreen() {
                             <TouchableOpacity
                                 style={styles.editButton}
                                 onPress={() => {
-                                    // --- CHANGED: Initialize modal with email ---
                                     setEditedProfile({
                                         name: profile?.name || "",
                                         email: profile?.email || "",
-                                        password: "",
                                     });
                                     setIsModalVisible(true);
                                 }}
@@ -212,7 +275,6 @@ export default function TabProfileScreen() {
                                     ) : (
                                         <View>
                                             <Text style={styles.username}>{profile?.name || "Owner Name"}</Text>
-                                            {/* --- CHANGED: Display email instead of phone --- */}
                                             <Text style={styles.userInfo}>Email: {profile?.email || "N/A"}</Text>
                                         </View>
                                     )}
@@ -236,23 +298,23 @@ export default function TabProfileScreen() {
                     <View style={styles.infoContainer}>
                         <LinearGradient colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} style={styles.infoBackground}>
                         <View style={styles.infoGrid}>
-                                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/terms")}>
+                                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.numbrapp.in/terms")}>
                                     <Text style={styles.infoLinkText}>Terms & Conditions</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/cancellation")}>
+                                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.numbrapp.in/refund")}>
                                     <Text style={styles.infoLinkText}>Cancellation & Refunds</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/privacy")}>
+                                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.numbrapp.in/privacy")}>
                                     <Text style={styles.infoLinkText}>Privacy Policy</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/cancellation")}>
+                                <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.numbrapp.in/contact")}>
                                     <Text style={styles.infoLinkText}>Contact Us</Text>
                                 </TouchableOpacity>
                             </View>
                             </LinearGradient>
                     </View>
 
-                {/* --- CHANGED: Modal now edits email instead of phone --- */}
+                {/* Edit Profile Modal */}
                 <Modal visible={isModalVisible} transparent animationType="slide">
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
@@ -264,39 +326,31 @@ export default function TabProfileScreen() {
                                     style={styles.input}
                                     placeholder="Name"
                                     value={editedProfile.name}
-                                    onChangeText={(text) => {
-                                        setEditedProfile({ ...editedProfile, name: text });
-                                    }}
+                                    onChangeText={(text) => setEditedProfile({ ...editedProfile, name: text })}
                                 />
                             </View>
 
-                            {/* --- Start of Changes for Email Input --- */}
                             <View style={styles.inputContainer}>
                                 <Text style={styles.inputLabel}>Email</Text>
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Email"
                                     value={editedProfile.email}
-                                    keyboardType="email-address" // Use email keyboard
-                                    onChangeText={(text) => {
-                                        setEditedProfile({ ...editedProfile, email: text });
-                                    }}
+                                    keyboardType="email-address"
+                                    onChangeText={(text) => setEditedProfile({ ...editedProfile, email: text })}
                                 />
                             </View>
-                            {/* --- End of Changes for Email Input --- */}
-
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.inputLabel}>New Password (optional)</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="New Password (optional)"
-                                    secureTextEntry={true}
-                                    value={editedProfile.password}
-                                    onChangeText={(text) => {
-                                        setEditedProfile({ ...editedProfile, password: text });
-                                    }}
-                                />
-                            </View>
+                            
+                            {/* [MODIFIED] Link to open password change modal */}
+                            <TouchableOpacity
+                                style={styles.changePasswordLink}
+                                onPress={() => {
+                                    setIsModalVisible(false); // Hide edit modal
+                                    setIsPasswordModalVisible(true); // Show password modal
+                                }}
+                            >
+                                <Text style={styles.changePasswordLinkText}>Change Password?</Text>
+                            </TouchableOpacity>
 
                             <View style={styles.modalButtonContainer}>
                                 <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsModalVisible(false)}>
@@ -309,6 +363,93 @@ export default function TabProfileScreen() {
                         </View>
                     </View>
                 </Modal>
+
+                {/* [ADDED] Change Password Modal */}
+                <Modal visible={isPasswordModalVisible} transparent animationType="slide">
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>
+                                {passwordStep === 1 ? 'Initiate Password Change' : 'Confirm New Password'}
+                            </Text>
+
+                            {passwordStep === 1 ? (
+                                <>
+                                    <Text style={styles.modalMessage}>
+                                        We'll send an OTP to your registered email to verify your identity.
+                                    </Text>
+                                    <View style={styles.modalButtonContainer}>
+                                        <TouchableOpacity
+                                            style={[styles.modalButton, styles.cancelButton]}
+                                            onPress={() => setIsPasswordModalVisible(false)}
+                                        >
+                                            <Text style={styles.modalButtonText}>Cancel</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.modalButton, styles.saveButton]}
+                                            onPress={handleInitiatePasswordChange}
+                                            disabled={isPasswordLoading}
+                                        >
+                                            {isPasswordLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalButtonText}>Send OTP</Text>}
+                                        </TouchableOpacity>
+                                    </View>
+                                </>
+                            ) : (
+                                <>
+                                    <View style={styles.inputContainer}>
+                                        <Text style={styles.inputLabel}>OTP</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Enter OTP from email"
+                                            value={passwordData.otp}
+                                            onChangeText={(text) => setPasswordData({ ...passwordData, otp: text })}
+                                            keyboardType="numeric"
+                                        />
+                                    </View>
+                                    <View style={styles.inputContainer}>
+                                        <Text style={styles.inputLabel}>New Password</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Enter new password"
+                                            value={passwordData.newPassword}
+                                            onChangeText={(text) => setPasswordData({ ...passwordData, newPassword: text })}
+                                            secureTextEntry
+                                        />
+                                    </View>
+                                    <View style={styles.inputContainer}>
+                                        <Text style={styles.inputLabel}>Confirm Password</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Confirm new password"
+                                            value={passwordData.confirmPassword}
+                                            onChangeText={(text) => setPasswordData({ ...passwordData, confirmPassword: text })}
+                                            secureTextEntry
+                                        />
+                                    </View>
+                                    <View style={styles.modalButtonContainer}>
+                                        <TouchableOpacity
+                                            style={[styles.modalButton, styles.cancelButton]}
+                                            onPress={() => {
+                                                setIsPasswordModalVisible(false);
+                                                setPasswordStep(1);
+                                                setPasswordData({ otp: '', newPassword: '', confirmPassword: '' });
+                                            }}
+                                        >
+                                            <Text style={styles.modalButtonText}>Cancel</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.modalButton, styles.saveButton]}
+                                            onPress={handleConfirmPasswordChange}
+                                            disabled={isPasswordLoading}
+                                        >
+                                            {isPasswordLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalButtonText}>Change Password</Text>}
+                                        </TouchableOpacity>
+                                    </View>
+                                </>
+                            )}
+                        </View>
+                    </View>
+                </Modal>
+
 
                 {/* Modal for Logout Confirmation */}
                 <Modal visible={isLogoutModalVisible} transparent animationType="fade">
@@ -332,7 +473,6 @@ export default function TabProfileScreen() {
     );
 }
 
-// --- Styles remain the same ---
 const styles = StyleSheet.create({
     backgroundImage: {
         flex: 1,
@@ -348,11 +488,7 @@ const styles = StyleSheet.create({
         flex: 1,
         width: screenWidth,
         padding: screenWidth * 0.05,
-        // paddingBottom: screenHeight * 0.05,
-        // alignItems: "center",
     },
-    
-    // Profile Box
     profileBox: {
         width: screenWidth * 0.9,
         height: screenHeight * 0.2,
@@ -436,7 +572,6 @@ const styles = StyleSheet.create({
         zIndex: 1,
         backgroundColor: 'rgba(255,255,255,0.1)',
     },
-    // Company Info Section
     companyContainer: {
         width: screenWidth * 0.9,
         borderRadius: screenWidth * 0.04,
@@ -492,13 +627,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: "center",
-        // marginTop: screenHeight * 0.02,
         paddingHorizontal: screenWidth * 0.02,
     },
     infoGridItem: {
         width: '50%',
         paddingVertical: screenHeight * 0.01,
-        // marginBottom: screenHeight * 0.01,
         alignItems: "center",
     },
     infoLinkText: {
@@ -507,7 +640,6 @@ const styles = StyleSheet.create({
         textDecorationLine: "underline",
         textAlign: "left",
     },
-    // Modal Styling
     modalContainer: {
         flex: 1,
         justifyContent: "center",
@@ -581,6 +713,16 @@ const styles = StyleSheet.create({
     saveButton: {
         backgroundColor: "#28a745",
     },
+    // [ADDED] Style for the new "Change Password" link
+    changePasswordLink: {
+        marginTop: 15,
+        marginBottom: 5,
+        alignItems: 'center',
+    },
+    changePasswordLinkText: {
+        color: '#1a1a1a',
+        fontWeight: '600',
+        fontSize: screenWidth * 0.04,
+        textDecorationLine: 'underline',
+    },
 });
-
-export { TabProfileScreen };
