@@ -25,9 +25,10 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { set } from "mongoose"; // This import seems out of place if not used for Mongoose models directly in this component
 import MapView, { Marker } from 'react-native-maps'; // Import for map functionality
 import * as Location from 'expo-location'; // Import for location functionality
+import DateTimePicker from '@react-native-community/datetimepicker';
 
-const { width: screenWidth } = Dimensions.get("window");
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0';
 
 const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
@@ -43,8 +44,54 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
   const [isMapModalVisible, setIsMapModalVisible] = useState(false); // New state for map modal visibility
   const [mapRegion, setMapRegion] = useState(null); // New state for map region
   const [selectedLocation, setSelectedLocation] = useState(null); // New state for selected location on map
+  const [showOpeningTimePicker, setShowOpeningTimePicker] = useState(false);
+const [showClosingTimePicker, setShowClosingTimePicker] = useState(false);
+const [openingTimeDate, setOpeningTimeDate] = useState(new Date());
+const [closingTimeDate, setClosingTimeDate] = useState(new Date());
 
-  //console.log("ShopHeader received shop:", shop); //
+useEffect(() => {
+  if (isEditShopModalVisible && editedShopData?.openingTime) {
+    const [hours, minutes] = editedShopData.openingTime.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+    setOpeningTimeDate(date);
+  }
+  
+  if (isEditShopModalVisible && editedShopData?.closingTime) {
+    const [hours, minutes] = editedShopData.closingTime.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+    setClosingTimeDate(date);
+  }
+}, [isEditShopModalVisible, editedShopData]);
+
+const onOpeningTimeChange = (event, selectedDate) => {
+  const currentDate = selectedDate || openingTimeDate;
+  setShowOpeningTimePicker(Platform.OS === 'ios');
+  setOpeningTimeDate(currentDate);
+  setEditedShopData(prev => ({
+    ...prev,
+    openingTime: formatTime(currentDate)
+  }));
+};
+
+const onClosingTimeChange = (event, selectedDate) => {
+  const currentDate = selectedDate || closingTimeDate;
+  setShowClosingTimePicker(Platform.OS === 'ios');
+  setClosingTimeDate(currentDate);
+  setEditedShopData(prev => ({
+    ...prev,
+    closingTime: formatTime(currentDate)
+  }));
+};
+
+const formatTime = (date) => {
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+  ////console.log("ShopHeader received shop:", shop); //
 
   useEffect(() => {
     let interval;
@@ -95,7 +142,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
   };
 
   const pickShopImage = async () => {
-   // console.log("pickShopImage is being executed"); //
+   // //console.log("pickShopImage is being executed"); //
     const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync(); //
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync(); //
     if (mediaStatus !== 'granted' || cameraStatus !== 'granted') { //
@@ -129,7 +176,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
         }
 
         if (result && !result.canceled && result.assets && result.assets.length > 0) { //
-          console.log('Selected image:', result.assets[0]); //
+          //console.log('Selected image:', result.assets[0]); //
 
           // Create FormData
           const formData = new FormData(); //
@@ -139,7 +186,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
             type: 'image/jpeg' //
           });
 
-          console.log('FormData created:', formData); //
+          //console.log('FormData created:', formData); //
 
           // Upload to backend
           const response = await fetch(`${API_BASE_URL}/shops/${shop._id}/photos`, { //
@@ -151,7 +198,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
             body: formData, //
           });
 
-          console.log('Upload response status:', response.status); //
+          //console.log('Upload response status:', response.status); //
 
           if (!response.ok) { //
             const errorText = await response.text(); //
@@ -160,7 +207,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
           }
 
           const responseData = await response.json(); //
-          console.log('Upload successful:', responseData); //
+          //console.log('Upload successful:', responseData); //
 
           setEditedShopData(prev => ({ //
             ...prev,
@@ -203,7 +250,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
           onPress: async () => {
             try {
               setIsLoading(true); //
-              console.log('Removing image with public_id:', public_id); //
+              //console.log('Removing image with public_id:', public_id); //
               const response = await fetch( //
                 `${API_BASE_URL}/shops/${shop._id}/photos/${public_id}`, //
                 {
@@ -211,7 +258,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                   headers: { 'Authorization': `Bearer ${userToken}` }, //
                 }
               );
-              console.log('Delete response status:', response.status); //
+              //console.log('Delete response status:', response.status); //
               if (!response.ok) throw new Error('Failed to delete image'); //
 
               // Update UI by filtering out the deleted photo
@@ -497,7 +544,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                   <Image
                     key={idx.toString()}
                     source={{ uri }}
-                    style={[styles.carouselImage, { width: screenWidth - 40 }]}
+                    style={[styles.carouselImage, { width: screenWidth - screenWidth * 0.11}]}
                     resizeMode="cover"
                   />
                 );
@@ -517,8 +564,8 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
           </>
         ) : (
           <Image
-            source={{ uri: `https://placehold.co/${screenWidth - 40}x200/e1f5fe/0277bd?text=No+Images+Available` }}
-            style={[styles.carouselImagePlaceholder, { width: screenWidth - 40 }]}
+            source={{ uri: `https://placehold.co/${screenWidth - screenWidth * 0.1}x${screenHeight * 0.25}/e1f5fe/0277bd?text=No+Images+Available` }}
+            style={[styles.carouselImagePlaceholder, { width: screenWidth - screenWidth * 0.1  }]}
           />
         )}
       </View>
@@ -739,10 +786,50 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
               </TouchableOpacity>
 
 
-              <Text style={styles.inputLabel}>Opening (HH:MM):</Text>
-              <TextInput style={styles.input} value={editedShopData?.openingTime} onChangeText={txt => setEditedShopData({ ...editedShopData, openingTime: txt })} />
-              <Text style={styles.inputLabel}>Closing (HH:MM):</Text>
-              <TextInput style={styles.input} value={editedShopData?.closingTime} onChangeText={txt => setEditedShopData({ ...editedShopData, closingTime: txt })} />
+              <Text style={styles.inputLabel}>Opening Time (HH:MM):</Text>
+<TouchableOpacity 
+  onPress={() => setShowOpeningTimePicker(true)} 
+  style={styles.timeInputTouchable}
+>
+  <TextInput
+    style={styles.input}
+    value={editedShopData?.openingTime}
+    editable={false}
+    placeholder="Select opening time"
+  />
+  <Icon name="clock-o" size={20} color="#666" style={styles.timeInputIcon} />
+</TouchableOpacity>
+{showOpeningTimePicker && (
+  <DateTimePicker
+    value={openingTimeDate}
+    mode="time"
+    is24Hour={true}
+    display="default"
+    onChange={onOpeningTimeChange}
+  />
+)}
+              <Text style={styles.inputLabel}>Closing Time (HH:MM):</Text>
+<TouchableOpacity 
+  onPress={() => setShowClosingTimePicker(true)} 
+  style={styles.timeInputTouchable}
+>
+  <TextInput
+    style={styles.input}
+    value={editedShopData?.closingTime}
+    editable={false}
+    placeholder="Select closing time"
+  />
+  <Icon name="clock-o" size={20} color="#666" style={styles.timeInputIcon} />
+</TouchableOpacity>
+{showClosingTimePicker && (
+  <DateTimePicker
+    value={closingTimeDate}
+    mode="time"
+    is24Hour={true}
+    display="default"
+    onChange={onClosingTimeChange}
+  />
+)}
               <View style={styles.toggleRow}>
                 <Text style={styles.toggleLabel}>Status:</Text>
                 <Switch value={editedShopData?.isOpen} onValueChange={handleToggleShopStatusInEditModal} />
@@ -773,11 +860,11 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
               </View>
             </ScrollView>
             <View style={styles.modalButtonContainer}>
-              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveShopChanges}>
-                <Text style={styles.modalButtonText}>Save</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsEditShopModalVisible(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveShopChanges}>
+                <Text style={styles.modalButtonText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -823,7 +910,7 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
                   setIsMapModalVisible(false);
                 }}
               >
-                <Text style={styles.modalButtonText}>Confirm Location</Text>
+                <Text style={styles.modalButtonText}>Confirm</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsMapModalVisible(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
@@ -837,31 +924,45 @@ const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
 };
 
 const styles = StyleSheet.create({
+
+  timeInputTouchable: {
+  width: '100%',
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 15,
+  position: 'relative',
+},
+timeInputIcon: {
+  position: 'absolute',
+  right: 15,
+  top: 15,
+},
+
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    padding: 10,
-    marginBottom: 15,
+    borderRadius: screenWidth * 0.04,
+    padding: screenWidth * 0.03,
+    marginBottom: screenHeight * 0.02,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: screenHeight * 0.004 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowRadius: screenWidth * 0.02,
     elevation: 5,
   },
   carouselContainer: {
     width: '100%',
-    height: 200,
-    borderRadius: 15,
+    height: screenHeight * 0.25,
+    borderRadius: screenWidth * 0.04,
     overflow: 'hidden',
     backgroundColor: '#F8F9FA',
   },
   carouselImage: {
     height: '100%',
-    borderRadius: 15,
+    borderRadius: screenWidth * 0.04,
   },
   carouselImagePlaceholder: {
-    height: 200,
-    borderRadius: 15,
+    height: screenHeight * 0.25,
+    borderRadius: screenWidth * 0.04,
     backgroundColor: '#E0F7FA',
     justifyContent: 'center',
     alignItems: 'center',
@@ -869,38 +970,38 @@ const styles = StyleSheet.create({
   paginationDotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 5,
+    marginTop: screenHeight * 0.005,
   },
   paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: screenWidth * 0.02,
+    height: screenWidth * 0.02,
+    borderRadius: screenWidth * 0.01,
     backgroundColor: '#B0BEC5',
-    marginHorizontal: 4,
+    marginHorizontal: screenWidth * 0.01,
   },
   paginationDotActive: {
     backgroundColor: '#007BFF',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: screenWidth * 0.025,
+    height: screenWidth * 0.025,
+    borderRadius: screenWidth * 0.0125,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
-    paddingBottom: 12,
+    marginBottom: screenHeight * 0.02,
+    paddingBottom: screenHeight * 0.015,
     borderBottomWidth: 1,
     borderBottomColor: '#EFEFEF',
   },
   cardTitle: {
-    fontSize: 22,
+    fontSize: screenWidth * 0.055,
     fontWeight: '700',
     color: '#333',
   },
   actionButton: {
-    padding: 10,
-    borderRadius: 25,
+    padding: screenWidth * 0.03,
+    borderRadius: screenWidth * 0.06,
     backgroundColor: '#E3F2FD',
     justifyContent: 'center',
     alignItems: 'center',
@@ -908,24 +1009,24 @@ const styles = StyleSheet.create({
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 8,
-    paddingVertical: 5,
+    marginVertical: screenHeight * 0.01,
+    paddingVertical: screenHeight * 0.005,
   },
   infoIcon: {
-    marginRight: 15,
-    width: 24,
+    marginRight: screenWidth * 0.04,
+    width: screenWidth * 0.06,
     textAlign: 'center',
   },
   infoText: {
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     color: '#4A4A4A',
     flex: 1,
-    lineHeight: 24,
+    lineHeight: screenHeight * 0.025,
   },
   overrideText: {
     fontStyle: 'italic',
     color: '#DC3545',
-    fontSize: 14,
+    fontSize: screenWidth * 0.035,
   },
   subscriptionStatus: {
     fontWeight: 'bold',
@@ -941,36 +1042,36 @@ const styles = StyleSheet.create({
     width: "90%",
     maxHeight: '90%',
     backgroundColor: "#FFFFFF",
-    padding: 20,
-    borderRadius: 25,
+    padding: screenWidth * 0.05,
+    borderRadius: screenWidth * 0.06,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: screenHeight * 0.01 },
     shadowOpacity: 0.25,
-    shadowRadius: 25,
+    shadowRadius: screenWidth * 0.06,
     elevation: 20,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: screenWidth * 0.06,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: screenHeight * 0.025,
     color: "#007BFF",
     textAlign: 'center',
   },
   inputLabel: {
     alignSelf: 'flex-start',
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     color: '#444',
-    marginBottom: 6,
+    marginBottom: screenHeight * 0.01,
     fontWeight: '600',
   },
   input: {
     width: "100%",
     borderWidth: 1,
     borderColor: "#E0E0E0",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-    fontSize: 16,
+    borderRadius: screenWidth * 0.03,
+    padding: screenHeight * 0.015,
+    marginBottom: screenHeight * 0.015,
+    fontSize: screenWidth * 0.04,
     backgroundColor: "#F9F9F9",
     color: '#333',
   },
@@ -979,26 +1080,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     width: '100%',
-    marginBottom: 20,
-    paddingHorizontal: 5,
+    marginBottom: screenHeight * 0.025,
+    paddingHorizontal: screenWidth * 0.01,
   },
   toggleLabel: {
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     color: '#444',
     fontWeight: '600',
-    marginRight: 15,
+    marginRight: screenWidth * 0.04,
   },
   toggleStatusText: {
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     fontWeight: 'bold',
-    marginLeft: 10,
+    marginLeft: screenWidth * 0.03,
     color: '#333',
   },
   carouselImagesTitle: {
-    fontSize: 17,
+    fontSize: screenWidth * 0.045,
     fontWeight: 'bold',
     color: '#444',
-    marginBottom: 15,
+    marginBottom: screenHeight * 0.02,
     alignSelf: 'flex-start',
   },
   carouselImagesGrid: {
@@ -1008,14 +1109,14 @@ const styles = StyleSheet.create({
   },
   carouselEditImageContainer: {
     position: 'relative',
-    width: (screenWidth * 0.9 - 60 - 20) / 3,
-    height: (screenWidth * 0.9 - 60 - 20) / 3,
-    borderRadius: 12,
+    width: (screenWidth * 0.9 - screenWidth * 0.15 - screenWidth * 0.05) / 3,
+    height: (screenWidth * 0.9 - screenWidth * 0.15 - screenWidth * 0.05) / 3,
+    borderRadius: screenWidth * 0.03,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#CCC',
-    marginBottom: 10,
-    marginRight: 10,
+    marginBottom: screenHeight * 0.01,
+    marginRight: screenWidth * 0.03,
   },
   carouselEditImage: {
     width: '100%',
@@ -1024,102 +1125,102 @@ const styles = StyleSheet.create({
   },
   removeImageButton: {
     position: 'absolute',
-    top: 5,
-    right: 5,
+    top: screenHeight * 0.005,
+    right: screenWidth * 0.01,
     backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 15,
-    padding: 5,
+    borderRadius: screenWidth * 0.04,
+    padding: screenWidth * 0.01,
   },
   addImageButton: {
-    width: (screenWidth * 0.9 - 60 - 20) / 3,
-    height: (screenWidth * 0.9 - 60 - 20) / 3,
+    width: (screenWidth * 0.9 - screenWidth * 0.15 - screenWidth * 0.05) / 3,
+    height: (screenWidth * 0.9 - screenWidth * 0.15 - screenWidth * 0.05) / 3,
     backgroundColor: '#E3F2FD',
-    borderRadius: 12,
+    borderRadius: screenWidth * 0.03,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#007BFF',
     borderStyle: 'dashed',
-    marginBottom: 10,
-    marginRight: 10,
+    marginBottom: screenHeight * 0.01,
+    marginRight: screenWidth * 0.03,
   },
   modalButtonContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
     width: "100%",
-    marginTop: 25,
+    marginTop: screenHeight * 0.03,
   },
   modalButton: {
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-    borderRadius: 12,
+    paddingVertical: screenHeight * 0.02,
+    paddingHorizontal: screenWidth * 0.04,
+    borderRadius: screenWidth * 0.03,
     alignItems: "center",
     flex: 1,
-    marginHorizontal: 8,
+    marginHorizontal: screenWidth * 0.02,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: screenHeight * 0.003 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
+    shadowRadius: screenWidth * 0.01,
     elevation: 4,
   },
   modalButtonText: {
     color: "#fff",
-    fontSize: 17,
+    fontSize: screenWidth * 0.04,
     fontWeight: "bold",
     textAlign: 'center',
   },
   saveButton: {
     backgroundColor: "#28A745",
-    marginTop: 10
+    marginTop: screenHeight * 0.01
   },
   cancelButton: {
     backgroundColor: "#6C757D",
-    marginTop: 10
+    marginTop: screenHeight * 0.01
   },
   payNowButton: {
     backgroundColor: '#DC3545',
-    borderRadius: 10,
-    paddingVertical: 15,
+    borderRadius: screenWidth * 0.03,
+    paddingVertical: screenHeight * 0.02,
     alignItems: 'center',
-    marginTop: 15,
-    marginHorizontal: 5,
+    marginTop: screenHeight * 0.02,
+    marginHorizontal: screenWidth * 0.01,
   },
   payNowButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: screenWidth * 0.045,
     fontWeight: 'bold',
   },
   planCard: {
     backgroundColor: '#F8F9FA',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 15,
+    borderRadius: screenWidth * 0.03,
+    padding: screenWidth * 0.05,
+    marginBottom: screenHeight * 0.02,
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
   planName: {
-    fontSize: 20,
+    fontSize: screenWidth * 0.05,
     fontWeight: 'bold',
     color: '#007BFF',
   },
   planPrice: {
-    fontSize: 18,
+    fontSize: screenWidth * 0.045,
     color: '#28A745',
-    marginVertical: 5,
+    marginVertical: screenHeight * 0.005,
   },
   planFeatures: {
-    fontSize: 14,
+    fontSize: screenWidth * 0.035,
     color: '#6C757D',
-    marginTop: 5,
+    marginTop: screenHeight * 0.005,
   },
   closeWebViewButton: {
     backgroundColor: 'black',
-    padding: 15,
+    padding: screenHeight * 0.02,
     alignItems: 'center',
   },
   closeWebViewButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     fontWeight: 'bold',
   },
   mapButton: {
@@ -1127,34 +1228,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 10,
-    marginBottom: 15,
+    paddingVertical: screenHeight * 0.015,
+    borderRadius: screenWidth * 0.03,
+    marginTop: screenHeight * 0.01,
+    marginBottom: screenHeight * 0.02,
   },
   mapButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: screenWidth * 0.04,
     fontWeight: 'bold',
-    marginLeft: 10,
+    marginLeft: screenWidth * 0.03,
   },
   mapModalContent: {
     width: "90%",
-    height: "80%", // Adjust height as needed
+    height: "80%",
     backgroundColor: "#FFFFFF",
-    padding: 20,
-    borderRadius: 25,
+    padding: screenWidth * 0.05,
+    borderRadius: screenWidth * 0.06,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: screenHeight * 0.01 },
     shadowOpacity: 0.25,
-    shadowRadius: 25,
+    shadowRadius: screenWidth * 0.06,
     elevation: 20,
   },
   map: {
     flex: 1,
     width: '100%',
-    marginVertical: 15,
-    borderRadius: 10,
+    marginVertical: screenHeight * 0.02,
+    borderRadius: screenWidth * 0.03,
   },
 });
 

@@ -27,7 +27,7 @@ const fontScale = PixelRatio.getFontScale();
 const getResponsiveFontSize = (size) => size / fontScale;
 
 // Base API URL
-const API_BASE = "http://10.0.2.2:5000/api";
+const API_BASE = "https://numbr-exq6.onrender.com/api";
 
 // Define a consistent color palette with reverted colors for specific elements
 const colors = {
@@ -138,7 +138,7 @@ export const ShopList = ({ onSelect, onClose }) => {
       return;
     }
     setSelectedShopId(shopId);
-    console.log("Selected shop ID:", shopId);
+    //console.log("Selected shop ID:", shopId);
     await AsyncStorage.setItem("pinnedShop", shopId);
     onSelect?.(shopId);
   };

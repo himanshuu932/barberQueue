@@ -33,7 +33,7 @@ export default function SignupScreen() {
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  const API_BASE = "http://10.0.2.2:5000";
+  const API_BASE = "https://numbr-exq6.onrender.com";
 
   // Register for push notifications
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function SignupScreen() {
     token = (await Notifications.getExpoPushTokenAsync({
       projectId: "fdeb8267-b069-40e7-9b4e-1a0c50ee6246",
     })).data;
-    console.log("Expo Push Token:", token);
+    //console.log("Expo Push Token:", token);
 
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
@@ -136,7 +136,7 @@ export default function SignupScreen() {
     }
 
     setIsLoading(true);
-    console.log("nams and emial",name," ",email," pass",password);
+    //console.log("nams and emial",name," ",email," pass",password);
     try {
       const response = await fetch(`${API_BASE}/api/owners/register`, {
         method: "POST",
@@ -146,7 +146,7 @@ export default function SignupScreen() {
 
       const data = await response.json();
       if (!response.ok) {
-        console.log(data);
+        //console.log(data);
         throw new Error(data.message || "Signup failed");
       }
 

@@ -21,8 +21,8 @@ Notifications.setNotificationHandler({
 });
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
-const API_BASE = "http://10.0.2.2:5000/api";
-const API_BASE2 = "http://10.0.2.2:5000";
+const API_BASE = "https://numbr-exq6.onrender.com/api";
+const API_BASE2 = "https://numbr-exq6.onrender.com";
 export default function MenuScreen() {
 
   const [queueLength, setQueueLength] = useState(0);
@@ -107,7 +107,7 @@ useEffect(() => {
         finalStatus = status;
       }
       if (finalStatus !== "granted") {
-        console.log("Failed to get push token for push notification!");
+        //console.log("Failed to get push token for push notification!");
         return;
       }
       const token = (await Notifications.getExpoPushTokenAsync({ projectId: Notifications.projectId })).data;
@@ -136,22 +136,22 @@ useEffect(() => {
 
   // Connection handlers
   newSocket.on('connect', () => {
-    console.log("Socket connected with ID:", newSocket.id);
+    //console.log("Socket connected with ID:", newSocket.id);
     if (shopId) {
       newSocket.emit('join_shop_queue', shopId);
     }
     if (uid) {
       newSocket.emit('join_user_room', uid);
-      console.log(`Joined user room for UID: ${uid}`);
+      //console.log(`Joined user room for UID: ${uid}`);
     }
   });
 
   newSocket.on('disconnect', (reason) => {
-    console.log("Socket disconnected:", reason);
+    //console.log("Socket disconnected:", reason);
   });
 
   newSocket.on('connect_error', (err) => {
-    console.log('Connection Error:', err.message);
+    //console.log('Connection Error:', err.message);
   });
 
   // Cleanup function
@@ -172,7 +172,7 @@ useEffect(() => {
 
   // Queue updates for the current shop
   const handleQueueUpdate = (data) => {
-    console.log('queue:updated event received for shop:', data.shopId);
+    //console.log('queue:updated event received for shop:', data.shopId);
     if (data.shopId === shopId) {
       setQueueItems(data.queue || []);
       setQueueLength(data.count !== undefined ? data.count : (data.queue || []).length);
@@ -181,7 +181,7 @@ useEffect(() => {
 
   // Position change notifications
   const handlePositionChange = (data) => {
-    console.log('Position changed:', data);
+    //console.log('Position changed:', data);
     Alert.alert(
       data.title, 
       data.message,
@@ -191,7 +191,7 @@ useEffect(() => {
    
   // Join responses
   const handleJoinResponse = (response) => {
-    console.log('Join response:', response);
+    //console.log('Join response:', response);
   };
 
   // Error handling
@@ -239,14 +239,14 @@ useEffect(() => {
 useEffect(() => {
   let intervalId;
   if (shopId && !socket?.connected) {
-    console.log("Starting polling for queue data...");
+    //console.log("Starting polling for queue data...");
     intervalId = setInterval(fetchQueueData, 30000);
     fetchQueueData(); // Initial fetch
   }
   return () => {
     if (intervalId) {
       clearInterval(intervalId);
-      console.log("Polling stopped.");
+      //console.log("Polling stopped.");
     }
   };
 }, [shopId, socket, fetchQueueData]);
@@ -257,7 +257,7 @@ useEffect(() => {
 
   const handlePositionNotification = (data) => {
     if (data.data?.queueId) {
-      console.log('Position change for queue entry:', data.data.queueId);
+      //console.log('Position change for queue entry:', data.data.queueId);
       Alert.alert(data.title, data.message);
       fetchQueueData();
     }
@@ -274,7 +274,7 @@ useEffect(() => {
 
   const fetchRateList = useCallback(async () => {
     if (!shopId) return;
-    console.log("Fetching rate list for shopId:", shopId);
+    //console.log("Fetching rate list for shopId:", shopId);
     try {
       const response = await fetch(`${API_BASE}/shops/${shopId}/rate-list`);
       if (!response.ok) {
@@ -308,7 +308,7 @@ useEffect(() => {
       setLoading(false);
       return;
     }
-    console.log("Fetching queue data for shop:", shopId);
+    //console.log("Fetching queue data for shop:", shopId);
     // setLoading(true); // Manage loading state carefully to avoid flickering if socket updates are fast
     try {
       const response = await fetch(`${API_BASE}/queue/shop/${shopId}`); // GET /api/queue/shop/:shopId
@@ -411,7 +411,7 @@ useEffect(() => {
   
 
 const leaveQueue = async () => {
-  console.log('[leaveQueue] Function initiated');
+  //console.log('[leaveQueue] Function initiated');
   
   if (!uid) {
     console.error('[leaveQueue] Error: UID not available');
@@ -419,7 +419,7 @@ const leaveQueue = async () => {
     return;
   }
 
-  console.log('[leaveQueue] Finding user in queue...');
+  //console.log('[leaveQueue] Finding user in queue...');
   const currentUserQueueEntry = queueItems.find(item => item.userId && item.userId._id === uid);
 
   if (!currentUserQueueEntry) {
@@ -436,23 +436,24 @@ const leaveQueue = async () => {
   }
 
   const queueEntryId = currentUserQueueEntry._id;
-  console.log('[leaveQueue] Found queue entry:', {
+  console.log('[leaveQueue] Found queue entry:', 
+    {
     queueEntryId,
     status: currentUserQueueEntry.status,
     position: currentUserQueueEntry.orderOrQueueNumber
   });
 
   try {
-    console.log('[leaveQueue] Retrieving token from storage...');
+    //console.log('[leaveQueue] Retrieving token from storage...');
     const token = await AsyncStorage.getItem('userToken');
-    console.log('[leaveQueue] Token retrieved:', token ? 'exists' : 'MISSING');
+    //console.log('[leaveQueue] Token retrieved:', token ? 'exists' : 'MISSING');
     
     if (!token) {
       console.error('[leaveQueue] No token found in storage');
       throw new Error('Authentication token not found. Please login again.');
     }
 
-    console.log('[leaveQueue] Showing confirmation alert...');
+    //console.log('[leaveQueue] Showing confirmation alert...');
     Alert.alert(
       "Confirm Leave", 
       "Are you sure you want to leave the queue?",
@@ -461,7 +462,8 @@ const leaveQueue = async () => {
         {
           text: "OK",
           onPress: async () => {
-            console.log('[leaveQueue] User confirmed, preparing request...', {
+            console.log('[leaveQueue] User confirmed, preparing request...', 
+              {
               endpoint: `${API_BASE}/queue/${queueEntryId}/cancel`,
               method: 'PUT',
               headers: {
@@ -472,7 +474,7 @@ const leaveQueue = async () => {
 
             try {
               const startTime = Date.now();
-              console.log('[leaveQueue] Sending request...');
+              //console.log('[leaveQueue] Sending request...');
               
               const response = await fetch(
                 `${API_BASE}/queue/${queueEntryId}/cancel`,
@@ -486,13 +488,14 @@ const leaveQueue = async () => {
               );
 
               const responseTime = Date.now() - startTime;
-              console.log(`[leaveQueue] Received response in ${responseTime}ms`, {
+              console.log(`[leaveQueue] Received response in ${responseTime}ms`, 
+                {
                 status: response.status,
                 statusText: response.statusText
               });
 
               const responseData = await response.json();
-              console.log('[leaveQueue] Response data:', responseData);
+              //console.log('[leaveQueue] Response data:', responseData);
 
               if (!response.ok) {
                 console.error('[leaveQueue] Backend error response:', {
@@ -506,9 +509,9 @@ const leaveQueue = async () => {
               }
 
               if (responseData.success) {
-                console.log('[leaveQueue] Successfully left queue');
+                //console.log('[leaveQueue] Successfully left queue');
                 if (!socket || !socket.connected) {
-                  console.log('[leaveQueue] Socket not connected, manually fetching queue data');
+                  //console.log('[leaveQueue] Socket not connected, manually fetching queue data');
                   fetchQueueData();
                 }
                 Alert.alert("Success", "You have left the queue.");
@@ -683,13 +686,13 @@ const updateUserServices = async () => {
   };
 
   async function getShopName(sId) {
-    console.log("Fetching shop name for shopId:", sId);
+    //console.log("Fetching shop name for shopId:", sId);
     if (!sId) return "Shop";
     try {
       const response = await fetch(`${API_BASE}/shops/${sId}`);
       if (!response.ok) throw new Error('Failed to fetch shop name');
       const data = await response.json();
-      console.log("Shop name data received:", data.data.shop.name);
+      //console.log("Shop name data received:", data.data.shop.name);
       return data.data.shop.name || "Shop";
     } catch (error) {
       console.error("Error fetching shop name:", error.message);
@@ -847,7 +850,7 @@ const styles = StyleSheet.create({
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center', 
-    padding: screenWidth * 0.056 
+   
   },
   backgroundImage: { 
     flex: 1 
@@ -859,7 +862,7 @@ const styles = StyleSheet.create({
   },
   container: { 
     flex: 1, 
-    paddingTop: Platform.OS === 'ios' ? screenHeight * 0.1 : screenHeight * 0.0875, 
+    paddingTop: Platform.OS === 'ios' ? screenHeight * 0.1 : screenHeight * 0.0575, 
     paddingHorizontal: screenWidth * 0.04, 
     alignItems: 'center', 
     zIndex: 2 
@@ -872,7 +875,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    paddingVertical: screenHeight * 0.0125, 
+    
     zIndex: 3,
   },
   chooseShopButton: { 

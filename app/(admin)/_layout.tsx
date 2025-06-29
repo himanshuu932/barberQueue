@@ -97,12 +97,11 @@ const styles = StyleSheet.create({
     backgroundColor: "black", // Ensures background behind status bar is black
   },
   header: {
-    height: screenHeight * 0.1,
+    height: screenHeight * 0.08,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center", // Vertically centers content in the header
     paddingHorizontal: screenWidth * 0.042, // Horizontal padding remains fixed, but can be percentage if desired
-    paddingTop: screenHeight * 0.042,
   },
   title: {
     color: "#fff",

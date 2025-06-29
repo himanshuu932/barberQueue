@@ -2,424 +2,412 @@ import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    Image,
-    TouchableOpacity,
-    Animated,
-    Alert,
-    ActivityIndicator,
-    Modal,
-    TextInput,
-    ImageBackground,
-    Linking,
-    Dimensions,
-    Platform // Import Dimensions
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Animated,
+  Alert,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  ImageBackground,
+  Linking,
+  Dimensions,
+  Platform // Import Dimensions
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
 
-const API_BASE_URL = "http://10.0.2.2:5000/api"; // Corrected API base URL
+const API_BASE_URL = "https://numbr-exq6.onrender.com/api"; // Corrected API base URL
 
 // Get screen width for responsive calculations
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 
 export default function TabProfileScreen() {
-    const router = useRouter();
-    const shineAnimation = useRef(new Animated.Value(0)).current;
-    const [barber, setBarber] = useState(null);
-    const [history, setHistory] = useState([]); // New state for history
-    const [loading, setLoading] = useState(true); // Corrected this line
-    const [error, setError] = useState(null);
+  const router = useRouter();
+  const shineAnimation = useRef(new Animated.Value(0)).current;
+  const [barber, setBarber] = useState(null);
+  const [history, setHistory] = useState([]); // New state for history
+  const [loading, setLoading] = useState(true); // Corrected this line
+  const [error, setError] = useState(null);
 
-    const [uid, setUid] = useState(null); // State to store barber's UID
-    const [shopId, setShopId] = useState(null);
-    const [userToken, setUserToken] = useState(null); // State to store user token
+  const [uid, setUid] = useState(null); // State to store barber's UID
+  const [shopId, setShopId] = useState(null);
+  const [userToken, setUserToken] = useState(null); // State to store user token
 
-    // New states for editing profile and updating status
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [editedProfile, setEditedProfile] = useState({ name: "", phone: "" }); // Removed email, using phone
-    const [updating, setUpdating] = useState(false);
+  // New states for editing profile and updating status
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editedProfile, setEditedProfile] = useState({ name: "", phone: "" }); // Removed email, using phone
+  const [updating, setUpdating] = useState(false);
 
-    // New state for logout confirmation modal
-    const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  // New state for logout confirmation modal
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
-    // Fetch necessary data from AsyncStorage on mount
-    useEffect(() => {
-        const fetchDataFromStorage = async () => {
-            const storedUid = await AsyncStorage.getItem("uid");
-            const storedShopId = await AsyncStorage.getItem("shopId");
-            const storedToken = await AsyncStorage.getItem("userToken");
+  // Fetch necessary data from AsyncStorage on mount
+  useEffect(() => {
+    const fetchDataFromStorage = async () => {
+      const storedUid = await AsyncStorage.getItem("uid");
+      const storedShopId = await AsyncStorage.getItem("shopId");
+      const storedToken = await AsyncStorage.getItem("userToken");
 
-            if (!storedUid) {
-                setError("Barber ID not found in storage");
-                setLoading(false);
-                return;
-            }
-            if (!storedShopId) {
-                setError("Shop ID not found in storage");
-                setLoading(false);
-                return;
-            }
-            if (!storedToken) {
-                setError("User token not found in storage. Please log in again.");
-                setLoading(false);
-                return;
-            }
-            setUid(storedUid);
-            setShopId(storedShopId);
-            setUserToken(storedToken);
-        };
-        fetchDataFromStorage();
-    }, []);
-
-    const fetchBarberDetails = async () => {
-        if (!uid || !shopId || !userToken) {
-            return; // Wait for all necessary data to be loaded from AsyncStorage
-        }
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/barbers/${uid}`, { // Corrected API path
-                headers: {
-                    'Authorization': `Bearer ${userToken}` // Pass authentication token
-                },
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Failed to fetch barber details");
-            }
-            const data = await response.json();
-            // console.log("Fetched barber details:", data);
-            setBarber(data.data);
-            setLoading(false); // Only set loading to false after successful fetch
-        } catch (error) {
-            console.error("Error fetching barber details:", error);
-            setError(error.message);
-            setLoading(false);
-        }
+      if (!storedUid) {
+        setError("Barber ID not found in storage");
+        setLoading(false);
+        return;
+      }
+      if (!storedShopId) {
+        setError("Shop ID not found in storage");
+        setLoading(false);
+        return;
+      }
+      if (!storedToken) {
+        setError("User token not found in storage. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      setUid(storedUid);
+      setShopId(storedShopId);
+      setUserToken(storedToken);
     };
+    fetchDataFromStorage();
+  }, []);
 
-    const fetchBarberHistory = async () => {
-        if (!uid || !userToken) return;
+  const fetchBarberDetails = async () => {
+    if (!uid || !shopId || !userToken) {
+      return; // Wait for all necessary data to be loaded from AsyncStorage
+    }
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/history/barber/${uid}`, {
-                headers: {
-                    'Authorization': `Bearer ${userToken}`
-                },
-            });
+    try {
+      const response = await fetch(`${API_BASE_URL}/barbers/${uid}`, { // Corrected API path
+        headers: {
+          'Authorization': `Bearer ${userToken}` // Pass authentication token
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch barber details");
+      }
+      const data = await response.json();
+    
+      setBarber(data.data);
+      setLoading(false); // Only set loading to false after successful fetch
+    } catch (error) {
+      console.error("Error fetching barber details:", error);
+      setError(error.message);
+      setLoading(false);
+    }
+  };
 
-            if (!response.ok) throw new Error('Failed to fetch history');
+  const fetchBarberHistory = async () => {
+    if (!uid || !userToken) return;
 
-            const data = await response.json();
+    try {
+      const response = await fetch(`${API_BASE_URL}/history/barber/${uid}`, {
+        headers: {
+          'Authorization': `Bearer ${userToken}`
+        },
+      });
 
+      if (!response.ok) throw new Error('Failed to fetch history');
 
-            const validatedHistory = (data.data || []).map(item => ({
-                ...item,
-                services: (item.services || []).map(s => ({
-                    ...s,
-                    service: { name: s.name || 'Unknown service' }
-                })),
-                user: item.user || null,
-                customerName: item.customerName || null,
-                shop: item.shop || { name: 'N/A' }
-            }));
-
-            console.log("Validated history:", JSON.stringify(validatedHistory, null, 2));
-
-            setHistory(validatedHistory);
-        } catch (error) {
-            console.error("Error fetching barber history:", error);
-            setHistory([]);
-        }
-    };
+      const data = await response.json();
 
 
-    // Fetch barber details and history when the screen is focused and all data is available
-    useFocusEffect(
-        useCallback(() => {
-            if (uid && shopId && userToken) {
-                fetchBarberDetails();
-                fetchBarberHistory();
-            }
-        }, [uid, shopId, userToken]) // Re-run when these dependencies change
-    );
+      const validatedHistory = (data.data || []).map(item => ({
+        ...item,
+        services: (item.services || []).map(s => ({
+          ...s,
+          service: { name: s.name || 'Unknown service' }
+        })),
+        user: item.user || null,
+        customerName: item.customerName || null,
+        shop: item.shop || { name: 'N/A' }
+      }));
 
-    // Shine animation
-    useEffect(() => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(shineAnimation, {
-                    toValue: 1,
-                    duration: 2000,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(shineAnimation, {
-                    toValue: 0,
-                    duration: 0,
-                    useNativeDriver: true,
-                }),
-            ])
-        ).start();
-    }, [shineAnimation]);
+  
+      setHistory(validatedHistory);
+    } catch (error) {
+      console.error("Error fetching barber history:", error);
+      setHistory([]);
+    }
+  };
 
-    const shineTranslateX = shineAnimation.interpolate({
-        inputRange: [0, 1],
-        outputRange: [-200, 900],
-    });
 
-    const shineTranslateY = shineAnimation.interpolate({
-        inputRange: [0, 1],
-        outputRange: [-200, 250],
-    });
+  // Fetch barber details and history when the screen is focused and all data is available
+  useFocusEffect(
+    useCallback(() => {
+      if (uid && shopId && userToken) {
+        fetchBarberDetails();
+        fetchBarberHistory();
+      }
+    }, [uid, shopId, userToken]) // Re-run when these dependencies change
+  );
 
-    const confirmLogout = async () => {
-        try {
-            await AsyncStorage.removeItem("userToken");
-            await AsyncStorage.removeItem("userType");
+  // Shine animation
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shineAnimation, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shineAnimation, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [shineAnimation]);
+
+  const shineTranslateX = shineAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-screenWidth * 0.5, screenWidth * 1.8],
+  });
+
+  const shineTranslateY = shineAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-screenHeight * 0.9, screenHeight * 0.3],
+  });
+
+  const confirmLogout = async () => {
+    try {
+     await AsyncStorage.removeItem("userToken");
             await AsyncStorage.removeItem("uid");
-            await AsyncStorage.removeItem("shopId");
-            router.replace("../pre-login");
-        } catch (error) {
-            console.error("Error logging out:", error);
-            Alert.alert("Logout Error", "Failed to log out. Please try again.");
-        } finally {
-            setIsLogoutModalVisible(false); // Close the modal regardless of success or failure
-        }
-    };
+            await AsyncStorage.removeItem("userType");
+            await AsyncStorage.removeItem("userName");
+      await AsyncStorage.removeItem("shopId");
+      router.replace("../pre-login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      Alert.alert("Logout Error", "Failed to log out. Please try again.");
+    } finally {
+      setIsLogoutModalVisible(false); // Close the modal regardless of success or failure
+    }
+  };
 
-    // Function to update barber profile using the provided backend route
-    const updateUserProfile = async () => {
-        if (!barber?._id || !userToken) {
-            Alert.alert("Error", "Missing barber ID or authentication token.");
-            return;
-        }
-
-        try {
-            setUpdating(true);
-            const response = await fetch(`${API_BASE_URL}/barbers/${barber._id}`, { // Use PUT for updating a specific barber by ID
-                method: "PUT", // Changed to PUT as per barberRoutes.js update route
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${userToken}` // Pass authentication token
-                },
-                body: JSON.stringify({
-                    name: editedProfile.name,
-                    phone: editedProfile.phone, // Changed from email to phone
-                }),
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error("Error updating barber profile:", errorData);
-                Alert.alert("Error", errorData.error || "Failed to update profile");
-                return;
-            }
-            const data = await response.json();
-            setBarber(data.data); // Assuming the updated barber data is in 'data' field
-            setIsModalVisible(false);
-            Alert.alert("Success", "Profile updated successfully");
-        } catch (error) {
-            console.error("Error updating barber profile:", error);
-            Alert.alert("Error", "An error occurred while updating your profile.");
-        } finally {
-            setUpdating(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#0000ff" />
-            </View>
-        );
+  // Function to update barber profile using the provided backend route
+  const updateUserProfile = async () => {
+    if (!barber?._id || !userToken) {
+      Alert.alert("Error", "Missing barber ID or authentication token.");
+      return;
     }
 
-    if (error) {
-        return (
-            <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-            </View>
-        );
+    try {
+      setUpdating(true);
+      const response = await fetch(`${API_BASE_URL}/barbers/${barber._id}`, { // Use PUT for updating a specific barber by ID
+        method: "PUT", // Changed to PUT as per barberRoutes.js update route
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userToken}` // Pass authentication token
+        },
+        body: JSON.stringify({
+          name: editedProfile.name,
+          phone: editedProfile.phone, // Changed from email to phone
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error updating barber profile:", errorData);
+        Alert.alert("Error", errorData.error || "Failed to update profile");
+        return;
+      }
+      const data = await response.json();
+      setBarber(data.data); // Assuming the updated barber data is in 'data' field
+      setIsModalVisible(false);
+      Alert.alert("Success", "Profile updated successfully");
+    } catch (error) {
+      console.error("Error updating barber profile:", error);
+      Alert.alert("Error", "An error occurred while updating your profile.");
+    } finally {
+      setUpdating(false);
     }
+  };
 
-    // In the barber profile file (replace the return statement with this):
-
-return (
-  <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage} resizeMode="cover">
-    <View style={styles.overlay} />
-    <View style={styles.container}>
-      {/* Profile Card */}
-      <View style={styles.profileBox}>
-        <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => {
-              setEditedProfile({
-                name: barber?.name || "",
-                phone: barber?.phone || ""
-              });
-              setIsModalVisible(true);
-            }}
-          >
-            <Image
-              source={require("../image/editw.png")}
-              style={{ width: screenWidth * 0.06, height: screenWidth * 0.06, tintColor: "white" }}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={() => setIsLogoutModalVisible(true)}
-          >
-            <Icon name="sign-out" size={screenWidth * 0.06} color="white" />
-          </TouchableOpacity>
-
-          <Animated.View
-            style={[
-              styles.shine,
-              {
-                transform: [
-                  { translateX: shineAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-200, screenWidth * 2.5],
-                  }) },
-                  { translateY: shineAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-200, screenHeight * 0.3],
-                  }) },
-                  { rotate: "45deg" },
-                ],
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.shineGradient}
-            />
-          </Animated.View>
-
-          <View style={styles.profileContent}>
-            <Image source={require("../image/user.png")} style={styles.profileImage} />
-            <View style={styles.profileDetails}>
-              <Text style={styles.username}>{barber?.name || "Barber Name"}</Text>
-              <Text style={styles.userInfo}>{barber?.phone || "N/A"}</Text>
-              <Text style={styles.userInfo}>Customers Served: {barber?.customersServed || 0}</Text>
-              <Text style={styles.userInfo}>
-                Average Rating: {barber?.rating !== undefined ? barber.rating.toFixed(1) : "N/A"}
-              </Text>
-            </View>
-          </View>
-        </LinearGradient>
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
       </View>
+    );
+  }
 
-      {/* Service History */}
-      <View style={styles.serviceHistoryContainer}>
-        <Text style={styles.sectionTitle}>Service History</Text>
-        <View style={styles.historyBox}>
-          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-            {(!history || history.length === 0) ? (
-              <Text style={styles.noHistory}>No service history available.</Text>
-            ) : (
-              history.map((item, index) => (
-                <TouchableOpacity key={item._id || index} style={styles.historyCard}>
-                  <View style={styles.paymentRow}>
-                    <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
-                    <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
-                  </View>
-                  <Text style={styles.historyService}>
-                    {item.services.map(s => s.name || 'Unknown Service').join(', ')}
-                  </Text>
-                </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
-        </View>
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
       </View>
+    );
+  }
 
-      {/* Terms and Privacy Policy */}
-      <View style={styles.infoGrid}>
-        <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/terms")}>
-          <Text style={styles.infoLinkText}>Terms and Conditions</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/privacy")}>
-          <Text style={styles.infoLinkText}>Privacy Policy</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+  // In the barber profile file (replace the return statement with this):
 
-    {/* Edit Profile Modal */}
-    <Modal visible={isModalVisible} transparent animationType="slide">
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Edit Profile</Text>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Name"
-              value={editedProfile.name}
-              onChangeText={(text) => setEditedProfile({ ...editedProfile, name: text })}
-            />
-          </View>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Phone</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Phone"
-              value={editedProfile.phone}
-              onChangeText={(text) => setEditedProfile({ ...editedProfile, phone: text })}
-              keyboardType="phone-pad"
-            />
-          </View>
-          <View style={styles.modalButtonContainer}>
-            <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsModalVisible(false)}>
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
+  return (
+    <ImageBackground source={require("../image/bglogin.png")} style={styles.backgroundImage} resizeMode="cover">
+      <View style={styles.overlay} />
+      <View style={styles.container}>
+        {/* Profile Card */}
+        <View style={styles.profileBox}>
+          <LinearGradient colors={["#1a1a1a", "#333333", "#1a1a1a"]} style={styles.profileBackground}>
             <TouchableOpacity
-              style={[styles.modalButton, styles.saveButton]}
-              onPress={updateUserProfile}
-              disabled={updating}
+              style={styles.editButton}
+              onPress={() => {
+                setEditedProfile({
+                  name: barber?.name || "",
+                  phone: barber?.phone || ""
+                });
+                setIsModalVisible(true);
+              }}
             >
-              {updating ? (
-                <ActivityIndicator color="#fff" />
+              <Image
+                source={require("../image/editw.png")}
+                style={{ width: screenWidth * 0.06, height: screenWidth * 0.06, tintColor: "white" }}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={() => setIsLogoutModalVisible(true)}
+            >
+              <Icon name="sign-out" size={screenWidth * 0.06} color="white" />
+            </TouchableOpacity>
+
+            <Animated.View
+              style={[
+                styles.shine,
+                { transform: [{ translateX: shineTranslateX }, { translateY: shineTranslateY }, { rotate: "45deg" }] },
+              ]}
+            >
+              <LinearGradient
+                colors={["transparent", "rgba(255, 255, 255, 0.3)", "transparent"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.shineGradient}
+              />
+            </Animated.View>
+
+            <View style={styles.profileContent}>
+              <Image source={require("../image/user.png")} style={styles.profileImage} />
+              <View style={styles.profileDetails}>
+                <Text style={styles.username}>{barber?.name || "Barber Name"}</Text>
+                <Text style={styles.userInfo}>{barber?.email|| "N/A"}</Text>
+                <Text style={styles.userInfo}>Customers Served: {barber?.customersServed || 0}</Text>
+                <Text style={styles.userInfo}>
+                  Average Rating: {barber?.rating !== undefined ? barber.rating.toFixed(1) : "N/A"} ⭐ 
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* Service History */}
+        <View style={styles.serviceHistoryContainer}>
+          <Text style={styles.sectionTitle}>Service History</Text>
+          <View style={styles.historyBox}>
+            <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {(!history || history.length === 0) ? (
+                <Text style={styles.noHistory}>No service history available.</Text>
               ) : (
-                <Text style={styles.modalButtonText}>Save</Text>
+                history.map((item, index) => (
+                  <TouchableOpacity key={item._id || index} style={styles.historyCard}>
+                    <View style={styles.paymentRow}>
+                      <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
+                      <Text style={styles.paymentAmount}>₹{item.totalCost?.toFixed(2) || '0.00'}</Text>
+                    </View>
+                    <Text style={styles.historyService}>
+                      {item.services.map(s => s.name || 'Unknown Service').join(', ')}
+                    </Text>
+                  </TouchableOpacity>
+                ))
               )}
-            </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
-      </View>
-    </Modal>
 
-    {/* Logout Confirmation Modal */}
-    <Modal visible={isLogoutModalVisible} transparent animationType="fade">
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Confirm Logout</Text>
-          <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
-          <View style={styles.modalButtonContainer}>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: '#FF6347' }]}
-              onPress={() => setIsLogoutModalVisible(false)}
-            >
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: '#1a1a1a' }]}
-              onPress={confirmLogout}
-            >
-              <Text style={styles.modalButtonText}>Logout</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Terms and Privacy Policy */}
+        <View style={styles.infoGrid}>
+          <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/terms")}>
+            <Text style={styles.infoLinkText}>Terms and Conditions</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/privacy")}>
+            <Text style={styles.infoLinkText}>Privacy Policy</Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </Modal>
-  </ImageBackground>
-);
+
+      {/* Edit Profile Modal */}
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Name"
+                value={editedProfile.name}
+                onChangeText={(text) => setEditedProfile({ ...editedProfile, name: text })}
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Phone</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Phone"
+                value={editedProfile.phone}
+                onChangeText={(text) => setEditedProfile({ ...editedProfile, phone: text })}
+                keyboardType="phone-pad"
+              />
+            </View>
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsModalVisible(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={updateUserProfile}
+                disabled={updating}
+              >
+                {updating ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.modalButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Logout Confirmation Modal */}
+      <Modal visible={isLogoutModalVisible} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Confirm Logout</Text>
+            <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#FF6347' }]}
+                onPress={() => setIsLogoutModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#1a1a1a' }]}
+                onPress={confirmLogout}
+              >
+                <Text style={styles.modalButtonText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </ImageBackground>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -467,7 +455,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     width: screenWidth * 0.8,
-    height: "300%"
+    height: screenHeight * 1.5,
   },
   shineGradient: {
     width: "100%",

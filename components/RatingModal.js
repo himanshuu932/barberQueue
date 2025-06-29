@@ -21,7 +21,7 @@ export default function RatingModal({
       onRequestClose={() => {
         /* ignore hardware back */
       }}
-      onShow={() => console.log('Rating modal is now visible.')}
+     
     >
       <View style={styles.ratingModalContainer}>
         <View style={styles.ratingModalContent}>
