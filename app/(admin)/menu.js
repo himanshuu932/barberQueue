@@ -107,14 +107,44 @@ export default function MenuScreen() {
     return () => newSocket.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (socket) {
-      socket.on("queue:updated", () => {
-        console.log("updating the queue cause of queue:updated event by socket in barber frontend");
-        fetchQueueData();
-      });
-    }
-  }, [socket]);
+ // Add these useEffect hooks to manage socket connections
+
+useEffect(() => {
+  if (socket && shopId) {
+    // Join the shop's room when component mounts
+    socket.emit('join_shop_queue', shopId);
+    
+    // Cleanup on unmount
+    return () => {
+      socket.emit('leave_shop_queue', shopId);
+    };
+  }
+}, [socket, shopId]);
+
+// Replace your current socket useEffect with this optimized version
+useEffect(() => {
+  if (socket) {
+    const handleQueueUpdate = () => {
+      console.log("Queue updated event received");
+      fetchQueueData();
+    };
+
+    socket.on("queue:updated", handleQueueUpdate);
+
+    // Add error handling
+    socket.on("connect_error", (err) => {
+      console.error("Socket connection error:", err);
+      // You might want to implement a reconnection strategy here
+    });
+
+    return () => {
+      socket.off("queue:updated", handleQueueUpdate);
+      socket.off("connect_error");
+    };
+  }
+}, [socket, shopId]);
+
+
 
   const fetchQueueData = async () => {
     if (!shopId) {

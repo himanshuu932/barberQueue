@@ -48,23 +48,26 @@ module.exports = (io) => {
     };
 
     // --- Internal Helper: Emit Queue Updates via Socket.IO ---
-    const emitQueueUpdate = async (shopId) => {
-        if (!shopId) return;
-        try {
-            const updatedQueue = await Queue.find({ shop: shopId, status: { $in: ['pending', 'in-progress'] } })
-                                            .populate('barber', 'name')
-                                            .populate('userId', 'name') // Populates name if userId is present
-                                            .sort({ orderOrQueueNumber: 1 });
-            io.to(shopId.toString()).emit('queue:updated', {
-                shopId: shopId,
-                queue: updatedQueue,
-                count: updatedQueue.length
-            });
-            console.log(`Emitted queue:updated for shop ${shopId} with ${updatedQueue.length} items.`);
-        } catch (error) {
-            console.error(`Error emitting queue update for shop ${shopId}:`, error);
-        }
-    };
+const emitQueueUpdate = async (shopId) => {
+  if (!shopId) return;
+  try {
+    const updatedQueue = await Queue.find({ shop: shopId, status: { $in: ['pending', 'in-progress']} })
+                                    .populate('barber', 'name')
+                                    .populate('userId', 'name')
+                                    .sort({ orderOrQueueNumber: 1 });
+    
+    // Emit to both the shop room and individual user rooms
+    io.to(shopId.toString()).emit('queue:updated', {
+      shopId: shopId,
+      queue: updatedQueue,
+      count: updatedQueue.length
+    });
+    
+    console.log(`Emitted queue:updated for shop ${shopId} with ${updatedQueue.length} items.`);
+  } catch (error) {
+    console.error(`Error emitting queue update for shop ${shopId}:`, error);
+  }
+};
 
     // @desc    Add customer to queue
     // @route   POST /api/queue
