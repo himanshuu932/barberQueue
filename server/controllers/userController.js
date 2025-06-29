@@ -269,6 +269,97 @@ exports.confirmPasswordChange = asyncHandler(async (req, res) => {
     });
 });
 
+
+exports.initiatePasswordReset = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        throw new ApiError('Email is required', 400);
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        // For security, don't reveal if user exists or not
+        return res.json({
+            success: true,
+            message: 'If an account with this email exists, a reset OTP has been sent'
+        });
+    }
+
+    // Generate and store OTP
+    const otp = generateOTP();
+    storeOTP(email, otp);
+
+    // Prepare email data
+    const emailData = {
+        From: {
+            Email: process.env.EMAIL_FROM,
+            Name: process.env.AppNameForEmail,
+        },
+        To: [{
+            Email: user.email
+        }],
+        Subject: 'Password Reset Request',
+        TextPart: `Your password reset OTP is: ${otp}`,
+        HTMLPart: `
+            <h3>Password Reset Request</h3>
+            <p>Your OTP is: <strong>${otp}</strong></p>
+            <p>This OTP will expire in 10 minutes.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+        `
+    };
+
+    // Send OTP via Mailjet
+    try {
+        await mailjet
+            .post('send', { version: 'v3.1' })
+            .request({ Messages: [emailData] });
+
+        res.json({
+            success: true,
+            message: 'If an account with this email exists, a reset OTP has been sent'
+        });
+    } catch (mailjetError) {
+        console.error('[Password Reset] Mailjet error:', mailjetError);
+        throw new ApiError('Failed to send OTP', 500);
+    }
+});
+
+// @desc    Verify OTP and reset password (forgot password flow)
+// @route   POST /api/users/reset-password
+// @access  Public
+exports.resetPassword = asyncHandler(async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+    
+    if (!email || !otp || !newPassword) {
+        throw new ApiError('Email, OTP and new password are required', 400);
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new ApiError('Invalid request', 400);
+    }
+
+    // Verify OTP
+    const isValid = verifyOTP(email, otp);
+    if (!isValid) {
+        throw new ApiError('Invalid OTP or OTP expired', 400);
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update password
+    user.pass = hashedPassword;
+    await user.save();
+
+    res.json({
+        success: true,
+        message: 'Password reset successfully'
+    });
+});
+
 // @desc    Update user profile
 // @route   PUT /api/users/profile
 // @access  Private (User)
