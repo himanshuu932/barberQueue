@@ -34,15 +34,7 @@ const RatingModal = ({ isVisible, onClose, shopId, barberId,historyId }) => { //
   const handleSubmit = async() => {
     // Show alert with the rating, shopId, and barberId
     const token=await AsyncStorage.getItem('userToken')
-    Alert.alert(
-      "Rating Submitted",
-      `You rated ${currentRating} stars Thank you for your feedback!`,
-      [
-        { text: "OK", onPress: () => {
-          
-        } }
-      ]
-    );
+   
     const res=await fetch(`https://numbr-exq6.onrender.com/api/barbers/rate/${barberId}`,{
         method: "PUT", 
         headers: {
@@ -55,6 +47,15 @@ const RatingModal = ({ isVisible, onClose, shopId, barberId,historyId }) => { //
  
     //console.log(res);
     //console.log(`User rated: ${currentRating} stars, Shop ID: ${shopId}, Barber ID: ${barberId}`);
+     Alert.alert(
+      "Rating Submitted",
+      `You rated ${currentRating} stars Thank you for your feedback!`,
+      [
+        { text: "OK", onPress: () => {
+          
+        } }
+      ]
+    );
     setCurrentRating(0); // Reset rating after submission
     onClose(); // Close the modal through the parent's handler
   };

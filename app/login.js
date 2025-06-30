@@ -313,13 +313,6 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity 
-            style={styles.forgotPasswordButton} 
-            onPress={() => setShowForgotPasswordModal(true)}
-          >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity style={styles.buttonContainer} onPress={handleLogin} disabled={loading}>
             <LinearGradient
               colors={["#3a3a3a", "#1a1a1a", "#0d0d0d"]}
@@ -334,12 +327,19 @@ export default function LoginScreen() {
               )}
             </LinearGradient>
           </TouchableOpacity>
-
+         <View style={styles.bottomLinksContainer}>
+         <TouchableOpacity 
+            style={styles.forgotPasswordButton} 
+            onPress={() => setShowForgotPasswordModal(true)}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push("/signup")}>
             <Text style={styles.registerText}>
-              Don't have an account? <Text style={styles.link}>Sign Up</Text>
+              <Text style={styles.link}>Sign Up</Text>
             </Text>
           </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -428,24 +428,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+ forgotPasswordText: {
+    color: "rgb(255, 255, 255)",
+    fontWeight: "600", // Keep this for consistency
+    fontSize: 16,     // Change to 16 for consistency with registerText
+  },
   registerText: {
-    marginTop: 15,
+    marginTop: 0, // This margin might push it down, remove it or adjust
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600", // Make it 600 for consistency
     color: "rgb(255, 255, 255)",
   },
   link: {
-    color: "rgb(3, 75, 163)",
-    fontWeight: "900",
+    color: "rgb(255, 255, 255)",
+    fontWeight: "600", // You might want to keep this bolder for "Sign Up"
   },
-  forgotPasswordButton: {
-    alignSelf: "flex-end",
-    marginBottom: 15,
-  },
-  forgotPasswordText: {
-    color: "rgb(3, 75, 163)",
-    fontWeight: "600",
-    fontSize: 14,
+  bottomLinksContainer: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "space-between", // This will push "Forgot Password?" to the start and "Sign Up" to the end
+    alignItems: "center", // Vertically center them
+    marginTop: 0, // Add a top margin to separate it from the login button
   },
   // Modal styles
   modalOverlay: {
