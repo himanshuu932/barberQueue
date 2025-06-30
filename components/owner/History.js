@@ -695,7 +695,7 @@ const History = ({ onClose }) => {
                           setSelectedBarber("AllBarbers");
                           setShopMenuVisible(false);
                         }}
-                        title={`    - All Barbers`}
+                        title={`     •All Barbers`}
                         style={styles.barberMenuItem}
                       />
                       {(shop.barbers || []).map(barber => (
@@ -706,7 +706,7 @@ const History = ({ onClose }) => {
                             setSelectedBarber(barber.name);
                             setShopMenuVisible(false);
                           }}
-                          title={`     ${barber.name}`}
+                          title={`     •${barber.name}`}
                           style={styles.barberMenuItem}
                         />
                       ))}
