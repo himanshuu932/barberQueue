@@ -635,7 +635,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     infoLinkText: {
-        fontSize: screenWidth * 0.035,
+        fontSize: screenWidth * 0.032,
+        width: screenWidth * 0.4,
         color: "#ADD8E6",
         textDecorationLine: "underline",
         textAlign: "left",
@@ -722,6 +723,7 @@ const styles = StyleSheet.create({
     changePasswordLinkText: {
         color: '#1a1a1a',
         fontWeight: '600',
+        
         fontSize: screenWidth * 0.04,
         textDecorationLine: 'underline',
     },

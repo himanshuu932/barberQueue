@@ -625,10 +625,11 @@ const styles = StyleSheet.create({
   },
   servicesText: {
     fontSize: screenWidth * 0.035,
+    width:screenWidth * 0.285,
     color: "blue",
   },
   infoButton: {
-    marginLeft: screenWidth * 0.03,
+    marginLeft: screenWidth * 0.01,
   },
   iconGroup: {
     flexDirection: "row",

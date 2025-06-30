@@ -1095,6 +1095,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0' 
   },
   rateText: { 
+    width:screenWidth * 0.4,
     fontSize: screenWidth * 0.04, 
     color: '#444' 
   },

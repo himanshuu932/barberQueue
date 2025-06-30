@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   checklistItem: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
   checklistRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   checklistText: { fontSize: 16, flex: 1 },
-  checklistPrice: { fontSize: 16, marginRight: 10, color: 'green' },
+  checklistPrice: { fontSize: 16, marginRight: 10, color: 'green',width: 100, textAlign: 'right' },
   totalPrice: { fontSize: 17, fontWeight: '600', textAlign: 'right', marginTop: 10 },
   confirmButton: {
     marginTop: 15, backgroundColor: '#28a745',

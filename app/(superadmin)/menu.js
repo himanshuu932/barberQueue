@@ -439,6 +439,8 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: screenWidth * 0.055,
+    width: screenWidth * 0.8,
+    textAlign: 'center',
     color: colors.textMedium,
   },
   statsRow: {

@@ -13,13 +13,13 @@ import {
   PixelRatio,
   TouchableWithoutFeedback,
   Platform,
-  Alert, // Import Alert for error messages
+  Alert,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Location from "expo-location"; // Import Location for current user location
+import * as Location from "expo-location";
 
 // Get screen dimensions for responsive styling, consistent with menu.js
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -64,7 +64,7 @@ export const ShopList = ({ onSelect, onClose }) => {
   const [queueCounts, setQueueCounts] = useState({});
   const [sortCriteria, setSortCriteria] = useState([]);
   const [showSortOptions, setShowSortOptions] = useState(false);
-  const [userLocation, setUserLocation] = useState(null); // New state for user's current location
+  const [userLocation, setUserLocation] = useState(null);
 
   // Helper: convert degrees to radians.
   const toRad = (value) => (value * Math.PI) / 180;
@@ -82,7 +82,7 @@ export const ShopList = ({ onSelect, onClose }) => {
         Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
-  }, []); // Memoize calculateDistance
+  }, []);
 
   // Request permission and get current user location
   const requestLocationPermissionAndSetLocation = useCallback(async () => {
@@ -149,7 +149,7 @@ export const ShopList = ({ onSelect, onClose }) => {
     } finally {
       setLoading(false);
     }
-  }, [calculateDistance]); // Add calculateDistance to dependencies
+  }, [calculateDistance]);
 
   // Memoized fetchQueueCounts for efficiency
   const fetchQueueCounts = useCallback(async (shops) => {
@@ -523,23 +523,32 @@ export const ShopList = ({ onSelect, onClose }) => {
         ) : null}
       </View>
 
-      <TouchableWithoutFeedback onPress={() => setShowSortOptions(false)}>
-        <View style={{ flex: 1 }}>
-          <FlatList
-            data={sortedAndFilteredShops}
-            renderItem={renderShopItem}
-            keyExtractor={(item) => item._id}
-            contentContainerStyle={[styles.shopList, { paddingBottom: extraPadding }]}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <FontAwesome5 name="search" size={getResponsiveFontSize(50)} color={colors.textLight} />
-                <Text style={styles.emptyText}>No shops found matching your criteria</Text>
-              </View>
-            }
-          />
-        </View>
-      </TouchableWithoutFeedback>
+      {/* Only overlay when sort menu is open */}
+      {showSortOptions && (
+        <TouchableWithoutFeedback onPress={() => setShowSortOptions(false)}>
+          <View style={StyleSheet.absoluteFill} />
+        </TouchableWithoutFeedback>
+      )}
+
+      <FlatList
+        data={sortedAndFilteredShops}
+        renderItem={renderShopItem}
+        keyExtractor={(item) => item._id}
+        contentContainerStyle={[styles.shopList, { paddingBottom: extraPadding }]}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <FontAwesome5 name="search" size={getResponsiveFontSize(50)} color={colors.textLight} />
+            <Text style={styles.emptyText}>No shops found matching your criteria</Text>
+          </View>
+        }
+        // You might need to implement getItemLayout for better FlatList performance
+        // getItemLayout={(data, index) => (
+        //   { length: YOUR_ITEM_HEIGHT + YOUR_ITEM_MARGIN_BOTTOM, offset: (YOUR_ITEM_HEIGHT + YOUR_ITEM_MARGIN_BOTTOM) * index, index }
+        // )}
+        // Add nestedScrollEnabled if you have nested scrollables
+        // nestedScrollEnabled={true}
+      />
 
       {showSortOptions && (
         <View style={styles.sortOptionsDropdown}>
@@ -578,7 +587,7 @@ export const ShopList = ({ onSelect, onClose }) => {
       )}
 
       {onClose && (
-        <View style={[styles.bottomButtonContainer, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.bottomButtonContainer, { paddingBottom: insets.bottom }]} pointerEvents="box-none">
           <TouchableOpacity
             style={styles.bottomCloseButton}
             onPress={onClose}
@@ -841,7 +850,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: screenWidth * 0.32,
   },
-  shopImage: { // Kept for the fallback placeholder
+  shopImage: {
     width: "100%",
     height: "100%",
     resizeMode: "cover",
@@ -891,7 +900,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: screenHeight * 0.001 },
     shadowOpacity: 0.2,
     shadowRadius: screenWidth * 0.005,
-    zIndex: 1, // Ensure badge is above carousel
+    zIndex: 1,
   },
   closedOverlay: {
     position: 'absolute',
@@ -902,7 +911,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1, // Ensure overlay is above carousel
+    zIndex: 1,
   },
   closedText: {
     color: colors.red,
