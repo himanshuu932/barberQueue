@@ -706,7 +706,7 @@ const History = ({ onClose }) => {
                             setSelectedBarber(barber.name);
                             setShopMenuVisible(false);
                           }}
-                          title={`    - ${barber.name}`}
+                          title={`     ${barber.name}`}
                           style={styles.barberMenuItem}
                         />
                       ))}
