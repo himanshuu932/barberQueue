@@ -104,7 +104,16 @@ const History = ({ onClose }) => {
     }
   }, []);
 
-  useFocusEffect(fetchHistoryData);
+useFocusEffect(
+  React.useCallback(() => {
+    async function fetchData() {
+  
+    await fetchHistoryData();
+    }
+
+    fetchData();
+  }, [])
+);
 
   const getFilteredPayments = () => {
     const now = new Date();
