@@ -902,10 +902,11 @@ const styles = StyleSheet.create({
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: screenWidth * 0.04,
+      paddingTop: screenHeight * 0.01
     },
     title: {
       color: "#fff",
-      fontSize: screenWidth * 0.05,
+      fontSize: screenWidth * 0.055,
       marginLeft: screenWidth * 0.04,
     },
     backgroundImage: {

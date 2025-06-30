@@ -466,7 +466,7 @@ export const ShopList = ({ onSelect, onClose }) => {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.headerApp, { paddingTop: insets.top }]}>
+      <View style={styles.headerApp}>
         <Text style={styles.titleApp}>Numbr</Text>
       </View>
       <StatusBar backgroundColor={colors.headerBackground} barStyle="light-content" />
@@ -607,7 +607,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: screenWidth * 0.042,
-    height: screenHeight * 0.08
+    height: screenHeight * 0.06,
+    paddingTop : screenHeight * 0.01
   },
   titleApp: {
     color: colors.white,
@@ -990,7 +991,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: screenWidth * 0.04,
     zIndex: 200,
-    paddingTop: screenHeight * 0.02,
+    paddingTop: screenHeight * 0.015,
     backgroundColor: colors.background,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
@@ -998,7 +999,7 @@ const styles = StyleSheet.create({
   bottomCloseButton: {
     backgroundColor: colors.bottomButton,
     paddingVertical: screenHeight * 0.02,
-    bottom: 10,
+    bottom: screenHeight * 0.005,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',

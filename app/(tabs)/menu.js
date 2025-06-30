@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
   chooseShopButton: { 
     padding: screenWidth * 0.022, 
     backgroundColor: 'rgba(0,0,200,0.7)', 
-    borderRadius: 20, 
+    borderRadius: "20%", 
     justifyContent: 'center', 
     alignItems: 'center' 
   },
