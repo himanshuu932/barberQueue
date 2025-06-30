@@ -15,24 +15,23 @@ export default function Layout() {
 
       {/* Tabs component takes up the remaining space */}
       <Tabs
-        screenOptions={{
-          tabBarStyle: {
-            backgroundColor: "black",
-            height: screenHeight * 0.12, // 10% of screen height for tab bar
-            paddingBottom: 0, // Ensure no extra padding at the bottom of the tab bar
-            borderTopWidth: 0, // Remove any default border top
-          },
-          tabBarActiveTintColor: "#007bff",
-          tabBarInactiveTintColor: "#ddd",
-          headerShown: false, // Hide the header provided by Expo Router
-          tabBarLabelStyle: {
-            fontSize: screenWidth * 0.03, // Adjust font size based on screen width
-          },
-          tabBarIconStyle: {
-            height: screenHeight * 0.04, // Adjust icon height for better visibility
-            paddingTop: screenHeight * 0.0091, // Small padding for icon on top
-          }
-        }}
+            screenOptions={{
+            tabBarStyle: {
+              backgroundColor: "black",
+              height: screenHeight * 0.10, // 10% of screen height for tab bar
+              paddingBottom: 11, // Ensure no extra padding at the bottom of the tab bar
+              borderTopWidth: 0, // Remove any default border top
+            },
+            tabBarActiveTintColor: "#007bff",
+            tabBarInactiveTintColor: "#ddd",
+            headerShown: false, // Hide the header provided by Expo Router
+            tabBarLabelStyle: {
+              fontSize: screenWidth * 0.03, // Adjust font size based on screen width
+            },
+            tabBarIconStyle: {
+              paddingTop: screenHeight * 0.005, // Small padding for icon on top
+            }
+          }}
       >
         <Tabs.Screen
           name="menu"
@@ -72,7 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: "black", // Ensures background behind status bar is black
   },
   header: {
-    height: screenHeight * 0.09,
+    height: screenHeight * 0.08,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center", // Vertically centers content in the header
@@ -82,7 +81,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: screenWidth * 0.055, // Adjust font size based on screen width for responsiveness
     width: screenWidth * 0.5, // Adjust width to fit the title
-    marginTop: screenHeight * 0.031, // Adjust top margin for better alignment
     marginLeft: screenWidth * 0.042, // Fixed left margin, adjust if needed
   },
+
 });

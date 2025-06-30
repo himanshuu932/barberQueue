@@ -302,7 +302,7 @@ export default function TabProfileScreen() {
                                     <Text style={styles.infoLinkText}>Terms & Conditions</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.numbrapp.in/refund")}>
-                                    <Text style={styles.infoLinkText}>Cancellation & Refunds</Text>
+                                    <Text style={styles.infoLinkText}>Refund Policy</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.numbrapp.in/privacy")}>
                                     <Text style={styles.infoLinkText}>Privacy Policy</Text>

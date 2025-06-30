@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "projectId": "f198e5a9-f69f-4063-89ce-fa4f5387bb9e",
+    "projectId": "f88ea018-d6e1-476b-9d0d-ab96e34e3376",
     "icon": "./assets/images/icon.jpg",
     "ios": {
       "supportsTablet": true
@@ -53,7 +53,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "f198e5a9-f69f-4063-89ce-fa4f5387bb9e"
+        "projectId": "f88ea018-d6e1-476b-9d0d-ab96e34e3376"
       }
     }
   }

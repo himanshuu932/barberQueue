@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: screenWidth * 0.042,
-    height: screenHeight * 0.1
+    height: screenHeight * 0.08
   },
   titleApp: {
     color: colors.white,
@@ -998,6 +998,7 @@ const styles = StyleSheet.create({
   bottomCloseButton: {
     backgroundColor: colors.bottomButton,
     paddingVertical: screenHeight * 0.02,
+    bottom: 10,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
