@@ -330,10 +330,10 @@ export default function TabProfileScreen() {
 
         {/* Terms and Privacy Policy */}
         <View style={styles.infoGrid}>
-          <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/terms")}>
+          <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.numbrapp.in/terms")}>
             <Text style={styles.infoLinkText}>Terms and Conditions</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.example.com/privacy")}>
+          <TouchableOpacity style={styles.infoGridItem} onPress={() => Linking.openURL("https://www.numbrapp.in/privacy")}>
             <Text style={styles.infoLinkText}>Privacy Policy</Text>
           </TouchableOpacity>
         </View>

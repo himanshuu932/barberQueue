@@ -299,10 +299,10 @@ const addWalkInToQueue = asyncHandler(async (req, res) => {
         uniqueCode = generateUniqueCode();
     } while (await Queue.findOne({ uniqueCode }));
 
-    // 7. Create the queue entry
+
     const queueEntry = await Queue.create({
         shop: shop._id,
-        barber: req.userType === 'Barber' ? req.user._id : null,
+        barber:  null,
         customerName: customerName,
         customerPhone: req.body.customerPhone || null,
         services: servicesForQueueSchema,

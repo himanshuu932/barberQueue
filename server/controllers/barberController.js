@@ -304,6 +304,19 @@ exports.rate = asyncHandler(async (req, res) => {
     await history.save();
     await barber.save();
 
+// ... (after barber.save())
+const shop = await Shop.findById(barber.shopId).populate('barbers'); // Populate barbers to access their individual ratings
+if (shop && shop.barbers.length > 0) {
+    let totalBarberRatings = 0;
+    shop.barbers.forEach(b => {
+        if (b.rating !== undefined && b.rating !== null) { // Ensure barber has a rating
+            totalBarberRatings += b.rating;
+        }
+    });
+    shop.rating = totalBarberRatings / shop.barbers.length;
+    await shop.save();
+}
+
     console.log("Rating updated successfully");
     res.status(200).json({ message: 'Rating submitted successfully' });
 
