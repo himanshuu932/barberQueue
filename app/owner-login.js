@@ -20,7 +20,6 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 // API Base URL
 const API_BASE = "https://numbr-exq6.onrender.com";
 
-// Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,

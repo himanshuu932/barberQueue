@@ -126,7 +126,7 @@ exports.updateOwnerProfile = asyncHandler(async (req, res) => {
 
 exports.getOwnerShops = asyncHandler(async (req, res) => {
     // req.user contains the owner's data from the protect middleware
-    const shops = await Shop.find({ owner: req.user._id });
+    const shops = await Shop.find({ owner: req.user._id }).populate('barbers');
 
     const shopsWithHistory = await Promise.all(shops.map(async (shop) => {
         const history = await History.find({ shop: shop._id })
