@@ -890,6 +890,9 @@ const formatTime = (date) => {
               </MapView>
             )}
             <View style={styles.modalButtonContainer}>
+              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsMapModalVisible(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
                 onPress={async () => {
@@ -911,9 +914,6 @@ const formatTime = (date) => {
                 }}
               >
                 <Text style={styles.modalButtonText}>Confirm</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsMapModalVisible(false)}>
-                <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>

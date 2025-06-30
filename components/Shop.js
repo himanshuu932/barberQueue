@@ -607,8 +607,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: screenWidth * 0.042,
-    height: screenHeight * 0.06,
-    paddingTop : screenHeight * 0.01
+    height: screenHeight * 0.07,
+    // paddingTop : screenHeight * 0.01
   },
   titleApp: {
     color: colors.white,

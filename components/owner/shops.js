@@ -257,12 +257,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8EDF2',
   },
   header: {
-    height: screenHeight * 0.06,
+    height: screenHeight * 0.07,
     backgroundColor: "black",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: screenWidth * 0.042,
-    paddingTop: screenHeight * 0.01
+    // paddingTop: screenHeight * 0.01
   },
   title: {
     color: "#fff",

@@ -563,7 +563,7 @@ const ShopSelection = () => {
                       <Text style={styles.modalButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleConfirmLocation} disabled={!selectedLocation}>
-                      <Text style={styles.modalButtonText}>Confirm Location</Text>
+                      <Text style={styles.modalButtonText}>Confirm</Text>
                   </TouchableOpacity>
               </View>
           </View>

@@ -897,12 +897,12 @@ useFocusEffect(
 
 const styles = StyleSheet.create({
     header: {
-      height: screenHeight * 0.06,
+      height: screenHeight * 0.07,
       backgroundColor: "black",
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: screenWidth * 0.04,
-      paddingTop: screenHeight * 0.01
+      // paddingTop: screenHeight * 0.01
     },
     title: {
       color: "#fff",
@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
     overlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: "rgba(237,236,236,0.77)",
-      top: screenHeight * 0.06,
+      top: screenHeight * 0.07,
     },
     fullscreenContainer: {
       flex: 1,
