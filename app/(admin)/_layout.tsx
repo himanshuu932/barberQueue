@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   },
   floatingButton: {
     position: "absolute",
-    bottom: screenHeight * 0.04,
+    bottom: screenHeight * 0.02,
     alignSelf: "center",
     transform: [{ translateY: -20 }], // Slight bulge above the navbar
     width: 70,

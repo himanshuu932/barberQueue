@@ -210,9 +210,6 @@ export const ShopList = ({ onSelect, onClose }) => {
       filters.push(`"${searchQuery}"`);
     }
 
-    // Add distance filter to summary
-    filters.push("Distance <= 30 km");
-
     const sortSummaries = sortCriteria.map((c) => {
       const label = c.key.charAt(0).toUpperCase() + c.key.slice(1);
       const orderLabel = c.order === "asc" ? "Low to High" : "High to Low";
