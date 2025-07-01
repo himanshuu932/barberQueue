@@ -102,16 +102,6 @@ const addToQueue = asyncHandler(async (req, res) => {
   let actualCustomerName = nameFromRequest;
   let userToNotify = null;
 
-  if (userIdToSave) {
-  const existingQueue = await Queue.findOne({
-    userId: userIdToSave,
-    status: 'pending'
-  });
-
-  if (existingQueue) {
-    throw new ApiError('You are already in queue at another shop. Please leave that queue first.', 400);
-  }
-}
 
 
   if (req.user && req.userType === 'User') {
@@ -138,6 +128,18 @@ const addToQueue = asyncHandler(async (req, res) => {
     throw new ApiError('Customer name is required.', 400);
   }
   // If pure guest, actualCustomerName is already nameFromRequest
+
+  
+  if (userIdToSave) {
+  const existingQueue = await Queue.findOne({
+    userId: userIdToSave,
+    status: 'pending'
+  });
+
+  if (existingQueue) {
+    throw new ApiError('You are already in queue at another shop. Please leave that queue first.', 400);
+  }
+}
 
   // 4. Validate services array
   if (
