@@ -384,7 +384,7 @@ const removeFromQueue = asyncHandler(async (req, res, next) => {
         if (queueEntry.userId) {
             await sendPushNotification(
                 queueEntry.userId,
-                `Queue Update at ${queueEntry.shop.name}`,
+                `Update at ${queueEntry.shop.name}`,
                 `Your queue entry #${queueEntry.orderOrQueueNumber} has been cancelled.`,
                 {
                     type: 'queue_cancelled',
@@ -410,7 +410,7 @@ const removeFromQueue = asyncHandler(async (req, res, next) => {
             if (entry.userId && entry.orderOrQueueNumber !== entry._previousOrder) {
                 await sendPushNotification(
                     entry.userId,
-                    `Queue Update at ${queueEntry.shop.name}`,
+                    `Update at ${queueEntry.shop.name}`,
                     `Your new position is #${entry.orderOrQueueNumber}`,
                     {
                         type: 'queue_position_change',
@@ -676,7 +676,7 @@ const movePersonDownInQueue = asyncHandler(async (req, res) => {
         
         const shop = await Shop.findById(entry.shop);
         return {
-            title: `Queue Update at ${shop?.name || 'the shop'}`,
+            title: ` Update at ${shop?.name || 'the shop'}`,
             message: `Your position changed to #${newPosition}`,
             data: {
                 type: 'queue_position_change',

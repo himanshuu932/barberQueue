@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
@@ -38,28 +39,30 @@ const RateList = () => {
   const [newServiceData, setNewServiceData] = useState({ name: "", price: "" });
   const [updatedServiceData, setUpdatedServiceData] = useState({ name: "", price: "" });
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        const storedOwnerId = await AsyncStorage.getItem("uid");
-        const storedToken = await AsyncStorage.getItem("userToken");
+  useFocusEffect( //
+    useCallback(() => { //
+      const loadInitialData = async () => { //
+        try { //
+          const storedOwnerId = await AsyncStorage.getItem("uid"); //
+          const storedToken = await AsyncStorage.getItem("userToken"); //
 
-        if (storedOwnerId && storedToken) {
-          setOwnerId(storedOwnerId);
-          setAuthToken(storedToken);
-          fetchOwnerShops(storedToken);
-        } else {
-          Alert.alert("Authentication Error", "User ID or Token not found. Please log in again.");
-          setIsLoadingShops(false);
+          if (storedOwnerId && storedToken) { //
+            setOwnerId(storedOwnerId); //
+            setAuthToken(storedToken); //
+            fetchOwnerShops(storedToken); //
+          } else { //
+            Alert.alert("Authentication Error", "User ID or Token not found. Please log in again."); //
+            setIsLoadingShops(false); //
+          }
+        } catch (e) { //
+          console.error("Failed to load auth data from storage", e); //
+          Alert.alert("Storage Error", "Failed to load authentication data."); //
+          setIsLoadingShops(false); //
         }
-      } catch (e) {
-        console.error("Failed to load auth data from storage", e);
-        Alert.alert("Storage Error", "Failed to load authentication data.");
-        setIsLoadingShops(false);
-      }
-    };
-    loadInitialData();
-  }, []);
+      };
+      loadInitialData(); //
+    }, []) //
+  );
 
   const fetchOwnerShops = useCallback(async (token) => {
     setIsLoadingShops(true);

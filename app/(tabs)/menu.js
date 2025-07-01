@@ -391,15 +391,12 @@ useEffect(() => {
 
       if (response.ok && responseData.success) {
         await AsyncStorage.setItem("joinTimestamp", String(Date.now()));
-        // fetchQueueData(); // Socket event 'queue:updated' should handle this if socket is connected
-                           // or if not, the next poll will. For immediate feedback, can call it.
-        if (!socket || !socket.connected) fetchQueueData(); // Fetch if no socket to rely on for update
-
+       if (!socket || !socket.connected) fetchQueueData(); 
         setChecklist(defaultChecklist.map((item) => ({ ...item, checked: false })));
         setModalVisible(false);
         Alert.alert("Success", "You've joined the queue!");
       } else {
-        Alert.alert("Error Joining Queue", responseData.message || "Failed to join the queue. Please try again.");
+        Alert.alert("Error Joining Queue", responseData.error || "Failed to join the queue. Please try again.");
       }
     } catch (error) {
       console.error("Error joining queue (catch block):", error);

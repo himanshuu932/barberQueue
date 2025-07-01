@@ -109,8 +109,14 @@ exports.loginUser = asyncHandler(async (req, res) => {
 
     const user = await User.findOne({ email });
 
-    if (!user || !(await bcrypt.compare(pass, user.pass))) {
-        throw new ApiError('Invalid email or password', 401);
+    if (!user)
+    {
+
+        throw new ApiError('No Such User', 401);
+    }
+
+       if( !(await bcrypt.compare(pass, user.pass))) {
+        throw new ApiError('Wrong Password', 401);
     }
 
     // Dynamic subscription status check on login
@@ -143,9 +149,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
     });
 });
 
-// @desc    Get user profile
-// @route   GET /api/users/profile
-// @access  Private (User)
+
 exports.getUserProfile = asyncHandler(async (req, res) => {
     // req.user is populated by the protect middleware
     const user = await User.findById(req.user._id).select('-pass').populate('pinnedShop', 'name address'); // Exclude password and populate pinned shop details

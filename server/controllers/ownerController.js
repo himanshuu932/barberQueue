@@ -55,6 +55,13 @@ exports.loginOwner = asyncHandler(async (req, res) => {
     const { email, pass } = req.body;
     console.log('Login attempt with email:', email);
     const owner = await Owner.findOne({ email });
+      if( !owner) {
+       throw new ApiError('No Such User', 401);
+        }
+    
+           if( !(await bcrypt.compare(pass, owner.pass))) {
+            throw new ApiError('Wrong Password', 401);
+        }
 
     if (owner && (await bcrypt.compare(pass, owner.pass))) {
         res.json({
