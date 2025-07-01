@@ -18,7 +18,7 @@ import BarbersList from "./BarbersList";
 import DangerZone from "./DangerZone";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
   try {
