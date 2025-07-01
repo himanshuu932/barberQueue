@@ -102,6 +102,18 @@ const addToQueue = asyncHandler(async (req, res) => {
   let actualCustomerName = nameFromRequest;
   let userToNotify = null;
 
+  if (userIdToSave) {
+  const existingQueue = await Queue.findOne({
+    userId: userIdToSave,
+    status: 'pending'
+  });
+
+  if (existingQueue) {
+    throw new ApiError('You are already in queue at another shop. Please leave that queue first.', 400);
+  }
+}
+
+
   if (req.user && req.userType === 'User') {
     userIdToSave = req.user._id;
     actualCustomerName = req.user.name;
