@@ -261,7 +261,7 @@ export const ShopList = ({ onSelect, onClose }) => {
   const sortedAndFilteredShops = [...shopRatings]
     .filter((shop) => {
       const matchesSearch = searchQuery ? shop.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
-      const withinDistance = shop.distance !== null && shop.distance <= 30; // Filter for distance <= 30 km
+      const withinDistance = shop.distance !== null ; // Filter for distance <= 30 km
       return matchesSearch && withinDistance;
     })
     .sort((a, b) => {

@@ -536,11 +536,41 @@ const updateQueueStatus = asyncHandler(async (req, res) => {
                 totalRevenue: queueEntry.totalCost 
             }
         });
+
+
     }
 
     await queueEntry.save();
     await emitQueueUpdate(queueEntry.shop._id.toString());
     
+         const remainingQueue = await Queue.find({
+            shop: queueEntry.shop._id,
+            status: { $in: ['pending', 'in-progress'] }
+        }).sort({ orderOrQueueNumber: 1 });
+
+        for (let i = 0; i < remainingQueue.length; i++) {
+            remainingQueue[i].orderOrQueueNumber = i + 1;
+            await remainingQueue[i].save();
+        }
+             // Notify all users whose positions changed
+        for (const entry of remainingQueue) {
+            if (entry.userId && entry.orderOrQueueNumber !== entry._previousOrder) {
+                await sendPushNotification(
+                    entry.userId,
+                    `Update at ${queueEntry.shop.name}`,
+                    `Your new position is #${entry.orderOrQueueNumber}`,
+                    {
+                        type: 'queue_position_change',
+                        queueId: entry._id.toString(),
+                        newPosition: entry.orderOrQueueNumber
+                    }
+                );
+            }
+        }
+
+        await emitQueueUpdate(queueEntry.shop._id.toString());
+
+
     res.json({ 
         success: true, 
         message: `Queue entry status updated to ${status}.`, 
