@@ -565,6 +565,16 @@ const updateQueueStatus = asyncHandler(async (req, res) => {
                         newPosition: entry.orderOrQueueNumber
                     }
                 );
+                // Also send socket notification
+                io.to(entry.userId.toString()).emit('queue:position_changed', {
+                    title: `Update at ${queueEntry.shop.name}`,
+                    message: `Your new position is #${entry.orderOrQueueNumber}`,
+                    data: {
+                        type: 'queue_position_change',
+                        queueId: entry._id.toString(),
+                        newPosition: entry.orderOrQueueNumber
+                    }
+                });
             }
         }
 
