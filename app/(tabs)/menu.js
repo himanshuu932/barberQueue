@@ -723,7 +723,10 @@ const updateUserServices = async () => {
             <FontAwesome5 name="store" solid size={20} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.shopName} numberOfLines={1}>{shopName}</Text>
-          <Text style={styles.queue}>👤 {queueLength}</Text>
+          <Text style={styles.queue}>
+  <FontAwesome5 name="user" size={screenWidth * 0.041} color="#fff" /> {queueLength}
+</Text>
+
         </View>
 
         <Text style={styles.userCode}>{combinedName}</Text>
@@ -788,19 +791,21 @@ const updateUserServices = async () => {
                 <View style={styles.notInQueueContainer}>
                     <View style={styles.rateListContainer}>
                         {defaultChecklist.length > 0 ? (
-                            <FlatList
-                                data={defaultChecklist}
-                                keyExtractor={item => item.id.toString()}
-                                ListHeaderComponent={() => (
-                                    <Text style={styles.servicesTitle}>Available Services</Text>
-                                )}
-                                renderItem={({ item }) => (
-                                    <View style={styles.rateItem}>
-                                        <Text style={styles.rateText}>{item.text}</Text>
-                                        <Text style={styles.ratePrice}>&#x20B9;{item.price}</Text>
-                                    </View>
-                                )}
-                            />
+<FlatList
+  data={defaultChecklist}
+  keyExtractor={item => item.id.toString()}
+  ListHeaderComponent={() => (
+    <Text style={styles.servicesTitle}>Available Services</Text>
+  )}
+  contentContainerStyle={{ paddingHorizontal: screenWidth * 0.041 }}
+  renderItem={({ item }) => (
+    <View style={styles.rateItem}>
+      <Text style={styles.rateText}>{item.text}</Text>
+      <Text style={styles.ratePrice}>&#x20B9;{item.price}</Text>
+    </View>
+  )}
+/>
+
                         ) : (
                             <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
                                 <Text>No services listed for this shop.</Text>
@@ -1071,7 +1076,7 @@ const styles = StyleSheet.create({
     marginBottom: screenHeight * 0.02, 
     backgroundColor: 'rgba(255,255,255,0.9)', 
     borderRadius: 10, 
-    paddingHorizontal: screenWidth * 0.041,
+    // paddingHorizontal: screenWidth * 0.041,
     paddingVertical: screenHeight * 0.015,
     borderWidth:1, 
     borderColor:'#eee',

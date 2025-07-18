@@ -269,7 +269,7 @@ const RateList = () => {
             style={styles.shopSelectButton}
             onPress={() => setShowShopPicker(true)}
           >
-            <Icon name="store" size={screenWidth * 0.083} color="#000" />
+            <Icon name="store" size={screenWidth * 0.083} color="#fff" />
           </TouchableOpacity>
           
           <Text style={styles.shopName} numberOfLines={1} ellipsizeMode="tail">

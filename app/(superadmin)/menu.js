@@ -20,7 +20,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import { format, utcToZonedTime } from "date-fns-tz";
 import { getHours } from 'date-fns';
 import { LineChart, BarChart } from "react-native-chart-kit";
-import History from '../../components/owner/History';
+import History from '../../components/owner/History'; // Assuming this path is correct
 
 const API_BASE_URL = 'http://10.0.2.2:5000';
 const IST_TIMEZONE = "Asia/Kolkata";
@@ -28,23 +28,26 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 // Colors
 const colors = {
-  secondary: '#30cfd0', 
-  background: '#f5f7fa', 
-  cardBackground: '#ffffff', 
-  headerBackground: '#000000', 
-  textDark: '#333', 
-  textMedium: '#666', 
-  textLight: '#a0aec0', 
-  textSecondary: '#555', 
-  border: '#f0f0f0', 
-  shadow: 'rgba(0, 0, 0, 0.15)', 
-  error: '#dc3545', 
-  white: '#ffffff', 
-  green: '#00b894', 
+  secondary: '#30cfd0',
+  background: '#f5f7fa',
+  cardBackground: '#ffffff',
+  headerBackground: '#000000',
+  textDark: '#333',
+  textMedium: '#666',
+  textLight: '#a0aec0',
+  textSecondary: '#555',
+  border: '#f0f0f0',
+  shadow: 'rgba(0, 0, 0, 0.15)',
+  error: '#dc3545',
+  white: '#ffffff',
+  green: '#00b894',
   blue: '#0984e3',
+  // Added a new color for header background gradient
+  headerGradientStart: '#007bff', // A vibrant blue
+  headerGradientEnd: '#0056b3',   // A darker blue
 };
 
-// SliderButton Component
+// SliderButton Component (Modified)
 const SliderButton = ({ onSlideComplete, initialColor, finalColor, text }) => {
   const slideX = useRef(new Animated.Value(0)).current;
   const buttonWidth = screenWidth * 0.9;
@@ -54,45 +57,54 @@ const SliderButton = ({ onSlideComplete, initialColor, finalColor, text }) => {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (evt, gestureState) => {
+        // Clamp the movement to stay within the button's bounds
         const newX = Math.max(0, Math.min(gestureState.dx, buttonWidth - thumbWidth));
         slideX.setValue(newX);
       },
       onPanResponderRelease: (evt, gestureState) => {
         const slideRange = buttonWidth - thumbWidth;
-        if (gestureState.dx > slideRange * 0.5) {
-          Animated.timing(slideX, { 
-            toValue: slideRange, 
-            duration: 200, 
-            useNativeDriver: false 
+        // If the thumb has moved past half the slideable range, complete the slide
+        if (slideX._value > slideRange * 0.5) {
+          Animated.timing(slideX, {
+            toValue: slideRange,
+            duration: 200,
+            useNativeDriver: false
           }).start(() => {
             onSlideComplete();
+            // Reset the thumb position after a short delay for visual feedback
             setTimeout(() => slideX.setValue(0), 500);
           });
         } else {
-          Animated.spring(slideX, { 
-            toValue: 0, 
-            useNativeDriver: false 
+          // Snap back to the initial position if not slid far enough
+          Animated.spring(slideX, {
+            toValue: 0,
+            useNativeDriver: false
           }).start();
         }
       },
     })
   ).current;
 
-  const backgroundColor = slideX.interpolate({ 
-    inputRange: [0, Math.max(0, buttonWidth - thumbWidth)], 
-    outputRange: [initialColor, finalColor], 
-    extrapolate: 'clamp' 
+  // Interpolate background color based on thumb's position
+  const backgroundColor = slideX.interpolate({
+    inputRange: [0, Math.max(0, buttonWidth - thumbWidth)],
+    outputRange: [initialColor, finalColor],
+    extrapolate: 'clamp'
   });
-  const thumbTranslateX = slideX.interpolate({ 
-    inputRange: [0, Math.max(0, buttonWidth - thumbWidth)], 
-    outputRange: [0, Math.max(0, buttonWidth - thumbWidth)], 
-    extrapolate: 'clamp' 
+  // The thumb's translateX directly follows slideX
+  const thumbTranslateX = slideX.interpolate({
+    inputRange: [0, Math.max(0, buttonWidth - thumbWidth)],
+    outputRange: [0, Math.max(0, buttonWidth - thumbWidth)],
+    extrapolate: 'clamp'
   });
 
   return (
-    <Animated.View style={[sliderStyles.sliderButtonContainer, { backgroundColor }]}>
-      <Animated.View 
-        {...panResponder.panHandlers} 
+    // Apply panResponder.panHandlers to the main container to make the whole area slidable
+    <Animated.View
+      style={[sliderStyles.sliderButtonContainer, { backgroundColor }]}
+      {...panResponder.panHandlers}
+    >
+      <Animated.View
         style={[sliderStyles.sliderThumb, { transform: [{ translateX: thumbTranslateX }] }]}
       >
         <Icon name="chevron-right" size={screenWidth * 0.045} color={colors.white} />
@@ -103,7 +115,7 @@ const SliderButton = ({ onSlideComplete, initialColor, finalColor, text }) => {
 };
 
 const sliderStyles = StyleSheet.create({
-  sliderButtonContainer: { 
+  sliderButtonContainer: {
     width: screenWidth * 0.9,
     height: screenHeight * 0.07,
     borderRadius: screenWidth * 0.03,
@@ -117,7 +129,7 @@ const sliderStyles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: screenWidth * 0.01,
   },
-  sliderThumb: { 
+  sliderThumb: {
     width: screenWidth * 0.15,
     height: '100%',
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
@@ -127,7 +139,7 @@ const sliderStyles = StyleSheet.create({
     position: 'absolute',
     left: 0,
   },
-  sliderButtonText: { 
+  sliderButtonText: {
     position: 'absolute',
     width: '100%',
     textAlign: 'center',
@@ -137,13 +149,13 @@ const sliderStyles = StyleSheet.create({
   },
 });
 
-// Main Menu Component
+// Main Menu Component (Unchanged)
 const Menu = () => {
-  const [todayStats, setTodayStats] = useState({ 
-    earnings: 0, 
-    customers: 0, 
-    popularService: "N/A", 
-    topEmployee: "N/A" 
+  const [todayStats, setTodayStats] = useState({
+    earnings: 0,
+    customers: 0,
+    popularService: "N/A",
+    topEmployee: "N/A"
   });
   const [revenueData, setRevenueData] = useState(null);
   const [contributionData, setContributionData] = useState(null);
@@ -163,29 +175,29 @@ const Menu = () => {
 
     shopsWithHistory.forEach(shop => {
         (shop.history || []).forEach(transaction => {
-            const transactionDate = utcToZonedTime(new Date(transaction.date), IST_TIMEZONE);
-            if (format(transactionDate, "yyyy-MM-dd", { timeZone: IST_TIMEZONE }) === todayDateString) {
-                totalEarnings += transaction.totalCost;
-                customerCount++;
-                const barberName = transaction.barber?.name || 'Unknown';
-                barberEarnings[barberName] = (barberEarnings[barberName] || 0) + transaction.totalCost;
-                (transaction.services || []).forEach(s => {
-                    const serviceName = s.name || 'Unnamed Service';
-                    serviceCount[serviceName] = (serviceCount[serviceName] || 0) + (s.quantity || 1);
-                });
-                const hour = getHours(transactionDate);
-                if (hour >= 9 && hour < 12) hourlyRevenue[9] += transaction.totalCost;
-                else if (hour >= 12 && hour < 15) hourlyRevenue[12] += transaction.totalCost;
-                else if (hour >= 15 && hour < 18) hourlyRevenue[15] += transaction.totalCost;
-                else if (hour >= 18 && hour < 21) hourlyRevenue[18] += transaction.totalCost;
-                else if (hour >= 21) hourlyRevenue[21] += transaction.totalCost;
-            }
+          const transactionDate = utcToZonedTime(new Date(transaction.date), IST_TIMEZONE);
+          if (format(transactionDate, "yyyy-MM-dd", { timeZone: IST_TIMEZONE }) === todayDateString) {
+            totalEarnings += transaction.totalCost;
+            customerCount++;
+            const barberName = transaction.barber?.name || 'Unknown';
+            barberEarnings[barberName] = (barberEarnings[barberName] || 0) + transaction.totalCost;
+            (transaction.services || []).forEach(s => {
+              const serviceName = s.name || 'Unnamed Service';
+              serviceCount[serviceName] = (serviceCount[serviceName] || 0) + (s.quantity || 1);
+            });
+            const hour = getHours(transactionDate);
+            if (hour >= 9 && hour < 12) hourlyRevenue[9] += transaction.totalCost;
+            else if (hour >= 12 && hour < 15) hourlyRevenue[12] += transaction.totalCost;
+            else if (hour >= 15 && hour < 18) hourlyRevenue[15] += transaction.totalCost;
+            else if (hour >= 18 && hour < 21) hourlyRevenue[18] += transaction.totalCost;
+            else if (hour >= 21) hourlyRevenue[21] += transaction.totalCost;
+          }
         });
     });
 
-    const popularService = Object.keys(serviceCount).length > 0 ? 
+    const popularService = Object.keys(serviceCount).length > 0 ?
       Object.entries(serviceCount).reduce((a, b) => a[1] > b[1] ? a : b)[0] : "N/A";
-    const topEmployee = Object.keys(barberEarnings).length > 0 ? 
+    const topEmployee = Object.keys(barberEarnings).length > 0 ?
       Object.entries(barberEarnings).reduce((a, b) => a[1] > b[1] ? a : b)[0] : "N/A";
     setTodayStats({ earnings: totalEarnings, customers: customerCount, popularService, topEmployee });
 
@@ -212,7 +224,7 @@ const Menu = () => {
       });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.message || "Failed to fetch dashboard data.");
-      
+
       processDashboardData(data.data || []);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -230,10 +242,10 @@ const Menu = () => {
     color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
     labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
     style: { borderRadius: screenWidth * 0.04 },
-    propsForDots: { 
+    propsForDots: {
       r: screenWidth * 0.012,
       strokeWidth: screenWidth * 0.005,
-      stroke: "#ffa726" 
+      stroke: "#ffa726"
     },
     barPercentage: 0.8,
   };
@@ -253,7 +265,7 @@ const Menu = () => {
       <Text style={styles.loadingText}>Loading Dashboard...</Text>
     </View>
   );
-  
+
   if (error) return (
     <View style={styles.errorContainer}>
       <Icon name="exclamation-triangle" size={screenWidth * 0.1} color={colors.error} />
@@ -267,24 +279,31 @@ const Menu = () => {
   return (
     <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.headerBackground} />
-      <ImageBackground 
-        source={require("../../app/image/bglogin.png")} 
+      <ImageBackground
+        source={require("../../app/image/bglogin.png")}
         style={styles.backgroundImage}
         resizeMode="cover"
       >
-        <LinearGradient 
-          colors={['rgba(240, 240, 240, 0.8)', 'rgba(240, 240, 240, 0.9)']} 
-          style={styles.overlay} 
+        <LinearGradient
+          colors={['rgba(240, 240, 240, 0.8)', 'rgba(240, 240, 240, 0.9)']}
+          style={styles.overlay}
         />
-        <ScrollView 
-          showsVerticalScrollIndicator={false} 
+        <ScrollView
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.contentContainer}
         >
-          <View style={styles.header}>
+          {/* Enhanced Header Section */}
+          <LinearGradient
+            colors={[colors.headerGradientStart, colors.headerGradientEnd]}
+            style={styles.headerGradientBackground}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
             <Text style={styles.headerTitle}>Dashboard</Text>
             <Text style={styles.headerSubtitle}>Today's Overview</Text>
-          </View>
-          
+          </LinearGradient>
+          {/* End Enhanced Header Section */}
+
           <View style={styles.statsRow}>
             <View style={[styles.statCard, { backgroundColor: colors.green }]}>
               <Text style={styles.statCardLabel}>Earnings</Text>
@@ -293,7 +312,7 @@ const Menu = () => {
                 <Icon name="money" size={screenWidth * 0.05} color={colors.white} />
               </View>
             </View>
-            
+
             <View style={[styles.statCard, { backgroundColor: colors.blue }]}>
               <Text style={styles.statCardLabel}>Customers</Text>
               <Text style={styles.statCardValue}>{todayStats.customers}</Text>
@@ -302,68 +321,68 @@ const Menu = () => {
               </View>
             </View>
           </View>
-          
+
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>
                 {graphFlag === 1 ? "Revenue Trend" : "Barber Contribution"}
               </Text>
               <View style={styles.navigationContainer}>
-                <TouchableOpacity 
-                  onPress={() => setGraphFlag(graphFlag === 1 ? 2 : 1)} 
+                <TouchableOpacity
+                  onPress={() => setGraphFlag(graphFlag === 1 ? 2 : 1)}
                   style={styles.navButton}
                 >
                   <Icon name="chevron-left" size={screenWidth * 0.05} color={colors.blue} />
                 </TouchableOpacity>
                 <View style={styles.paginationContainer}>
                   {[1, 2].map(v => (
-                    <View 
-                      key={v} 
+                    <View
+                      key={v}
                       style={[
-                        styles.paginationDot, 
+                        styles.paginationDot,
                         graphFlag === v && styles.paginationDotActive
-                      ]} 
+                      ]}
                     />
                   ))}
                 </View>
-                <TouchableOpacity 
-                  onPress={() => setGraphFlag(graphFlag === 1 ? 2 : 1)} 
+                <TouchableOpacity
+                  onPress={() => setGraphFlag(graphFlag === 1 ? 2 : 1)}
                   style={styles.navButton}
                 >
                   <Icon name="chevron-right" size={screenWidth * 0.05} color={colors.blue} />
                 </TouchableOpacity>
               </View>
             </View>
-            
+
             {graphFlag === 1 ? (
-              <LineChart 
-                data={revenueData || defaultLineChartData} 
-                width={screenWidth * 0.9 - screenWidth * 0.08} 
-                height={screenHeight * 0.3} 
+              <LineChart
+                data={revenueData || defaultLineChartData}
+                width={screenWidth * 0.9 - screenWidth * 0.08}
+                height={screenHeight * 0.3}
                 chartConfig={{
-                  ...chartConfig, 
+                  ...chartConfig,
                   color: (opacity = 1) => colors.green
-                }} 
-                bezier 
-                style={styles.chart} 
-                yAxisLabel="₹" 
+                }}
+                bezier
+                style={styles.chart}
+                yAxisLabel="₹"
               />
             ) : (
-              <BarChart 
-                data={contributionData || defaultBarChartData} 
-                width={screenWidth * 0.9 - screenWidth * 0.08} 
-                height={screenHeight * 0.3} 
-                fromZero 
+              <BarChart
+                data={contributionData || defaultBarChartData}
+                width={screenWidth * 0.9 - screenWidth * 0.08}
+                height={screenHeight * 0.3}
+                fromZero
                 chartConfig={{
-                  ...chartConfig, 
+                  ...chartConfig,
                   color: (opacity = 1) => colors.blue
-                }} 
-                style={styles.chart} 
-                yAxisLabel="₹" 
+                }}
+                style={styles.chart}
+                yAxisLabel="₹"
               />
             )}
           </View>
-          
+
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>Today's Insights</Text>
@@ -378,7 +397,7 @@ const Menu = () => {
                   <Text style={styles.insightValue}>{todayStats.popularService}</Text>
                 </View>
               </View>
-              
+
               <View style={styles.insightItem}>
                 <View style={[styles.insightIcon, { backgroundColor: `${colors.blue}20` }]}>
                   <Icon name="star" size={screenWidth * 0.05} color={colors.blue} />
@@ -390,19 +409,19 @@ const Menu = () => {
               </View>
             </View>
           </View>
-          
-          <SliderButton 
-            onSlideComplete={() => setIsHistoryModalVisible(true)} 
-            initialColor={colors.green} 
-            finalColor={colors.blue} 
-            text="Slide to View Detailed Statistics" 
+
+          <SliderButton
+            onSlideComplete={() => setIsHistoryModalVisible(true)}
+            initialColor={colors.green}
+            finalColor={colors.blue}
+            text="Slide to View Detailed Statistics"
           />
         </ScrollView>
       </ImageBackground>
-      
-      <Modal 
-        animationType="slide" 
-        visible={isHistoryModalVisible} 
+
+      <Modal
+        animationType="slide"
+        visible={isHistoryModalVisible}
         onRequestClose={() => setIsHistoryModalVisible(false)}
       >
         <History onClose={() => setIsHistoryModalVisible(false)} />
@@ -428,20 +447,38 @@ const styles = StyleSheet.create({
     padding: screenWidth * 0.05,
     paddingBottom: screenHeight * 0.05,
   },
-  header: {
-    marginBottom: screenHeight * 0.03,
+  headerGradientBackground: {
+    width: '100%', // Take full width of parent padding
+    paddingVertical: screenHeight * 0.03, // Responsive vertical padding
+    paddingHorizontal: screenWidth * 0.05, // Responsive horizontal padding
+    borderRadius: screenWidth * 0.04, // Responsive border radius
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: screenHeight * 0.03, // Space below the header
+    elevation: 8, // Android shadow
+    shadowColor: colors.shadow, // iOS shadow
+    shadowOffset: { width: 0, height: screenHeight * 0.005 },
+    shadowOpacity: 0.3,
+    shadowRadius: screenWidth * 0.02,
   },
   headerTitle: {
-    fontSize: screenWidth * 0.15,
-    fontWeight: '700',
-    color: colors.textDark,
+    fontSize: screenWidth * 0.1, // Slightly reduced for better fit, still prominent
+    fontWeight: '800', // Bolder
+    color: colors.white, // White text for contrast on gradient
+    textShadowColor: 'rgba(0, 0, 0, 0.3)', // Subtle text shadow
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+    marginBottom: screenHeight * 0.005, // Space between title and subtitle
   },
   headerSubtitle: {
-    fontSize: screenWidth * 0.055,
-    width: screenWidth * 0.8,
+    fontSize: screenWidth * 0.045, // Adjusted size
+    width: screenWidth * 0.7, // Keep width constrained
     textAlign: 'center',
-    color: colors.textMedium,
+    color: colors.white, // White text for contrast
+    opacity: 0.9, // Slightly transparent
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0.5, height: 0.5 },
+    textShadowRadius: 1,
   },
   statsRow: {
     flexDirection: 'row',
