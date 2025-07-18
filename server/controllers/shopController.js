@@ -17,7 +17,7 @@ const cloudinary = require('cloudinary').v2;
 require('dotenv').config();
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_SECRET_KEY;
+const RAZORPAY_SECRET_KEY = process.env.RAZORPAY_SECRET_KEY;
 // IMPORTANT: Configure this URL based on your testing environment:
 // - For Android Emulator: 'https://numbr-exq6.onrender.com/api'
 // - For iOS Simulator/Device or Physical Android Device: Replace '10.0.2.2' with your computer's actual local IP address (e.g., 'http://192.168.1.X:5000')
@@ -27,7 +27,7 @@ const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-exq6.onrende
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({
   key_id: RAZORPAY_KEY_ID,
-  key_secret: RAZORPAY_KEY_SECRET,
+  key_secret: RAZORPAY_SECRET_KEY,
 });
 
 // UTILITY: Calculate subscription end date
@@ -814,7 +814,7 @@ exports.verifyShopPaymentAndUpdateSubscription = asyncHandler(async (req, res) =
     // // Double-check documentation if this specific string concatenation is correct for `validateWebhookSignature`.
     // // Typically, it's `validateWebhookSignature(JSON.stringify(req.body), signatureFromHeader, secret)` for webhooks.
     // // For client-side verification like this, the string `order_id + '|' + payment_id` is common.
-    // const isValidSignature = validateWebhookSignature(body_string, RAZORPAY_KEY_SECRET, razorpay_signature);
+    // const isValidSignature = validateWebhookSignature(body_string, RAZORPAY_SECRET_KEY, razorpay_signature);
     //    try {
     const {
       razorpay_payment_id,
@@ -829,7 +829,7 @@ exports.verifyShopPaymentAndUpdateSubscription = asyncHandler(async (req, res) =
     }
 
     const body_string = razorpay_order_id + '|' + razorpay_payment_id;
-    const isValidSignature = validateWebhookSignature(body_string, razorpay_signature, RAZORPAY_KEY_SECRET);
+    const isValidSignature = validateWebhookSignature(body_string, razorpay_signature, RAZORPAY_SECRET_KEY);
 
 
     if (!isValidSignature) {
@@ -837,9 +837,9 @@ exports.verifyShopPaymentAndUpdateSubscription = asyncHandler(async (req, res) =
         console.error('Payment Signature Validation Failed:');
         console.error('Expected signature (from Razorpay):', razorpay_signature);
         console.error('Calculated hash string:', body_string);
-        // IMPORTANT: In production, AVOID logging your RAZORPAY_KEY_SECRET directly for security reasons.
+        // IMPORTANT: In production, AVOID logging your RAZORPAY_SECRET_KEY directly for security reasons.
         // For debugging, it can be useful, but remove it afterward.
-        console.error('RAZORPAY_KEY_SECRET used (for debugging):', RAZORPAY_KEY_SECRET); 
+        console.error('RAZORPAY_SECRET_KEY used (for debugging):', RAZORPAY_SECRET_KEY); 
 
         throw new ApiError('Invalid payment signature.', 400);
     }
