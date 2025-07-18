@@ -28,7 +28,7 @@ import * as Location from 'expo-location'; // Import for location functionality
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
 const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ;
 
 const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
