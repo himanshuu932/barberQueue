@@ -42,7 +42,7 @@ const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
                 body: JSON.stringify({ shopId: shopId, name: newBarberData.name, email: newBarberData.email, pass: newBarberData.password }), // Changed 'phone' to 'email'
             });
             const data = await response.json();
-            console.log('Add Barber Response:', data);
+            // console.log('Add Barber Response:', data);
             if (!response.ok) {
                 const errData = await response.json();
                 throw new Error(errData.message || 'Failed to create barber.');

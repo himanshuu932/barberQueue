@@ -56,7 +56,7 @@ exports.createShop = asyncHandler(async (req, res) => {
 
     const { name, address, photos, openingTime, closingTime } = req.body; // Owner ID comes from req.user._id
 
-  // console.log("Parsed shop creation details:", { name, address, photos, openingTime, closingTime });
+  console.log("Parsed shop creation details:", { name, address, photos, openingTime, closingTime });
     if (!name || !address || !address.fullDetails || !address.coordinates || address.coordinates.type !== 'Point' || !Array.isArray(address.coordinates.coordinates) || address.coordinates.coordinates.length !== 2) {
         throw new ApiError('Missing required shop details (name, full address, coordinates).', 400);
     }
@@ -132,7 +132,7 @@ exports.getShopById = asyncHandler(async (req, res) => {
     if (!shop) {
         throw new ApiError('Shop not found.', 404);
     }
-    //console.log("Fetched shop details:", shop);
+    console.log("Fetched shop details:", shop);
 
     // Check and update subscription status
     const now = new Date();

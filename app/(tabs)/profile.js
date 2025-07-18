@@ -159,22 +159,22 @@ export default function TabProfileScreen() {
   };
 
 const handleInitiatePasswordChange = async () => {
-  console.log("[Password Change] 1. Initiate function called");
+  // console.log("[Password Change] 1. Initiate function called");
   
   try {
-    console.log("[Password Change] 2. Setting loading state to true");
+    // console.log("[Password Change] 2. Setting loading state to true");
     setIsPasswordLoading(true);
 
-    console.log("[Password Change] 3. Retrieving user token from AsyncStorage");
+    // console.log("[Password Change] 3. Retrieving user token from AsyncStorage");
     const userToken = await AsyncStorage.getItem("userToken");
-    console.log("[Password Change] 4. Retrieved token:", userToken ? "exists" : "missing");
+    // console.log("[Password Change] 4. Retrieved token:", userToken ? "exists" : "missing");
 
     if (!userToken) {
       console.error("[Password Change] Error: No user token found");
       throw new Error("Authentication token missing");
     }
 
-    console.log("[Password Change] 5. Making API request to:", `${API_BASE}/users/change-password/initiate`);
+    // console.log("[Password Change] 5. Making API request to:", `${API_BASE}/users/change-password/initiate`);
     const startTime = Date.now();
     const response = await fetch(`${API_BASE}/users/change-password/initiate`, {
       method: "POST",
@@ -184,10 +184,10 @@ const handleInitiatePasswordChange = async () => {
       },
     });
     const responseTime = Date.now() - startTime;
-    console.log(`[Password Change] 6. API response received in ${responseTime}ms`);
+    // console.log(`[Password Change] 6. API response received in ${responseTime}ms`);
 
-    console.log("[Password Change] 7. Response status:", response.status);
-    console.log("[Password Change] 8. Response ok:", response.ok);
+    // console.log("[Password Change] 7. Response status:", response.status);
+    // console.log("[Password Change] 8. Response ok:", response.ok);
 
     if (!response.ok) {
       const errorResponse = await response.json().catch(() => ({}));
@@ -196,10 +196,10 @@ const handleInitiatePasswordChange = async () => {
     }
 
     const responseData = await response.json().catch(() => ({}));
-    console.log("[Password Change] 10. Success response:", responseData);
+    // console.log("[Password Change] 10. Success response:", responseData);
 
     Alert.alert("Success", "OTP sent to your registered email");
-    console.log("[Password Change] 11. Moving to step 2 (OTP confirmation)");
+    // console.log("[Password Change] 11. Moving to step 2 (OTP confirmation)");
     setPasswordStep(2);
   } catch (error) {
     console.error("[Password Change] ERROR:", error);
@@ -218,7 +218,7 @@ const handleInitiatePasswordChange = async () => {
 
     Alert.alert("Error", errorMessage);
   } finally {
-    console.log("[Password Change] 12. Setting loading state to false");
+    // console.log("[Password Change] 12. Setting loading state to false");
     setIsPasswordLoading(false);
   }
 };
