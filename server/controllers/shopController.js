@@ -202,7 +202,8 @@ exports.getAllShops = asyncHandler(async (req, res) => {
 // @access  Private (Owner)
 exports.updateShopDetails = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, address, photos, openingTime, closingTime, isManuallyOverridden, isOpen } = req.body; // Added isOpen
+    // 1. Destructure 'type' from the request body
+    const { name, type, address, photos, openingTime, closingTime, isManuallyOverridden, isOpen } = req.body;
 
     const shop = await Shop.findById(id);
 
@@ -216,6 +217,9 @@ exports.updateShopDetails = asyncHandler(async (req, res) => {
     }
 
     shop.name = name || shop.name;
+    // 2. Add logic to update the shop's type if a new one is provided
+    shop.type = type || shop.type; 
+    
     if (address) {
         shop.address.fullDetails = address.fullDetails || shop.address.fullDetails;
         if (address.coordinates && address.coordinates.coordinates && address.coordinates.coordinates.length === 2) {
@@ -230,7 +234,6 @@ exports.updateShopDetails = asyncHandler(async (req, res) => {
         shop.isManuallyOverridden = isManuallyOverridden;
     }
     
-    // NEW: Update isOpen field if provided and is a boolean
     if (typeof isOpen === 'boolean') {
         shop.isOpen = isOpen;
     }
