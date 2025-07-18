@@ -575,6 +575,12 @@ const formatTime = (date) => {
           <Icon name="map-marker" size={18} color="#007BFF" style={styles.infoIcon} />
           <Text style={styles.infoText}>Lat: {shop?.address?.coordinates?.coordinates[1]?.toFixed(4) || 'N/A'}, Lon: {shop?.address?.coordinates?.coordinates[0]?.toFixed(4) || 'N/A'}</Text>
         </View>
+        <View style={styles.infoItem}>
+  <FontAwesome5 name="venus-mars" size={18} color="#007BFF" style={styles.infoIcon} />
+  <Text style={styles.infoText}>
+    Type: {shop?.type ? shop.type.charAt(0).toUpperCase() + shop.type.slice(1) : 'N/A'}
+  </Text>
+</View>
 
         <View style={styles.infoItem}>
           <Icon name="clock-o" size={18} color="#007BFF" style={styles.infoIcon} />

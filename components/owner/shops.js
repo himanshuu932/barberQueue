@@ -123,10 +123,10 @@ const fetchShopDetails = useCallback(async () => {
       _id: fetchedShop._id,
       name: fetchedShop.name,
       address: fetchedShop.address,
+      type: fetchedShop.type,
       openingTime: fetchedShop.openingTime,
       closingTime: fetchedShop.closingTime,
-     photos: fetchedShop.photos || [], 
-
+      photos: fetchedShop.photos || [], 
       shopRating: fetchedShop.rating ? { average: fetchedShop.rating, count: 0 } : { average: 0, count: 0 },
       isManuallyOverridden: fetchedShop.isManuallyOverridden,
       isOpen: fetchedShop.isManuallyOverridden
