@@ -14,9 +14,9 @@ router.put('/profile', protect(['admin']), authorize('admin'), adminController.u
 
 // Admin management of Services
 router.route('/shops/unverified')
-    .get(protect, admin, adminController.getUnverifiedShops);
+    .get( protect(['admin']), authorize('admin'), adminController.getUnverifiedShops);
 router.route('/shops/:shopId/verify')
-    .put(protect, admin, adminController.verifyShop);
+    .put( protect(['admin']), authorize('admin'), adminController.verifyShop);
 
 
 // Admin management of Users
