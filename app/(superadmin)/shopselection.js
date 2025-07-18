@@ -22,6 +22,7 @@ import { FontAwesome5 } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { useFocusEffect } from '@react-navigation/native';
 
 import ShopsList from "../../components/owner/shops";
 
@@ -149,7 +150,7 @@ const ShopSelection = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   const [mapRegion, setMapRegion] = useState({
-    latitude: 20.5937, 
+    latitude: 20.5937,
     longitude: 78.9629,
     latitudeDelta: 20,
     longitudeDelta: 20,
@@ -208,7 +209,7 @@ const ShopSelection = () => {
   };
   
   const handleChooseOnMap = () => {
-    setSelectedLocation(newShopData.coordinates); 
+    setSelectedLocation(newShopData.coordinates);
     setIsMapModalVisible(true);
   };
 
@@ -228,7 +229,7 @@ const ShopSelection = () => {
           }
       }
       setIsMapModalVisible(false);
-      setSelectedLocation(null); 
+      setSelectedLocation(null);
   };
 
   const fetchOwnerShops = useCallback(async (token) => {
@@ -264,7 +265,7 @@ const ShopSelection = () => {
         shopRating: shop.rating ? { average: shop.rating, count: 0 } : { average: 0, count: 0 },
         todayStats: { earnings: 0, customers: 0, popularService: 'N/A', topEmployee: 'N/A' },
         barbers: shop.barbers || [],
-        verified: shop.verified, // --- MODIFICATION: Ensure 'verified' field is mapped ---
+        verified: shop.verified,
       }));
       setShops(formattedShops);
     } catch (err) {
@@ -275,25 +276,29 @@ const ShopSelection = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        if (token) {
-          setUserToken(token);
-          await fetchOwnerShops(token);
-        } else {
-          console.warn('No user token found.');
+  useFocusEffect(
+    useCallback(() => {
+      const init = async () => {
+        try {
+          const token = await AsyncStorage.getItem('userToken');
+          if (token) {
+            setUserToken(token);
+            await fetchOwnerShops(token);
+          } else {
+            console.warn('No user token found.');
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error('Error initializing data:', err);
+          setError('Failed to load initial data.');
           setLoading(false);
         }
-      } catch (err) {
-        console.error('Error initializing data:', err);
-        setError('Failed to load initial data.');
-        setLoading(false);
-      }
-    };
-    init();
+      };
+      init();
+    }, [fetchOwnerShops])
+  );
 
+  useEffect(() => {
     const intervalId = setInterval(() => {
       setShops(prevShops => prevShops.map(shop => {
         if (!shop.isManuallyOverridden) {
@@ -307,7 +312,7 @@ const ShopSelection = () => {
     }, 60 * 1000);
 
     return () => clearInterval(intervalId);
-  }, [fetchOwnerShops]);
+  }, []);
 
 
   const handleAddNewShop = async () => {
@@ -409,22 +414,20 @@ const ShopSelection = () => {
     }
   };
 
-  // --- MODIFICATION: ShopCard component updated ---
   const ShopCard = ({ shop }) => {
     const averageRating = shop.shopRating.average;
     const displayIsOpen = shop.isOpen;
 
     return (
-      <TouchableOpacity 
-        style={styles.shopCard} 
-        onPress={() => handleShopPress(shop._id)} 
+      <TouchableOpacity
+        style={styles.shopCard}
+        onPress={() => handleShopPress(shop._id)}
         activeOpacity={0.8}
-        disabled={!shop.verified} // <-- Disables click if not verified
+        disabled={!shop.verified}
       >
         <View style={styles.shopImageContainer}>
           <ImageCarousel photos={shop.photos} />
           
-          {/* --- Conditionally render the verification badge --- */}
           {!shop.verified && (
             <View style={styles.verificationBadge}>
                 <Text style={styles.verificationText}>Under Verification</Text>
@@ -440,7 +443,7 @@ const ShopSelection = () => {
             onValueChange={() => handleToggleShopStatus(shop._id)}
             value={displayIsOpen}
             style={styles.statusToggle}
-            disabled={!shop.verified} // <-- Also disable the switch itself
+            disabled={!shop.verified}
           />
         </View>
         <View style={styles.shopDetails}>
@@ -582,7 +585,6 @@ const ShopSelection = () => {
   );
 };
 
-// --- STYLES ---
 const styles = StyleSheet.create({
     backgroundImage: { flex: 1, resizeMode: "cover", width: "100%", height: "100%", },
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(237,236,236,0.77)", },
@@ -635,8 +637,6 @@ const styles = StyleSheet.create({
     pagination: { position: 'absolute', bottom: screenHeight * 0.01, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', },
     paginationDot: { width: screenWidth * 0.02, height: screenWidth * 0.02, borderRadius: screenWidth * 0.01, backgroundColor: 'rgba(255,255,255,0.6)', marginHorizontal: screenWidth * 0.01, },
     paginationDotActive: { backgroundColor: '#007bff', },
-
-    // --- NEW / MODIFIED STYLES ---
     locationButtonsContainer: {
       flexDirection: 'column',
       marginBottom: screenHeight * 0.02,
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
         marginLeft: screenWidth * 0.03,
     },
     mapButton: {
-      backgroundColor: '#5bc0de', 
+      backgroundColor: '#5bc0de',
     },
     mapModalContainer: {
       flex: 1,
@@ -695,12 +695,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
     },
-    // --- Styles for the verification badge ---
     verificationBadge: {
         position: 'absolute',
         top: screenHeight * 0.02,
-        right: screenWidth * 0.2, // Position it next to the toggle switch
-        backgroundColor: 'rgba(255, 165, 0, 0.9)', // Orange color
+        right: screenWidth * 0.2,
+        backgroundColor: 'rgba(255, 165, 0, 0.9)',
         paddingVertical: screenHeight * 0.005,
         paddingHorizontal: screenWidth * 0.03,
         borderRadius: screenWidth * 0.02,

@@ -15,6 +15,7 @@ import {
   Platform,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import { LinearGradient } from "expo-linear-gradient";
 import { PlusButtonContext } from "./_layout";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -380,7 +381,9 @@ useEffect(() => {
         <Text style={styles.userCode}>
           {queueItems[0] ? queueItems[0].uniqueCode : "No queue"}
         </Text>
-        <Text style={styles.queue}>👤 {queueLength}</Text>
+                  <Text style={styles.queue}>
+          <FontAwesome5 name="user" size={screenWidth * 0.041} color="#fff" /> {queueLength}
+        </Text>
         <Text style={styles.queueListTitle}>Queue List</Text>
         <ScrollView style={styles.namesContainer} nestedScrollEnabled={true} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: screenHeight * 0.02 }}>
           {queueItems.map((item, index) => (
@@ -553,14 +556,20 @@ const styles = StyleSheet.create({
     color: "black",
     marginTop: screenHeight * 0.01,
   },
-  queue: {
-    position: "absolute",
-    top: screenHeight * 0.02,
-    right: screenWidth * 0.03,
-    fontSize: screenWidth * 0.045,
-    fontWeight: "bold",
-    color: "black",
-  },
+queue: {
+  position: "absolute",
+  top: screenHeight * 0.02,
+  right: screenWidth * 0.03,
+  fontSize: screenWidth * 0.045,
+  fontWeight: "bold",
+  color: "white",
+  backgroundColor: "#28a745",
+  paddingHorizontal: screenWidth * 0.03,
+  paddingVertical: screenHeight * 0.0075,
+  borderRadius: 10, // Rounded badge feel
+  overflow: 'hidden', // Prevent clipping on iOS
+},
+
   queueListTitle: {
     fontSize: screenWidth * 0.055,
     fontWeight: "bold",
