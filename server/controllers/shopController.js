@@ -603,7 +603,7 @@ exports.getShopSubscriptionStatus = asyncHandler(async (req, res) => {
 exports.serveRazorpayCheckoutPageShop = asyncHandler(async (req, res) => {
     const { order_id,  amount, currency, name, description, prefill_email, prefill_contact, theme_color, shopId } = req.query;
 
-    if (!order_id || !key_id || !amount || !currency || !name || !description || !shopId) {
+    if (!order_id  || !amount || !currency || !name || !description || !shopId) {
         return res.status(400).send('Missing required parameters for checkout page.');
     }
    const key_id = RAZORPAY_KEY_ID; // Use the Razorpay key ID from environment variables

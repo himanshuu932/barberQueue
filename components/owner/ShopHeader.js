@@ -29,7 +29,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
-const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0';
+const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ;
 
 const ShopHeader = ({ shop, userToken, onShopUpdate }) => {
   const [isEditShopModalVisible, setIsEditShopModalVisible] = useState(false);
