@@ -80,19 +80,20 @@ const addToQueue = asyncHandler(async (req, res) => {
     customerName: nameFromRequest
   } = req.body;
 
+  console.log('[Queue] Starting addToQueue with payload:', JSON.stringify(req.body, null, 2));
+
   // Barber and phone are always null in this flow
   const barberId = null;
- const customerPhone = req.body.customerPhone || null;
+  const customerPhone = req.body.customerPhone || null;
 
-
-  console.log('Incoming payload:', JSON.stringify(req.body));
-
-  // 1. Find the shop (no populate, since services are embedded)
+  // 1. Find the shop
+  console.log(`[Shop] Looking up shop with ID: ${shopId}`);
   const shop = await Shop.findById(shopId);
   if (!shop) {
-    console.error(`Shop not found (ID: ${shopId})`);
+    console.error(`[Shop] ERROR: Shop not found (ID: ${shopId})`);
     throw new ApiError('Shop not found', 404);
   }
+  console.log(`[Shop] Found shop: ${shop.name}`);
 
   // 2. Barber is always null here
   let barber = null;
@@ -102,68 +103,172 @@ const addToQueue = asyncHandler(async (req, res) => {
   let actualCustomerName = nameFromRequest;
   let userToNotify = null;
 
-
-
   if (req.user && req.userType === 'User') {
+    console.log('[User] Authenticated user request:', req.user._id);
     userIdToSave = req.user._id;
     actualCustomerName = req.user.name;
     userToNotify = req.user._id;
-  } else if (userIdFromFrontend) {
+
+    // Check daily queue entry limit for logged-in users
+    console.log(`[User] Fetching user details for: ${userIdToSave}`);
+    const user = await User.findById(userIdToSave);
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    console.log(`[Date] Current server date: ${now}, Today's date object: ${today}`);
+
+    // Log current queueUsage before any updates
+    console.log(`[QueueCount] Current queueUsage:`, user.queueUsage);
+
+    // Reset counter if it's a new day
+    if (user.queueUsage?.lastResetDate < today) {
+      console.log(`[QueueCount] Resetting counter (new day detected)`);
+      user.queueUsage = {
+        lastResetDate: today,
+        countToday: 0
+      };
+    }
+
+    // Initialize queueUsage if it doesn't exist
+    if (!user.queueUsage) {
+      console.log(`[QueueCount] Initializing queueUsage for new user`);
+      user.queueUsage = {
+        lastResetDate: today,
+        countToday: 0
+      };
+    }
+
+    console.log(`[QueueCount] Current countToday: ${user.queueUsage.countToday}`);
+
+    // Check if user has reached daily limit (2 entries)
+    if (user.queueUsage.countToday >= 2) {
+      console.error(`[QueueCount] ERROR: User ${userIdToSave} has reached daily limit (2/2)`);
+      throw new ApiError('You can only join 2 queues per day. Please try again tomorrow.', 400);
+    }
+
+    // Increment the counter
+    user.queueUsage.countToday += 1;
+    await user.save();
+    console.log(`[QueueCount] Incremented countToday to: ${user.queueUsage.countToday}`);
+  } 
+  else if (userIdFromFrontend) {
+    console.log(`[User] Frontend-specified user ID: ${userIdFromFrontend}`);
     const userExists = await User.findById(userIdFromFrontend);
+    
     if (userExists) {
+      console.log(`[User] Found user with frontend ID: ${userExists._id}`);
       userIdToSave = userExists._id;
       actualCustomerName = userExists.name;
       userToNotify = userExists._id;
+
+      // Check daily queue entry limit
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      console.log(`[Date] Current server date: ${now}, Today's date object: ${today}`);
+
+      console.log(`[QueueCount] Current queueUsage:`, userExists.queueUsage);
+
+      if (userExists.queueUsage?.lastResetDate < today) {
+        console.log(`[QueueCount] Resetting counter (new day detected)`);
+        userExists.queueUsage = {
+          lastResetDate: today,
+          countToday: 0
+        };
+      }
+
+      if (!userExists.queueUsage) {
+        console.log(`[QueueCount] Initializing queueUsage for frontend-specified user`);
+        userExists.queueUsage = {
+          lastResetDate: today,
+          countToday: 0
+        };
+      }
+
+      console.log(`[QueueCount] Current countToday: ${userExists.queueUsage.countToday}`);
+
+      if (userExists.queueUsage.countToday >= 2) {
+        console.error(`[QueueCount] ERROR: User ${userIdFromFrontend} has reached daily limit (2/2)`);
+        throw new ApiError('You can only join 2 queues per day. Please try again tomorrow.', 400);
+      }
+
+      userExists.queueUsage.countToday += 1;
+      await userExists.save();
+      console.log(`[QueueCount] Incremented countToday to: ${userExists.queueUsage.countToday}`);
     } else {
+      console.log(`[User] No user found with frontend ID: ${userIdFromFrontend}`);
       if (!nameFromRequest) {
         console.error(
-          `Invalid userIdFromFrontend (${userIdFromFrontend}) and no customerName provided`
+          `[User] ERROR: Invalid userIdFromFrontend (${userIdFromFrontend}) and no customerName provided`
         );
         throw new ApiError('Customer name is required for guest users.', 400);
       }
-      // actualCustomerName remains nameFromRequest
+      console.log(`[User] Proceeding as guest with name: ${nameFromRequest}`);
     }
-  } else if (!nameFromRequest) {
-    console.error('Pure guest request without customerName');
+  } 
+  else if (!nameFromRequest) {
+    console.error('[User] ERROR: Pure guest request without customerName');
     throw new ApiError('Customer name is required.', 400);
   }
-  // If pure guest, actualCustomerName is already nameFromRequest
-
-  
-  if (userIdToSave) {
-  const existingQueue = await Queue.findOne({
-    userId: userIdToSave,
-    status: 'pending'
-  });
-
-  if (existingQueue) {
-    throw new ApiError('You are already in queue at another shop. Please leave that queue first.', 400);
+  else {
+    console.log(`[User] Proceeding as guest with name: ${nameFromRequest}`);
   }
-}
+
+  // Check if user is already in queue at another shop
+  if (userIdToSave) {
+ 
+    const existingQueue = await Queue.findOne({
+      userId: userIdToSave,
+      status: 'pending'
+    });
+
+    if (existingQueue) {
+      console.error(`[QueueCheck] ERROR: User ${userIdToSave} already in queue at shop: ${existingQueue.shop}`);
+      
+      // Rollback the counter increment since we're rejecting this attempt
+      if (req.user && req.userType === 'User') {
+        const user = await User.findById(userIdToSave);
+        console.log(`[QueueCount] Rolling back countToday from ${user.queueUsage.countToday} to ${user.queueUsage.countToday - 1}`);
+        user.queueUsage.countToday -= 1;
+        await user.save();
+      } 
+      else if (userIdFromFrontend) {
+        const userExists = await User.findById(userIdFromFrontend);
+        if (userExists) {
+          console.log(`[QueueCount] Rolling back countToday from ${userExists.queueUsage.countToday} to ${userExists.queueUsage.countToday - 1}`);
+          userExists.queueUsage.countToday -= 1;
+          await userExists.save();
+        }
+      }
+      
+      throw new ApiError('You are already in queue at another shop. Please leave that queue first.', 400);
+    }
+    console.log(`[QueueCheck] No existing queue found for user: ${userIdToSave}`);
+  }
 
   // 4. Validate services array
+ 
   if (
     !requestedServicesInput ||
     !Array.isArray(requestedServicesInput) ||
     requestedServicesInput.length === 0
   ) {
-    console.error('No services array or empty services passed');
+    console.error('[Services] ERROR: No services array or empty services passed');
     throw new ApiError('At least one service must be selected.', 400);
   }
 
   // 5. Build `servicesForQueueSchema` from embedded shop.services
+
   let totalCost = 0;
   const servicesForQueueSchema = [];
 
   for (const reqService of requestedServicesInput) {
-    // reqService = { service: "<subdocId>", quantity: X }
     const shopServiceEntry = shop.services.find(
       (s) => s._id.toString() === reqService.service.toString()
     );
 
     if (!shopServiceEntry) {
       console.error(
-        `Service with ID "${reqService.service}" not found in shop ${shopId}`
+        `[Services] ERROR: Service with ID "${reqService.service}" not found in shop ${shopId}`
       );
       throw new ApiError(
         `Service with ID "${reqService.service}" is not offered or is invalid.`,
@@ -171,20 +276,21 @@ const addToQueue = asyncHandler(async (req, res) => {
       );
     }
 
-    const priceForThisService = shopServiceEntry.price;
-    const nameForThisService = shopServiceEntry.name;
     const quantity = Math.max(1, parseInt(reqService.quantity, 10) || 1);
+   
 
     for (let i = 0; i < quantity; i++) {
       servicesForQueueSchema.push({
-        name: nameForThisService,
-        price: priceForThisService
+        name: shopServiceEntry.name,
+        price: shopServiceEntry.price
       });
     }
-    totalCost += priceForThisService * quantity;
+    totalCost += shopServiceEntry.price * quantity;
   }
 
+
   // 6. Determine next queue number
+ 
   const lastQueueEntry = await Queue.findOne({
     shop: shop._id,
     barber: null,
@@ -194,14 +300,22 @@ const addToQueue = asyncHandler(async (req, res) => {
   const nextQueueNumber = lastQueueEntry
     ? lastQueueEntry.orderOrQueueNumber + 1
     : 1;
+  
 
   // 7. Generate a truly unique code
   let uniqueCode;
+  let attempts = 0;
   do {
     uniqueCode = generateUniqueCode();
+    attempts++;
+    if (attempts > 5) {
+      console.warn(`[UniqueCode] Warning: High number of attempts (${attempts}) to generate unique code`);
+    }
   } while (await Queue.findOne({ uniqueCode }));
+  console.log(`[UniqueCode] Generated unique code in ${attempts} attempts: ${uniqueCode}`);
 
   // 8. Create the queue entry
+
   const queueEntry = await Queue.create({
     shop: shop._id,
     barber: null,
@@ -215,8 +329,10 @@ const addToQueue = asyncHandler(async (req, res) => {
     status: 'pending'
   });
 
+
   // 9. Optional push notification
   if (userToNotify) {
+    console.log(`[Notification] Sending push notification to user: ${userToNotify}`);
     const title = `You're in line at ${shop.name}!`;
     const body = `Your queue number is #${queueEntry.orderOrQueueNumber}. Code: ${queueEntry.uniqueCode}.`;
     await sendPushNotification(userToNotify, title, body, {
@@ -226,9 +342,11 @@ const addToQueue = asyncHandler(async (req, res) => {
   }
 
   // 10. Emit socket update
+  console.log(`[Socket] Emitting queue update for shop: ${shop._id}`);
   await emitQueueUpdate(shop._id.toString());
 
   // 11. Send JSON response
+ 
   res.status(201).json({
     success: true,
     message: 'Successfully added to queue.',
