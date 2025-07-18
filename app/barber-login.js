@@ -16,7 +16,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 
 // Base API URL
-const API_BASE_URL = "http://10.0.2.2:5000/api";
+const API_BASE_URL = "https://numbr-exq6.onrender.com/api";
 
 async function registerForPushNotifications(uid, userToken) { // Pass userToken here
   //console.log("Registering for push notifications for uid:", uid);
