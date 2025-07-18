@@ -16,6 +16,11 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.x2023021235.barber",
+     "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB_qepC3UG7dcdWG645NtYZHa3aserIJoY"
+        }
+      },
       "googleServicesFile": "./google-services.json"
     },
    "notification": {

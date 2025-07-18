@@ -120,7 +120,7 @@ export const ShopList = ({ onSelect, onClose }) => {
       let shops = [];
       if (shopsData && typeof shopsData === "object" && Array.isArray(shopsData.data)) {
         shops = shopsData.data;
-        console.log("Fetched shops:", shops);
+        //console.log("Fetched shops:", shops);
       } else {
         console.warn("API response 'data' property is missing or not an array:", shopsData);
       }
@@ -274,7 +274,7 @@ export const ShopList = ({ onSelect, onClose }) => {
   const sortedAndFilteredShops = [...shopRatings]
     .filter((shop) => {
       const matchesSearch = searchQuery ? shop.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
-      const withinDistance = shop.distance !== null ; // Filter for distance <= 30 km
+      const withinDistance = shop.distance !== null && shop.distance <= 30; // Filter for distance <= 30 km
       // Filter by salon type. Assumes `shop.type` exists and can be 'male', 'female', or 'unisex'.
       const matchesType = selectedType ? shop.type === selectedType : true;
       return matchesSearch && withinDistance && matchesType;

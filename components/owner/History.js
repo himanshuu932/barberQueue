@@ -80,7 +80,7 @@ const History = ({ onClose }) => {
       if (!response.ok || !data.success) throw new Error(data.message || "Could not fetch history.");
 
       const fetchedShops = data.data || [];
-      console.log("Fetched Shops:", fetchedShops);
+     // console.log("Fetched Shops:", fetchedShops);
       setShops(fetchedShops);
 
       const allHistory = fetchedShops.reduce((acc, shop) => {
