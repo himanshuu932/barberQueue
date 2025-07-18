@@ -19,10 +19,10 @@ require('dotenv').config();
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_SECRET_KEY = process.env.RAZORPAY_SECRET_KEY;
 // IMPORTANT: Configure this URL based on your testing environment:
-// - For Android Emulator: 'http://10.0.2.2:5000/api'
+// - For Android Emulator: 'https://numbr-exq6.onrender.com/api'
 // - For iOS Simulator/Device or Physical Android Device: Replace '10.0.2.2' with your computer's actual local IP address (e.g., 'http://192.168.1.X:5000')
 // - For Production/Public access: This should be your deployed backend's public URL (e.g., 'https://api.yourdomain.com')
-const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'http://10.0.2.2:5000/api'; 
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-exq6.onrender.com/api'; 
 
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({

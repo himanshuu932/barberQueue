@@ -35,7 +35,7 @@ const RatingModal = ({ isVisible, onClose, shopId, barberId,historyId }) => { //
     // Show alert with the rating, shopId, and barberId
     const token=await AsyncStorage.getItem('userToken')
    
-    const res=await fetch(`http://10.0.2.2:5000/api/barbers/rate/${barberId}`,{
+    const res=await fetch(`https://numbr-exq6.onrender.com/api/barbers/rate/${barberId}`,{
         method: "PUT", 
         headers: {
             "Content-Type": "application/json",
