@@ -21,7 +21,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
 
-const API_BASE_URL = "http://10.0.2.2:5000/api"; // Corrected API base URL
+const API_BASE_URL = "https://numbr-exq6.onrender.com/api"; // Corrected API base URL
 
 // Get screen width for responsive calculations
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
