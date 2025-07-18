@@ -45,7 +45,8 @@ const History = ({ onClose }) => {
   const [filter, setFilter] = useState("All");
   const [selectedShop, setSelectedShop] = useState("AllShops");
   const [selectedBarber, setSelectedBarber] = useState("AllBarbers");
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [dateRange, setDateRange] = useState({ startDate: undefined, endDate: undefined });
+
 
   // Data States
   const [allPayments, setAllPayments] = useState([]);
@@ -79,6 +80,7 @@ const History = ({ onClose }) => {
       if (!response.ok || !data.success) throw new Error(data.message || "Could not fetch history.");
 
       const fetchedShops = data.data || [];
+      console.log("Fetched Shops:", fetchedShops);
       setShops(fetchedShops);
 
       const allHistory = fetchedShops.reduce((acc, shop) => {
@@ -104,16 +106,11 @@ const History = ({ onClose }) => {
     }
   }, []);
 
-useFocusEffect(
-  React.useCallback(() => {
-    async function fetchData() {
-  
-    await fetchHistoryData();
-    }
-
-    fetchData();
-  }, [])
-);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchHistoryData();
+    }, [fetchHistoryData])
+  );
 
   const getFilteredPayments = () => {
     const now = new Date();
@@ -126,27 +123,26 @@ useFocusEffect(
     return allPayments.filter(payment => {
       const istPaymentDate = utcToZonedTime(payment.originalDate, IST_TIMEZONE);
 
-      // Apply date filters
       if (filter === "Today" && !isSameDayIST(istPaymentDate, todayIST)) return false;
       if (filter === "ThisWeek" && istPaymentDate < oneWeekAgoIST) return false;
       if (filter === "ThisMonth" && istPaymentDate < oneMonthAgoIST) return false;
-      if (selectedDate) {
-        const selectedIST = utcToZonedTime(new Date(selectedDate), IST_TIMEZONE);
-        if (!isSameDayIST(istPaymentDate, selectedIST)) return false;
+
+      if (filter === "CustomRange" && dateRange.startDate && dateRange.endDate) {
+        const paymentTime = istPaymentDate.getTime();
+        const startTime = new Date(dateRange.startDate).getTime();
+        const endOfDay = new Date(dateRange.endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        const endTime = endOfDay.getTime();
+        if (paymentTime < startTime || paymentTime > endTime) return false;
       }
 
-      // Apply shop filter
       if (selectedShop !== "AllShops" && payment.shopName !== selectedShop) return false;
-
-      // Apply barber filter
-      if (selectedShop !== "AllShops" && selectedBarber !== "AllBarbers" && payment.barberName !== selectedBarber) return false;
-      if (selectedShop === "AllShops" && selectedBarber !== "AllBarbers" && payment.barberName !== selectedBarber) return false;
+      if (selectedBarber !== "AllBarbers" && payment.barberName !== selectedBarber) return false;
 
       return true;
     });
   };
 
-  // Helper function to check if two dates are the same day in IST
   const isSameDayIST = (date1, date2) => {
     return format(date1, 'yyyy-MM-dd', { timeZone: IST_TIMEZONE }) === format(date2, 'yyyy-MM-dd', { timeZone: IST_TIMEZONE });
   };
@@ -157,12 +153,20 @@ useFocusEffect(
       const filtered = getFilteredPayments();
       let shopData = { name: "All Shops", address: { textData: "Multiple Locations" } };
 
+      // --- FINAL FIX: Find the shop from the main 'shops' state. ---
+      // This ensures we get the correct address even if there are no transactions for the selected period.
       if (selectedShop !== "AllShops") {
         const currentShop = shops.find(s => s.name === selectedShop);
         if (currentShop) {
           shopData = { 
             name: currentShop.name, 
-            address: { textData: currentShop.address?.textData || 'No address provided' } 
+            address: { textData: currentShop.address?.fullDetails || 'No address provided' } 
+          };
+        } else {
+          // Fallback if the shop isn't found (unlikely but safe)
+          shopData = {
+            name: selectedShop,
+            address: { textData: 'Address not found' }
           };
         }
       }
@@ -210,14 +214,14 @@ useFocusEffect(
 
     const formatAddress = (address) => {
       if (!address) return '';
-      const maxLength = 30;
+      const maxLength = 40;
       let lines = [];
       let remaining = address;
       while (remaining.length > 0) {
         let breakPoint = Math.min(maxLength, remaining.length);
         if (breakPoint < remaining.length) {
           const lastSpace = remaining.substring(0, breakPoint).lastIndexOf(' ');
-          if (lastSpace > 0) {
+          if (lastSpace > -1) {
             breakPoint = lastSpace;
           }
         }
@@ -240,7 +244,7 @@ useFocusEffect(
               .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
               .shop-name { font-size: 18px; font-weight: bold; margin: 0; }
               .report-date { text-align: right; color: #666; margin: 0; }
-              .shop-id { color: #666; margin: 5px 0; }
+              .shop-id { color: #666; margin: 5px 0; font-weight: bold; }
               .address { color: #666; max-width: 50%; margin: 5px 0; }
               .time-info { text-align: right; color: #666; margin: 5px 0; }
               .summary { display: flex; justify-content: space-between; margin: 30px 0; }
@@ -280,7 +284,7 @@ useFocusEffect(
                   <p class="card-value">${totalCustomers}</p>
               </div>
           </div>
-          <h2 class="transactions-title">Transactions (${filter} - ${selectedShop}${selectedBarber !== "AllBarbers" ? ` - ${selectedBarber}` : ""})</h2>
+          <h2 class="transactions-title">Transactions (${getFilterDisplayName()} - ${selectedShop}${selectedBarber !== "AllBarbers" ? ` - ${selectedBarber}` : ""})</h2>
           <table>
               <thead>
                   <tr>
@@ -302,17 +306,15 @@ useFocusEffect(
     `;
   };
 
-  // Handler for date selection from date picker
-  const handleDateSelect = (params) => {
-    if (params.date) {
-      const selectedIST = utcToZonedTime(params.date, IST_TIMEZONE);
-      setSelectedDate(selectedIST.toISOString());
-      setFilter("CustomDate");
-    }
+  const handleRangeConfirm = ({ startDate, endDate }) => {
     setDatePickerVisible(false);
+    if (startDate && endDate) {
+      setDateRange({ startDate, endDate });
+      setFilter("CustomRange");
+    }
   };
 
-  // Calendar Navigation handlers
+
   const previousMonth = () => {
     const newDate = new Date(calendarMonth);
     newDate.setMonth(calendarMonth.getMonth() - 1);
@@ -325,7 +327,6 @@ useFocusEffect(
     setCalendarMonth(newDate);
   };
 
-  // Generate Business Activity Heat Map Data for Calendar
   const getBusinessActivityData = () => {
     const monthStart = startOfMonth(calendarMonth);
     const monthEnd = endOfMonth(calendarMonth);
@@ -333,7 +334,6 @@ useFocusEffect(
     const dailyTransactions = {};
 
     let filteredForCalendar = allPayments;
-    // Apply shop and barber filters to calendar data
     if (selectedShop !== "AllShops") {
       filteredForCalendar = filteredForCalendar.filter(p => p.shopName === selectedShop);
     }
@@ -342,7 +342,7 @@ useFocusEffect(
     }
 
     filteredForCalendar.forEach(payment => {
-      const paymentDate = payment.date; // already in 'yyyy-MM-dd' format
+      const paymentDate = payment.date;
       if (dailyTransactions[paymentDate]) {
         dailyTransactions[paymentDate].count += 1;
         dailyTransactions[paymentDate].revenue += payment.totalCost;
@@ -357,19 +357,15 @@ useFocusEffect(
     return { dailyData: dailyTransactions, maxCount: maxCount, daysInMonth: daysInMonth, monthStart: monthStart };
   };
 
-  // Get color intensity for calendar cells based on activity count
   const getColorIntensity = (count, maxCount) => {
-    if (!count) return '#f5f5f5'; // Light grey for no activity
-    const intensity = Math.max(0.2, Math.min(1, count / maxCount)); // Scale from 0.2 to 1
-
-    // Interpolate between light green and dark green
+    if (!count) return '#f5f5f5';
+    const intensity = Math.max(0.2, Math.min(1, count / maxCount));
     const r = Math.floor(255 - (200 * intensity));
     const g = Math.floor(255 - (100 * intensity));
     const b = Math.floor(255 - (200 * intensity));
     return `rgb(${r},${g},${b})`;
   };
 
-  // Navigation handlers for the graphs using wrap-around logic
   const handleLeft = () => {
     setGraphFlag(prev => (prev === 1 ? 3 : prev - 1));
   };
@@ -378,10 +374,8 @@ useFocusEffect(
     setGraphFlag(prev => (prev === 3 ? 1 : prev + 1));
   };
 
-  // Prepare data for visualizations
   const getBarberContributionData = () => {
     const revenueData = {};
-    // Get all barbers from the selected shop, or all barbers if "AllShops" is selected
     let relevantBarbers = [];
     if (selectedShop === "AllShops") {
       relevantBarbers = shops.flatMap(shop => shop.barbers || []);
@@ -411,17 +405,16 @@ useFocusEffect(
     }));
   };
 
-  // Prepare data for Revenue Timeline Line Chart
   const getRevenueTimelineData = () => {
     const now = new Date();
     const todayIST = utcToZonedTime(now, IST_TIMEZONE);
 
     let dateKeys = [];
-    if (filter === "Today" || filter === "CustomDate") {
+    if (filter === "Today" || filter === "CustomRange") {
       dateKeys = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
     } else if (filter === "ThisWeek") {
       dateKeys = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    } else if (filter === "ThisMonth" || filter === "All") {
+    } else { // ThisMonth or All
       const daysInMonth = new Date(todayIST.getFullYear(), todayIST.getMonth() + 1, 0).getDate();
       dateKeys = Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'));
     }
@@ -437,11 +430,11 @@ useFocusEffect(
     filteredPayments.forEach(payment => {
       const paymentDate = utcToZonedTime(payment.originalDate, IST_TIMEZONE);
       let dateKey;
-      if (filter === "Today" || filter === "CustomDate") {
+      if (filter === "Today" || filter === "CustomRange") {
         dateKey = format(paymentDate, 'HH:00', { timeZone: IST_TIMEZONE });
       } else if (filter === "ThisWeek") {
         dateKey = format(paymentDate, 'EEE', { timeZone: IST_TIMEZONE });
-      } else if (filter === "ThisMonth" || filter === "All") {
+      } else { // ThisMonth or All
         dateKey = format(paymentDate, 'dd', { timeZone: IST_TIMEZONE });
       }
       if (dailyRevenue[dateKey] !== undefined) {
@@ -449,7 +442,6 @@ useFocusEffect(
       }
     });
 
-    // Calculate data for previous period comparison
     const previousPeriodPayments = allPayments.filter(payment => {
       const istPaymentDate = utcToZonedTime(payment.originalDate, IST_TIMEZONE);
       if (selectedShop !== "AllShops" && payment.shopName !== selectedShop) return false;
@@ -478,11 +470,11 @@ useFocusEffect(
     previousPeriodPayments.forEach(payment => {
       const paymentDate = utcToZonedTime(payment.originalDate, IST_TIMEZONE);
       let dateKey;
-      if (filter === "Today" || filter === "CustomDate") {
+      if (filter === "Today" || filter === "CustomRange") {
         dateKey = format(paymentDate, 'HH:00', { timeZone: IST_TIMEZONE });
       } else if (filter === "ThisWeek") {
         dateKey = format(paymentDate, 'EEE', { timeZone: IST_TIMEZONE });
-      } else if (filter === "ThisMonth" || filter === "All") {
+      } else { // ThisMonth or All
         dateKey = format(paymentDate, 'dd', { timeZone: IST_TIMEZONE });
       }
       if (dateKey && dailyCompare[dateKey] !== undefined) {
@@ -516,7 +508,6 @@ useFocusEffect(
     };
   };
 
-  // Render calendar view
   const renderCalendar = () => {
     const { dailyData, maxCount, daysInMonth, monthStart } = getBusinessActivityData();
     const firstDayOfMonth = getDay(monthStart);
@@ -562,8 +553,8 @@ useFocusEffect(
                     key={`day-${dateString}`}
                     style={[styles.calendarCell, { backgroundColor }]}
                     onPress={() => {
-                      setSelectedDate(day.toISOString());
-                      setFilter("CustomDate");
+                        setDateRange({ startDate: day, endDate: day });
+                        setFilter("CustomRange");
                     }}
                   >
                     <Text style={styles.calendarDayText}>{getDate(day)}</Text>
@@ -596,6 +587,19 @@ useFocusEffect(
       </View>
     );
   };
+  
+  const getFilterDisplayName = () => {
+      if (filter === 'CustomRange' && dateRange.startDate && dateRange.endDate) {
+          const start = format(new Date(dateRange.startDate), 'MMM d');
+          const end = format(new Date(dateRange.endDate), 'MMM d');
+          if (start === end) return start;
+          return `${start} - ${end}`;
+      }
+      if (filter === 'ThisWeek') return 'This Week';
+      if (filter === 'ThisMonth') return 'This Month';
+      return filter;
+  };
+
 
   if (loading) {
     return (
@@ -649,19 +653,22 @@ useFocusEffect(
                   onDismiss={() => setFilterMenuVisible(false)}
                   anchor={
                     <TouchableOpacity onPress={() => setFilterMenuVisible(true)} style={styles.filterButton}>
-                      <Text style={styles.filterButtonText}>📅 {filter}</Text>
+                      <Text style={styles.filterButtonText}>📅 {getFilterDisplayName()}</Text>
                     </TouchableOpacity>
                   }
                 >
-                  {["All", "Today", "ThisWeek", "ThisMonth", "CustomDate"].map(f => (
+                  {["All", "Today", "ThisWeek", "ThisMonth", "CustomRange"].map(f => (
                     <Menu.Item
                       key={f}
                       onPress={() => {
+                        if (f !== "CustomRange") {
+                          setDateRange({ startDate: undefined, endDate: undefined });
+                        }
                         setFilter(f);
                         setFilterMenuVisible(false);
-                        if (f === "CustomDate") setDatePickerVisible(true);
+                        if (f === "CustomRange") setDatePickerVisible(true);
                       }}
-                      title={f}
+                      title={f === 'CustomRange' ? 'Custom Range' : f}
                     />
                   ))}
                 </Menu>
@@ -749,11 +756,12 @@ useFocusEffect(
 
             <DatePickerModal
               locale="en"
-              mode="single"
+              mode="range"
               visible={datePickerVisible}
               onDismiss={() => setDatePickerVisible(false)}
-              date={selectedDate ? new Date(selectedDate) : undefined}
-              onConfirm={handleDateSelect}
+              startDate={dateRange.startDate}
+              endDate={dateRange.endDate}
+              onConfirm={handleRangeConfirm}
             />
 
             {showVisualizations && (
