@@ -586,9 +586,7 @@ const formatTime = (date) => {
           <Icon name="clock-o" size={18} color="#007BFF" style={styles.infoIcon} />
           <Text style={styles.infoText}>
             {shop?.openingTime || 'N/A'}-{shop?.closingTime || 'N/A'}
-            {shop?.isManuallyOverridden && (
-              <Text style={styles.overrideText}> (Override)</Text>
-            )}
+         
           </Text>
         </View>
 
@@ -596,7 +594,7 @@ const formatTime = (date) => {
           <FontAwesome5 name="star" size={18} color="#FFC107" style={styles.infoIcon} />
           <Text style={styles.infoText}>
             {shop?.shopRating?.average?.toFixed(1) ?? '0.0'}
-            ({shop?.shopRating?.count ?? 0} reviews)
+          
           </Text>
         </View>
 
