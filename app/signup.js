@@ -25,7 +25,7 @@ export default function SignupScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
 
-  const API_BASE = "https://numbr-exq6.onrender.com";
+  const API_BASE = "http://10.0.2.2:5000";
 
   const isValidEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

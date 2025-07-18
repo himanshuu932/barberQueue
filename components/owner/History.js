@@ -38,7 +38,7 @@ registerTranslation('en', en);
 const IST_TIMEZONE = 'Asia/Kolkata';
 
 // --- CONFIGURATION ---
-const API_BASE_URL = 'https://numbr-exq6.onrender.com';
+const API_BASE_URL = 'http://10.0.2.2:5000';
 
 const History = ({ onClose }) => {
   // Filter States
