@@ -16,8 +16,8 @@ const cloudinary = require('cloudinary').v2;
 
 require('dotenv').config();
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_5ntRaY7OFb2Rq0';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'FdhuPV1HIA5bRYAIu2gYSoXh';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_SECRET_KEY;
 // IMPORTANT: Configure this URL based on your testing environment:
 // - For Android Emulator: 'https://numbr-exq6.onrender.com/api'
 // - For iOS Simulator/Device or Physical Android Device: Replace '10.0.2.2' with your computer's actual local IP address (e.g., 'http://192.168.1.X:5000')
@@ -50,9 +50,6 @@ const calculateEndDate = (startDate, durationValue, durationUnit) => {
 };
 
 
-// @desc    Create a new shop (by Owner)
-// @route   POST /api/shops
-// @access  Private (Owner)
 exports.createShop = asyncHandler(async (req, res) => {
 
     console.log("Incoming shop creation body:", req.body);
@@ -786,6 +783,7 @@ exports.createShopPaymentOrder = asyncHandler(async (req, res) => {
         if (razorpayError.error) {
             console.error("Razorpay API Error Details:", JSON.stringify(razorpayError.error, null, 2));
         }
+        
         throw new ApiError(`Razorpay order creation failed: ${razorpayError.message || 'Unknown error'}`, 500);
     }
 

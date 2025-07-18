@@ -418,6 +418,7 @@ const formatTime = (date) => {
       });
 
       const orderData = await orderResponse.json(); //
+      console.log('Order response:', orderData); //
       if (!orderResponse.ok) { //
         throw new Error(orderData.message || 'Failed to create payment order.'); //
       }
