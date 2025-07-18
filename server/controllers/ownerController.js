@@ -14,7 +14,7 @@ const mailjet = require('node-mailjet').apiConnect(
 // @route   POST /api/owners/register
 // @access  Public
 exports.registerOwner = asyncHandler(async (req, res) => {
-    const { name, email, pass } = req.body;
+    const { name, email, phone, pass } = req.body;
 
     const ownerExists = await Owner.findOne({ email });
 
@@ -28,6 +28,7 @@ exports.registerOwner = asyncHandler(async (req, res) => {
     const owner = await Owner.create({
         name,
         email,
+        phone,
          emailVerified: true,
         pass: hashedPassword,
     });
@@ -40,6 +41,7 @@ exports.registerOwner = asyncHandler(async (req, res) => {
                 _id: owner._id,
                 name: owner.name,
                 email: owner.email,
+                phone: owner.phone,
                 token: generateToken(owner._id),
             },
         });
