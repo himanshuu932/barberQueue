@@ -13,10 +13,8 @@ router.get('/profile', protect(['admin']), authorize('admin'), adminController.g
 router.put('/profile', protect(['admin']), authorize('admin'), adminController.updateAdminProfile);
 
 // Admin management of Services
-router.route('/shops/unverified')
-    .get( protect(['admin']), authorize('admin'), adminController.getUnverifiedShops);
-router.route('/shops/:shopId/verify')
-    .put( protect(['admin']), authorize('admin'), adminController.verifyShop);
+router.route('/shops/unverified').get( protect(['admin']), authorize('admin'), adminController.getUnverifiedShops);
+router.route('/shops/:shopId/verify').put(  protect(['admin']), authorize('admin'), adminController.verifyShop);
 
 
 // Admin management of Users

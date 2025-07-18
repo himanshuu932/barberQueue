@@ -27,7 +27,7 @@ import ShopsList from "../../components/owner/shops";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
-const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
     try {
@@ -145,12 +145,11 @@ const ShopSelection = () => {
   const [tempOpeningTime, setTempOpeningTime] = useState(new Date());
   const [tempClosingTime, setTempClosingTime] = useState(new Date());
 
-  // --- NEW STATE: For controlling the map modal and the location picked on it ---
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   const [mapRegion, setMapRegion] = useState({
-    latitude: 20.5937, // Default to center of India
+    latitude: 20.5937, 
     longitude: 78.9629,
     latitudeDelta: 20,
     longitudeDelta: 20,
@@ -208,19 +207,15 @@ const ShopSelection = () => {
     }
   };
   
-  // --- NEW: Function to handle opening the map modal ---
   const handleChooseOnMap = () => {
-    // If coordinates already exist, use them for the marker. Otherwise, null.
     setSelectedLocation(newShopData.coordinates); 
     setIsMapModalVisible(true);
   };
 
-  // --- NEW: Function to confirm location from map modal ---
   const handleConfirmLocation = async () => {
       if (selectedLocation) {
           setNewShopData({ ...newShopData, coordinates: selectedLocation });
 
-          // Optional: Auto-fill address from confirmed location
           try {
             let addressResponse = await Location.reverseGeocodeAsync(selectedLocation);
             if (addressResponse && addressResponse.length > 0) {
@@ -233,7 +228,7 @@ const ShopSelection = () => {
           }
       }
       setIsMapModalVisible(false);
-      setSelectedLocation(null); // Reset for next time
+      setSelectedLocation(null); 
   };
 
   const fetchOwnerShops = useCallback(async (token) => {
@@ -269,6 +264,7 @@ const ShopSelection = () => {
         shopRating: shop.rating ? { average: shop.rating, count: 0 } : { average: 0, count: 0 },
         todayStats: { earnings: 0, customers: 0, popularService: 'N/A', topEmployee: 'N/A' },
         barbers: shop.barbers || [],
+        verified: shop.verified, // --- MODIFICATION: Ensure 'verified' field is mapped ---
       }));
       setShops(formattedShops);
     } catch (err) {
@@ -361,7 +357,6 @@ const ShopSelection = () => {
     }
   };
 
-  // Unchanged handlers
     const handleShopPress = (_id) => {
     setSelectedShopIdForDetails(_id);
     setIsShopsListModalVisible(true);
@@ -413,16 +408,29 @@ const ShopSelection = () => {
       Alert.alert("Error", err.message || "Failed to toggle shop status.");
     }
   };
-    //... (end of unchanged handlers)
 
+  // --- MODIFICATION: ShopCard component updated ---
   const ShopCard = ({ shop }) => {
     const averageRating = shop.shopRating.average;
     const displayIsOpen = shop.isOpen;
 
     return (
-      <TouchableOpacity style={styles.shopCard} onPress={() => handleShopPress(shop._id)} activeOpacity={0.8}>
+      <TouchableOpacity 
+        style={styles.shopCard} 
+        onPress={() => handleShopPress(shop._id)} 
+        activeOpacity={0.8}
+        disabled={!shop.verified} // <-- Disables click if not verified
+      >
         <View style={styles.shopImageContainer}>
           <ImageCarousel photos={shop.photos} />
+          
+          {/* --- Conditionally render the verification badge --- */}
+          {!shop.verified && (
+            <View style={styles.verificationBadge}>
+                <Text style={styles.verificationText}>Under Verification</Text>
+            </View>
+          )}
+
           <View style={[styles.statusBadge, displayIsOpen ? styles.statusOpenBackground : styles.statusClosedBackground]}>
             <Text style={styles.statusText}>{displayIsOpen ? "Open" : "Closed"}</Text>
           </View>
@@ -432,6 +440,7 @@ const ShopSelection = () => {
             onValueChange={() => handleToggleShopStatus(shop._id)}
             value={displayIsOpen}
             style={styles.statusToggle}
+            disabled={!shop.verified} // <-- Also disable the switch itself
           />
         </View>
         <View style={styles.shopDetails}>
@@ -500,7 +509,6 @@ const ShopSelection = () => {
         )}
       </ScrollView>
 
-      {/* --- MODIFIED: "Add Shop Modal" - Map is removed from here --- */}
       <Modal visible={isAddModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -513,7 +521,6 @@ const ShopSelection = () => {
               <Text style={styles.inputLabel}>Location:</Text>
               <TextInput style={styles.input} placeholder="Not set" editable={false} value={ newShopData.coordinates ? `${newShopData.coordinates.latitude.toFixed(4)}, ${newShopData.coordinates.longitude.toFixed(4)}` : '' } />
               
-              {/* --- NEW: Location selection buttons --- */}
               <View style={styles.locationButtonsContainer}>
                 <TouchableOpacity style={styles.locationButton} onPress={handleSetCurrentLocation}>
                   <FontAwesome5 name="location-arrow" size={16} color="#fff" />
@@ -548,7 +555,6 @@ const ShopSelection = () => {
         </View>
       </Modal>
 
-      {/* --- NEW: Map Selection Modal --- */}
       <Modal visible={isMapModalVisible} transparent animationType="slide">
           <View style={styles.mapModalContainer}>
               <MapView style={styles.map} region={mapRegion} onRegionChangeComplete={setMapRegion} onPress={(e) => setSelectedLocation(e.nativeEvent.coordinate)}>
@@ -576,9 +582,8 @@ const ShopSelection = () => {
   );
 };
 
-// --- STYLES (Added/Modified styles are at the bottom) ---
+// --- STYLES ---
 const styles = StyleSheet.create({
-    // ... (all previous styles remain the same)
     backgroundImage: { flex: 1, resizeMode: "cover", width: "100%", height: "100%", },
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(237,236,236,0.77)", },
     container: { flex: 1, paddingHorizontal: screenWidth * 0.05, paddingTop: screenHeight * 0.02, },
@@ -644,7 +649,7 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       justifyContent: 'center',
       elevation: 4,
-      marginBottom: screenHeight * 0.015, // Space between buttons
+      marginBottom: screenHeight * 0.015,
     },
     locationButtonText: {
         color: '#fff',
@@ -653,7 +658,7 @@ const styles = StyleSheet.create({
         marginLeft: screenWidth * 0.03,
     },
     mapButton: {
-      backgroundColor: '#5bc0de', // A different color for distinction
+      backgroundColor: '#5bc0de', 
     },
     mapModalContainer: {
       flex: 1,
@@ -689,6 +694,22 @@ const styles = StyleSheet.create({
         right: 20,
         flexDirection: 'row',
         justifyContent: 'space-between',
+    },
+    // --- Styles for the verification badge ---
+    verificationBadge: {
+        position: 'absolute',
+        top: screenHeight * 0.02,
+        right: screenWidth * 0.2, // Position it next to the toggle switch
+        backgroundColor: 'rgba(255, 165, 0, 0.9)', // Orange color
+        paddingVertical: screenHeight * 0.005,
+        paddingHorizontal: screenWidth * 0.03,
+        borderRadius: screenWidth * 0.02,
+        zIndex: 1,
+    },
+    verificationText: {
+        color: '#ffffff',
+        fontWeight: 'bold',
+        fontSize: screenWidth * 0.035,
     },
 });
 
