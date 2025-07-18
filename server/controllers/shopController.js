@@ -19,10 +19,10 @@ require('dotenv').config();
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_SECRET_KEY = process.env.RAZORPAY_SECRET_KEY;
 // IMPORTANT: Configure this URL based on your testing environment:
-// - For Android Emulator: 'http://10.0.2.2:5000/api'
+// - For Android Emulator: 'https://numbr-exq6.onrender.com/api'
 // - For iOS Simulator/Device or Physical Android Device: Replace '10.0.2.2' with your computer's actual local IP address (e.g., 'http://192.168.1.X:5000')
 // - For Production/Public access: This should be your deployed backend's public URL (e.g., 'https://api.yourdomain.com')
-const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'http://10.0.2.2:5000/api'; 
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-exq6.onrender.com/api'; 
 
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({
@@ -52,13 +52,13 @@ const calculateEndDate = (startDate, durationValue, durationUnit) => {
 
 exports.createShop = asyncHandler(async (req, res) => {
 
-    console.log("Incoming shop creation body:", req.body);
+   // console.log("Incoming shop creation body:", req.body);
 
-    const { name, address, photos, openingTime, closingTime } = req.body; // Owner ID comes from req.user._id
+    const { name, type, address, photos, openingTime, closingTime } = req.body; // Owner ID comes from req.user._id
 
-  console.log("Parsed shop creation details:", { name, address, photos, openingTime, closingTime });
-    if (!name || !address || !address.fullDetails || !address.coordinates || address.coordinates.type !== 'Point' || !Array.isArray(address.coordinates.coordinates) || address.coordinates.coordinates.length !== 2) {
-        throw new ApiError('Missing required shop details (name, full address, coordinates).', 400);
+  // console.log("Parsed shop creation details:", { name, address, photos, openingTime, closingTime });
+    if (!name || !type || !address || !address.fullDetails || !address.coordinates || address.coordinates.type !== 'Point' || !Array.isArray(address.coordinates.coordinates) || address.coordinates.coordinates.length !== 2) {
+        throw new ApiError('Missing required shop details (name, full address, coordinates, types).', 400);
     }
    
     if (openingTime && !/^\d{2}:\d{2}$/.test(openingTime)) {
@@ -80,6 +80,7 @@ exports.createShop = asyncHandler(async (req, res) => {
 
     const newShopData = {
         name,
+        type,
         owner: owner._id,
         address: {
             fullDetails: address.fullDetails,
@@ -113,6 +114,7 @@ exports.createShop = asyncHandler(async (req, res) => {
         data: {
             _id: newShop._id,
             name: newShop.name,
+             type: newShop.type,
             address: newShop.address,
             openingTime: newShop.openingTime,
             closingTime: newShop.closingTime,

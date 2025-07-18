@@ -16,6 +16,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
+import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from "react-native-vector-icons/FontAwesome";
 import { FontAwesome5 } from "@expo/vector-icons";
@@ -28,7 +29,7 @@ import ShopsList from "../../components/owner/shops";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
 
 const isShopCurrentlyOpen = (openingTime, closingTime) => {
     try {
@@ -133,6 +134,7 @@ const ShopSelection = () => {
     openingTime: '',
     closingTime: '',
     coordinates: null,
+     type: 'unisex',
   });
   const [userToken, setUserToken] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -316,7 +318,7 @@ const ShopSelection = () => {
 
 
   const handleAddNewShop = async () => {
-    if (!newShopData.name || !newShopData.address || !newShopData.openingTime || !newShopData.closingTime || !newShopData.coordinates) {
+    if (!newShopData.name || !newShopData.address || !newShopData.openingTime || !newShopData.closingTime || !newShopData.coordinates || !newShopData.type) {
       Alert.alert("Error", "Please fill in all fields and set a location.");
       return;
     }
@@ -327,6 +329,7 @@ const ShopSelection = () => {
     try {
       const shopToCreate = {
         name: newShopData.name,
+         type: newShopData.type,
         address: {
           fullDetails: newShopData.address,
           coordinates: {
@@ -548,7 +551,22 @@ const ShopSelection = () => {
                 <Icon name="clock-o" size={20} color="#666" style={styles.timeInputIcon} />
               </TouchableOpacity>
               {showClosingTimePicker && (<DateTimePicker value={tempClosingTime} mode="time" is24Hour={true} display="default" onChange={onClosingTimeChange}/>)}
+
+              
             </ScrollView>
+
+            <Text style={styles.inputLabel}>Shop Type:</Text>
+<View style={styles.dropdownContainer}>
+    <Picker
+        selectedValue={newShopData.type}
+        onValueChange={(itemValue) => setNewShopData({ ...newShopData, type: itemValue })}
+        style={styles.dropdown}
+    >
+        <Picker.Item label="Unisex" value="unisex" />
+        <Picker.Item label="Male" value="male" />
+        <Picker.Item label="Female" value="female" />
+    </Picker>
+</View>
             
             <View style={styles.modalButtonContainer}>
               <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddModalVisible(false)}><Text style={styles.modalButtonText}>Cancel</Text></TouchableOpacity>
@@ -710,6 +728,17 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: screenWidth * 0.035,
     },
+    dropdownContainer: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: screenWidth * 0.03,
+    marginBottom: screenHeight * 0.02,
+    overflow: 'hidden',
+},
+dropdown: {
+    width: '100%',
+    backgroundColor: '#fefefe',
+},
 });
 
 export default ShopSelection;

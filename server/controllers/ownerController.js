@@ -101,12 +101,20 @@ exports.getOwnerProfile = asyncHandler(async (req, res) => {
 // @desc    Update owner profile
 // @route   PUT /api/owners/profile
 // @access  Private (Owner)
+// controllers/ownerController.js
+
+// @desc    Update owner profile
+// @route   PUT /api/owners/profile
+// @access  Private (Owner)
 exports.updateOwnerProfile = asyncHandler(async (req, res) => {
     const owner = await Owner.findById(req.user._id);
 
     if (owner) {
         owner.name = req.body.name || owner.name;
         owner.email = req.body.email || owner.email;
+        // [ADDED] Handle phone number update
+        owner.phone = req.body.phone || owner.phone; 
+
         // Optionally update password if provided
         if (req.body.pass) {
             const salt = await bcrypt.genSalt(10);
@@ -125,7 +133,8 @@ exports.updateOwnerProfile = asyncHandler(async (req, res) => {
                 _id: updatedOwner._id,
                 name: updatedOwner.name,
                 email: updatedOwner.email,
-                // Do not send token again unless new login is required
+                // [ADDED] Return the updated phone number
+                phone: updatedOwner.phone, 
             },
         });
     } else {

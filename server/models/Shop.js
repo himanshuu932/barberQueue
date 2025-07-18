@@ -53,7 +53,13 @@ photos: [{
         required: false,
         default: false
     },
-    
+
+    type:{
+        type: String,
+        enum: ['male', 'female', 'unisex'],
+        required: true
+    },
+
      services: [{
         name: {
             type: String,
