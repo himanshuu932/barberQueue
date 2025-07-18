@@ -23,7 +23,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Icon from "react-native-vector-icons/FontAwesome";
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
-const API_BASE = "http://10.0.2.2:5000";
+const API_BASE = "https://numbr-exq6.onrender.com";
 
 export default function TabProfileScreen() {
     const router = useRouter();
