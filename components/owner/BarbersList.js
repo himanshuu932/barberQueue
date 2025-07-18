@@ -13,7 +13,7 @@ import {
 import Icon from "react-native-vector-icons/FontAwesome";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-const API_BASE_URL = 'https://numbr-exq6.onrender.com/api';
+const API_BASE_URL = 'http://10.0.2.2:5000/api';
 
 const BarbersList = ({ barbers, shopId, userToken, onBarbersUpdate }) => {
     const [isAddBarberModalVisible, setIsAddBarberModalVisible] = useState(false);

@@ -29,7 +29,7 @@ const fontScale = PixelRatio.getFontScale();
 const getResponsiveFontSize = (size) => size / fontScale;
 
 // Base API URL
-const API_BASE = "https://numbr-exq6.onrender.com/api";
+const API_BASE = "http://10.0.2.2:5000/api";
 
 // Define a consistent color palette with reverted colors for specific elements
 const colors = {
@@ -65,6 +65,7 @@ export const ShopList = ({ onSelect, onClose }) => {
   const [sortCriteria, setSortCriteria] = useState([]);
   const [showSortOptions, setShowSortOptions] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [selectedType, setSelectedType] = useState(null); // State for salon type filter
 
   // Helper: convert degrees to radians.
   const toRad = (value) => (value * Math.PI) / 180;
@@ -119,6 +120,7 @@ export const ShopList = ({ onSelect, onClose }) => {
       let shops = [];
       if (shopsData && typeof shopsData === "object" && Array.isArray(shopsData.data)) {
         shops = shopsData.data;
+        console.log("Fetched shops:", shops);
       } else {
         console.warn("API response 'data' property is missing or not an array:", shopsData);
       }
@@ -210,6 +212,10 @@ export const ShopList = ({ onSelect, onClose }) => {
       filters.push(`"${searchQuery}"`);
     }
 
+    if (selectedType) {
+      filters.push(`Type: ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`);
+    }
+
     const sortSummaries = sortCriteria.map((c) => {
       const label = c.key.charAt(0).toUpperCase() + c.key.slice(1);
       const orderLabel = c.order === "asc" ? "Low to High" : "High to Low";
@@ -235,6 +241,13 @@ export const ShopList = ({ onSelect, onClose }) => {
   const handleClearFilters = () => {
     setSearchQuery("");
     setSortCriteria([]);
+    setSelectedType(null); // Clear type filter
+    setShowSortOptions(false);
+  };
+  
+  const handleSelectType = (type) => {
+    // Toggle behavior: if clicking the same type, deselect it. Otherwise, select the new one.
+    setSelectedType((prevType) => (prevType === type ? null : type));
     setShowSortOptions(false);
   };
 
@@ -262,7 +275,9 @@ export const ShopList = ({ onSelect, onClose }) => {
     .filter((shop) => {
       const matchesSearch = searchQuery ? shop.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
       const withinDistance = shop.distance !== null ; // Filter for distance <= 30 km
-      return matchesSearch && withinDistance;
+      // Filter by salon type. Assumes `shop.type` exists and can be 'male', 'female', or 'unisex'.
+      const matchesType = selectedType ? shop.type === selectedType : true;
+      return matchesSearch && withinDistance && matchesType;
     })
     .sort((a, b) => {
       for (let i = 0; i < sortCriteria.length; i++) {
@@ -584,6 +599,21 @@ export const ShopList = ({ onSelect, onClose }) => {
           <TouchableOpacity style={styles.sortOption} onPress={() => handleSort("queue", "desc")}>
             <Text style={styles.sortOptionText}>High to Low</Text>
             {sortCriteria.some((c) => c.key === "queue" && c.order === "desc") && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+          </TouchableOpacity>
+          <View style={styles.sortOptionDivider} />
+
+          <Text style={styles.dropdownHeader}>Type</Text>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSelectType("male")}>
+            <Text style={styles.sortOptionText}>Male</Text>
+            {selectedType === "male" && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSelectType("female")}>
+            <Text style={styles.sortOptionText}>Female</Text>
+            {selectedType === "female" && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sortOption} onPress={() => handleSelectType("unisex")}>
+            <Text style={styles.sortOptionText}>Unisex</Text>
+            {selectedType === "unisex" && <Icon name="check" size={getResponsiveFontSize(14)} color={colors.primary} />}
           </TouchableOpacity>
         </View>
       )}

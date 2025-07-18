@@ -19,10 +19,10 @@ require('dotenv').config();
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
 const RAZORPAY_SECRET_KEY = process.env.RAZORPAY_SECRET_KEY;
 // IMPORTANT: Configure this URL based on your testing environment:
-// - For Android Emulator: 'https://numbr-exq6.onrender.com/api'
+// - For Android Emulator: 'http://10.0.2.2:5000/api'
 // - For iOS Simulator/Device or Physical Android Device: Replace '10.0.2.2' with your computer's actual local IP address (e.g., 'http://192.168.1.X:5000')
 // - For Production/Public access: This should be your deployed backend's public URL (e.g., 'https://api.yourdomain.com')
-const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'https://numbr-exq6.onrender.com/api'; 
+const API_PUBLIC_URL = process.env.API_PUBLIC_URL || 'http://10.0.2.2:5000/api'; 
 
 // Initialize Razorpay
 const razorpayInstance = new Razorpay({
@@ -184,14 +184,17 @@ exports.getShopById = asyncHandler(async (req, res) => {
 // @access  Public
 exports.getAllShops = asyncHandler(async (req, res) => {
     // You can add query parameters for pagination, filtering (e.g., by location, service, rating)
-    const shops = await Shop.find({ "subscription.status": { $ne: 'expired' } }) // Only show non-expired shops
-                            .select('name address rating photos subscription.status openingTime closingTime isOpen') // Select relevant fields for listing
-                            .populate('owner', 'name'); // Optionally populate owner name
+    const shops = await Shop.find({ 
+        "subscription.status": { $ne: 'expired' },
+        "verified": true // <-- This condition is added
+    }) // Only show non-expired AND verified shops
+        .select('name address rating photos subscription.status openingTime closingTime isOpen type') // Select relevant fields for listing
+        .populate('owner', 'name'); // Optionally populate owner name
+        
     res.json({
         success: true,
         data: shops,
     });
-   
 });
 
 // @desc    Update shop details (by Owner)
@@ -199,7 +202,8 @@ exports.getAllShops = asyncHandler(async (req, res) => {
 // @access  Private (Owner)
 exports.updateShopDetails = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, address, photos, openingTime, closingTime, isManuallyOverridden, isOpen } = req.body; // Added isOpen
+    // 1. Destructure 'type' from the request body
+    const { name, type, address, photos, openingTime, closingTime, isManuallyOverridden, isOpen } = req.body;
 
     const shop = await Shop.findById(id);
 
@@ -213,6 +217,9 @@ exports.updateShopDetails = asyncHandler(async (req, res) => {
     }
 
     shop.name = name || shop.name;
+    // 2. Add logic to update the shop's type if a new one is provided
+    shop.type = type || shop.type; 
+    
     if (address) {
         shop.address.fullDetails = address.fullDetails || shop.address.fullDetails;
         if (address.coordinates && address.coordinates.coordinates && address.coordinates.coordinates.length === 2) {
@@ -227,7 +234,6 @@ exports.updateShopDetails = asyncHandler(async (req, res) => {
         shop.isManuallyOverridden = isManuallyOverridden;
     }
     
-    // NEW: Update isOpen field if provided and is a boolean
     if (typeof isOpen === 'boolean') {
         shop.isOpen = isOpen;
     }

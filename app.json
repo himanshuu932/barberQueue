@@ -7,7 +7,7 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "projectId": "ca152949-b415-4b5c-b1c1-7a3bf5c0a9da",
-    "icon": "./assets/images/icon.jpg",
+    "icon": "./assets/images/Numbr.png",
     "ios": {
       "supportsTablet": true
     },
@@ -16,11 +16,6 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.x2023021235.barber",
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyB_qepC3UG7dcdWG645NtYZHa3aserIJoY"
-        }
-      },
       "googleServicesFile": "./google-services.json"
     },
    "notification": {
