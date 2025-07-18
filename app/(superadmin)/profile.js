@@ -288,16 +288,17 @@ export default function TabProfileScreen() {
                     </View>
 
                     {/* Company / Info Section */}
-                    <View style={styles.companyContainer}>
-                        <LinearGradient colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} style={styles.companyBackground}>
-                            <Text style={styles.companyTitle}>Bludgers Technologies</Text>
-                            <Text style={styles.companyTagline}>Innovating Daily Living</Text>
-                            <Text style={styles.companyDescription}>
-                                Bludgers Technologies is dedicated to crafting seamless and intuitive mobile applications,
-                                ensuring the best user experience with cutting-edge solutions.
-                            </Text>
-                        </LinearGradient>
-                    </View>
+                       {/* Company / Info Section */}
+                    <View style={styles.companyContainer}>
+                        <LinearGradient colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} style={styles.companyBackground}>
+                            <Text style={styles.companyTitle}>Bludgers Technologies</Text>
+                            <Text style={styles.companyTagline}>Innovating Daily Living</Text>
+                            <Text style={styles.companyDescription}>
+                                Bludgers Technologies is dedicated to crafting seamless and intuitive mobile applications,
+                                ensuring the best user experience with cutting-edge solutions.
+                            </Text>
+                        </LinearGradient>
+                    </View>
 
                     <View style={styles.infoContainer}>
           _         <LinearGradient colors={["#1a1a1a", "#2c2c2c", "#1a1a1a"]} style={styles.infoBackground}>
@@ -489,255 +490,257 @@ export default function TabProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-    backgroundImage: {
-        flex: 1,
-        resizeMode: "cover",
-        width: "100%",
-        height: "100%",
-    },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: "rgba(237, 236, 236, 0.77)",
-    },
-    container: {
-        flex: 1,
-        width: screenWidth,
-        padding: screenWidth * 0.05,
-    },
-    profileBox: {
-        width: screenWidth * 0.9,
-        height: screenHeight * 0.2,
-        borderRadius: screenWidth * 0.04,
-        overflow: "hidden",
-        marginBottom: screenHeight * 0.02,
-        elevation: 5,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: screenHeight * 0.005 },
-        shadowOpacity: 0.3,
-        shadowRadius: screenWidth * 0.02,
-    },
-    profileBackground: {
-        width: "100%",
-        height: "100%",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: screenWidth * 0.05,
-    },
-    shine: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: screenWidth * 0.8,
-        height: screenHeight * 1.5,
-    },
-    shineGradient: {
-        width: "100%",
-        height: "100%",
-    },
-    profileContent: {
-        flexDirection: "row",
-        alignItems: "center",
-        width: "100%",
-    },
-    profileImage: {
-        width: screenWidth * 0.22,
-        height: screenWidth * 0.22,
-        borderRadius: screenWidth * 0.11,
-        borderWidth: screenWidth * 0.007,
-        borderColor: "#eee",
-        marginRight: screenWidth * 0.05,
-    },
-    profileDetails: {
-        flex: 1,
-    },
-    username: {
-        fontSize: screenWidth * 0.06,
-        fontWeight: "bold",
-        color: "#fff",
-        marginBottom: screenHeight * 0.005,
-    },
-    userInfo: {
-        fontSize: screenWidth * 0.04,
-        fontWeight: "400",
-        color: "#f0f0f0",
-        marginTop: screenHeight * 0.002,
-    },
-    editButton: {
-        position: "absolute",
-        top: screenHeight * 0.02,
-        right: screenWidth * 0.15,
-        padding: screenWidth * 0.02,
-        borderRadius: screenWidth * 0.04,
-        alignItems: "center",
-        zIndex: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
-    editIcon: {
-        width: screenWidth * 0.06,
-        height: screenWidth * 0.06,
-        tintColor: "white",
-    },
-    logoutButton: {
-        position: 'absolute',
-        top: screenHeight * 0.02,
-        right: screenWidth * 0.04,
-        padding: screenWidth * 0.02,
-        borderRadius: screenWidth * 0.04,
-        alignItems: 'center',
-        zIndex: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
-    companyContainer: {
-        width: screenWidth * 0.9,
-        borderRadius: screenWidth * 0.04,
-        overflow: "hidden",
-        marginBottom: screenHeight * 0.03,
-        elevation: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: screenHeight * 0.005 },
-        shadowOpacity: 0.2,
-        shadowRadius: screenWidth * 0.02,
-    },
-    companyBackground: {
-        padding: screenWidth * 0.05,
-        borderRadius: screenWidth * 0.04,
-    },
-    companyTitle: {
-        fontSize: screenWidth * 0.065,
-        fontWeight: "bold",
-        color: "#fff",
-        marginBottom: screenHeight * 0.01,
-        textAlign: "center",
-    },
-    companyTagline: {
-        fontSize: screenWidth * 0.045,
-        color: "#ddd",
-        marginBottom: screenHeight * 0.02,
-        fontStyle: "italic",
-        textAlign: "center",
-    },
-    companyDescription: {
-        fontSize: screenWidth * 0.04,
-        color: "#ccc",
-        textAlign: "justify",
-        marginBottom: screenHeight * 0.02,
-        paddingHorizontal: screenWidth * 0.02,
-    },
-    infoContainer: {
-        width: screenWidth * 0.9,
-        borderRadius: screenWidth * 0.04,
-        overflow: "hidden",
-        marginBottom: screenHeight * 0.03,
-        elevation: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: screenHeight * 0.005 },
-        shadowOpacity: 0.2,
-        shadowRadius: screenWidth * 0.02,
-    },
-    infoBackground: {
-        padding: screenWidth * 0.05,
-        borderRadius: screenWidth * 0.04,
-    },
-    infoGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: "center",
-        paddingHorizontal: screenWidth * 0.02,
-    },
-    infoGridItem: {
-        width: '50%',
-        paddingVertical: screenHeight * 0.01,
-        alignItems: "center",
-    },
-    infoLinkText: {
-        fontSize: screenWidth * 0.032,
-        width: screenWidth * 0.4,
-        color: "#ADD8E6",
-        textDecorationLine: "underline",
-        textAlign: "left",
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "rgba(0,0,0,0.6)",
-    },
-    modalContent: {
-        width: screenWidth * 0.85,
-        backgroundColor: "#fff",
-        padding: screenWidth * 0.06,
-        borderRadius: screenWidth * 0.04,
-        elevation: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: screenHeight * 0.005 },
-        shadowOpacity: 0.25,
-        shadowRadius: screenWidth * 0.02,
-    },
-    modalTitle: {
-        fontSize: screenWidth * 0.055,
-        fontWeight: "bold",
-        marginBottom: screenHeight * 0.02,
-        textAlign: "center",
-        color: '#333',
-    },
-    modalMessage: {
-        fontSize: screenWidth * 0.045,
-        textAlign: 'center',
-        marginBottom: screenHeight * 0.02,
-        color: '#555',
-    },
-    inputContainer: {
-        marginBottom: screenHeight * 0.02,
-    },
-    inputLabel: {
-        marginBottom: screenHeight * 0.005,
-        fontSize: screenWidth * 0.04,
-        fontWeight: "bold",
-        color: "#333",
-    },
-    input: {
-        width: "100%",
-        borderWidth: 1,
-        borderColor: "#ddd",
-        borderRadius: screenWidth * 0.02,
-        padding: screenWidth * 0.04,
-        fontSize: screenWidth * 0.04,
-        color: '#333',
-        backgroundColor: '#f9f9f9',
-    },
-    modalButtonContainer: {
-        flexDirection: "row",
-        justifyContent: "space-around",
-        marginTop: screenHeight * 0.02,
-    },
-    modalButton: {
-        flex: 1,
-        backgroundColor: "#1a1a1a",
-        padding: screenHeight * 0.015,
-        borderRadius: screenWidth * 0.02,
-        alignItems: "center",
-        marginHorizontal: screenWidth * 0.02,
-    },
-    modalButtonText: {
-        color: "#fff",
-       fontSize: screenWidth * 0.045,
-        fontWeight: "bold",
-    },
-    cancelButton: {
-        backgroundColor: "#dc3545",
-    },
-    saveButton: {
-        backgroundColor: "#28a745",
-    },
-    changePasswordLink: {
-        marginTop: 15,
-        marginBottom: 5,
-        alignItems: 'center',
-    },
-    changePasswordLinkText: {
-        color: '#1a1a1a',
-        fontWeight: '600',
-        fontSize: screenWidth * 0.04,
-        textDecorationLine: 'underline',
-    },
+    backgroundImage: {
+        flex: 1,
+        resizeMode: "cover",
+        width: "100%",
+        height: "100%",
+    },
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: "rgba(237, 236, 236, 0.77)",
+    },
+    container: {
+        flex: 1,
+        width: screenWidth,
+        padding: screenWidth * 0.05,
+    },
+    profileBox: {
+        width: screenWidth * 0.9,
+        height: screenHeight * 0.2,
+        borderRadius: screenWidth * 0.04,
+        overflow: "hidden",
+        marginBottom: screenHeight * 0.02,
+        elevation: 5,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.005 },
+        shadowOpacity: 0.3,
+        shadowRadius: screenWidth * 0.02,
+    },
+    profileBackground: {
+        width: "100%",
+        height: "100%",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: screenWidth * 0.05,
+    },
+    shine: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: screenWidth * 0.8,
+        height: screenHeight * 1.5,
+    },
+    shineGradient: {
+        width: "100%",
+        height: "100%",
+    },
+    profileContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        width: "100%",
+    },
+    profileImage: {
+        width: screenWidth * 0.22,
+        height: screenWidth * 0.22,
+        borderRadius: screenWidth * 0.11,
+        borderWidth: screenWidth * 0.007,
+        borderColor: "#eee",
+        marginRight: screenWidth * 0.05,
+    },
+    profileDetails: {
+        flex: 1,
+    },
+    username: {
+        fontSize: screenWidth * 0.06,
+        fontWeight: "bold",
+        color: "#fff",
+        marginBottom: screenHeight * 0.005,
+    },
+    userInfo: {
+        fontSize: screenWidth * 0.04,
+        fontWeight: "400",
+        color: "#f0f0f0",
+        marginTop: screenHeight * 0.002,
+    },
+    editButton: {
+        position: "absolute",
+        top: screenHeight * 0.02,
+        right: screenWidth * 0.15,
+        padding: screenWidth * 0.02,
+        borderRadius: screenWidth * 0.04,
+        alignItems: "center",
+        zIndex: 1,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    editIcon: {
+        width: screenWidth * 0.06,
+        height: screenWidth * 0.06,
+        tintColor: "white",
+    },
+    logoutButton: {
+        position: 'absolute',
+        top: screenHeight * 0.02,
+        right: screenWidth * 0.04,
+        padding: screenWidth * 0.02,
+        borderRadius: screenWidth * 0.04,
+        alignItems: 'center',
+        zIndex: 1,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    companyContainer: {
+        width: screenWidth * 0.9,
+        borderRadius: screenWidth * 0.04,
+        overflow: "hidden",
+        marginBottom: screenHeight * 0.03,
+        elevation: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.005 },
+        shadowOpacity: 0.2,
+        shadowRadius: screenWidth * 0.02,
+    },
+    companyBackground: {
+        padding: screenWidth * 0.05,
+        borderRadius: screenWidth * 0.04,
+    },
+    companyTitle: {
+        fontSize: screenWidth * 0.065,
+        fontWeight: "bold",
+        color: "#fff",
+        marginBottom: screenHeight * 0.01,
+        textAlign: "center",
+    },
+    companyTagline: {
+        fontSize: screenWidth * 0.045,
+        color: "#ddd",
+        marginBottom: screenHeight * 0.02,
+        fontStyle: "italic",
+        textAlign: "center",
+    },
+    companyDescription: {
+        fontSize: screenWidth * 0.04,
+        color: "#ccc",
+        textAlign: "justify",
+        marginBottom: screenHeight * 0.02,
+        paddingHorizontal: screenWidth * 0.02,
+    },
+    infoContainer: {
+        width: screenWidth * 0.9,
+        borderRadius: screenWidth * 0.04,
+        overflow: "hidden",
+        marginBottom: screenHeight * 0.03,
+        elevation: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.005 },
+        shadowOpacity: 0.2,
+        shadowRadius: screenWidth * 0.02,
+    },
+    infoBackground: {
+        padding: screenWidth * 0.05,
+        borderRadius: screenWidth * 0.04,
+    },
+    infoGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: "center",
+        paddingHorizontal: screenWidth * 0.02,
+    },
+    infoGridItem: {
+        width: '50%',
+        paddingVertical: screenHeight * 0.01,
+        alignItems: "center",
+    },
+    infoLinkText: {
+        fontSize: screenWidth * 0.032,
+        width: screenWidth * 0.4,
+        color: "#ADD8E6",
+        textDecorationLine: "underline",
+        textAlign: "left",
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0,0,0,0.6)",
+    },
+    modalContent: {
+        width: screenWidth * 0.85,
+        backgroundColor: "#fff",
+        padding: screenWidth * 0.06,
+        borderRadius: screenWidth * 0.04,
+        elevation: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: screenHeight * 0.005 },
+        shadowOpacity: 0.25,
+        shadowRadius: screenWidth * 0.02,
+    },
+    modalTitle: {
+        fontSize: screenWidth * 0.055,
+        fontWeight: "bold",
+        marginBottom: screenHeight * 0.02,
+        textAlign: "center",
+        color: '#333',
+    },
+    modalMessage: {
+        fontSize: screenWidth * 0.045,
+        textAlign: 'center',
+        marginBottom: screenHeight * 0.02,
+        color: '#555',
+    },
+    inputContainer: {
+        marginBottom: screenHeight * 0.02,
+    },
+    inputLabel: {
+        marginBottom: screenHeight * 0.005,
+        fontSize: screenWidth * 0.04,
+        fontWeight: "bold",
+        color: "#333",
+    },
+    input: {
+        width: "100%",
+        borderWidth: 1,
+        borderColor: "#ddd",
+        borderRadius: screenWidth * 0.02,
+        padding: screenWidth * 0.04,
+        fontSize: screenWidth * 0.04,
+        color: '#333',
+        backgroundColor: '#f9f9f9',
+    },
+    modalButtonContainer: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        marginTop: screenHeight * 0.02,
+    },
+    modalButton: {
+        flex: 1,
+        backgroundColor: "#1a1a1a",
+        padding: screenHeight * 0.015,
+        borderRadius: screenWidth * 0.02,
+        alignItems: "center",
+        marginHorizontal: screenWidth * 0.02,
+    },
+    modalButtonText: {
+        color: "#fff",
+        fontSize: screenWidth * 0.045,
+        fontWeight: "bold",
+    },
+    cancelButton: {
+        backgroundColor: "#dc3545",
+    },
+    saveButton: {
+        backgroundColor: "#28a745",
+    },
+    // [ADDED] Style for the new "Change Password" link
+    changePasswordLink: {
+        marginTop: 15,
+        marginBottom: 5,
+        alignItems: 'center',
+    },
+    changePasswordLinkText: {
+        color: '#1a1a1a',
+        fontWeight: '600',
+        
+        fontSize: screenWidth * 0.04,
+        textDecorationLine: 'underline',
+    },
 });
