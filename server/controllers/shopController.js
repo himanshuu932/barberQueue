@@ -184,14 +184,17 @@ exports.getShopById = asyncHandler(async (req, res) => {
 // @access  Public
 exports.getAllShops = asyncHandler(async (req, res) => {
     // You can add query parameters for pagination, filtering (e.g., by location, service, rating)
-    const shops = await Shop.find({ "subscription.status": { $ne: 'expired' } }) // Only show non-expired shops
-                            .select('name address rating photos subscription.status openingTime closingTime isOpen') // Select relevant fields for listing
-                            .populate('owner', 'name'); // Optionally populate owner name
+    const shops = await Shop.find({ 
+        "subscription.status": { $ne: 'expired' },
+        "verified": true // <-- This condition is added
+    }) // Only show non-expired AND verified shops
+        .select('name address rating photos subscription.status openingTime closingTime isOpen type') // Select relevant fields for listing
+        .populate('owner', 'name'); // Optionally populate owner name
+        
     res.json({
         success: true,
         data: shops,
     });
-   
 });
 
 // @desc    Update shop details (by Owner)
