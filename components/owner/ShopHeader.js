@@ -717,20 +717,7 @@ const formatTime = (date) => {
               />
 
               {/* 3. Add the Picker for shop type */}
-              <Text style={styles.inputLabel}>Shop Type:</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={editedShopData?.type}
-                  style={styles.picker}
-                  onValueChange={(itemValue) =>
-                    setEditedShopData(prev => ({ ...prev, type: itemValue }))
-                  }
-                >
-                  <Picker.Item label="Unisex" value="unisex" />
-                  <Picker.Item label="Male" value="male" />
-                  <Picker.Item label="Female" value="female" />
-                </Picker>
-              </View>
+
 
               <Text style={styles.inputLabel}>Address:</Text>
               <TextInput
@@ -770,6 +757,20 @@ const formatTime = (date) => {
                 {isLoading ? <ActivityIndicator color="#fff" /> : <Icon name="location-arrow" size={18} color="#fff" />}
                 <Text style={styles.mapButtonText}>Fetch Current Location</Text>
               </TouchableOpacity>
+                            <Text style={styles.inputLabel}>Shop Type:</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={editedShopData?.type}
+                  style={styles.picker}
+                  onValueChange={(itemValue) =>
+                    setEditedShopData(prev => ({ ...prev, type: itemValue }))
+                  }
+                >
+                  <Picker.Item label="Unisex" value="unisex" />
+                  <Picker.Item label="Male" value="male" />
+                  <Picker.Item label="Female" value="female" />
+                </Picker>
+              </View>
 
               <Text style={styles.inputLabel}>Opening Time (HH:MM):</Text>
                 <TouchableOpacity 

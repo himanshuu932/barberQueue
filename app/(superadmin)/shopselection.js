@@ -537,6 +537,18 @@ const ShopSelection = () => {
                   <Text style={styles.locationButtonText}>Choose on Map</Text>
                 </TouchableOpacity>
               </View>
+                          <Text style={styles.inputLabel}>Shop Type:</Text>
+<View style={styles.dropdownContainer}>
+    <Picker
+        selectedValue={newShopData.type}
+        onValueChange={(itemValue) => setNewShopData({ ...newShopData, type: itemValue })}
+        style={styles.dropdown}
+    >
+        <Picker.Item label="Unisex" value="unisex" />
+        <Picker.Item label="Male" value="male" />
+        <Picker.Item label="Female" value="female" />
+    </Picker>
+</View>
 
               <Text style={styles.inputLabel}>Opening Time:</Text>
               <TouchableOpacity onPress={() => setShowOpeningTimePicker(true)} style={styles.timeInputTouchable}>
@@ -555,18 +567,7 @@ const ShopSelection = () => {
               
             </ScrollView>
 
-            <Text style={styles.inputLabel}>Shop Type:</Text>
-<View style={styles.dropdownContainer}>
-    <Picker
-        selectedValue={newShopData.type}
-        onValueChange={(itemValue) => setNewShopData({ ...newShopData, type: itemValue })}
-        style={styles.dropdown}
-    >
-        <Picker.Item label="Unisex" value="unisex" />
-        <Picker.Item label="Male" value="male" />
-        <Picker.Item label="Female" value="female" />
-    </Picker>
-</View>
+
             
             <View style={styles.modalButtonContainer}>
               <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsAddModalVisible(false)}><Text style={styles.modalButtonText}>Cancel</Text></TouchableOpacity>

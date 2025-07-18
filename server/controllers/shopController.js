@@ -52,11 +52,11 @@ const calculateEndDate = (startDate, durationValue, durationUnit) => {
 
 exports.createShop = asyncHandler(async (req, res) => {
 
-   // console.log("Incoming shop creation body:", req.body);
+   console.log("Incoming shop creation body:", req.body);
 
     const { name, type, address, photos, openingTime, closingTime } = req.body; // Owner ID comes from req.user._id
 
-  // console.log("Parsed shop creation details:", { name, address, photos, openingTime, closingTime });
+  console.log("Parsed shop creation details:", { name, address, photos, openingTime, closingTime });
     if (!name || !type || !address || !address.fullDetails || !address.coordinates || address.coordinates.type !== 'Point' || !Array.isArray(address.coordinates.coordinates) || address.coordinates.coordinates.length !== 2) {
         throw new ApiError('Missing required shop details (name, full address, coordinates, types).', 400);
     }
