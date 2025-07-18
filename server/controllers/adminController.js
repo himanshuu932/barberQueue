@@ -189,6 +189,43 @@ const getSystemAnalytics = asyncHandler(async (req, res) => {
     });
 });
 
+const verifyShop = asyncHandler(async (req, res) => {
+    const { shopId } = req.params;
+    const { verified } = req.body;
+
+    if (typeof verified !== 'boolean') {
+        throw new ApiError('Verified status must be a boolean', 400);
+    }
+
+    const shop = await Shop.findByIdAndUpdate(
+        shopId,
+        { verified },
+        { new: true }
+    ).populate('owner', 'name email');
+
+    if (!shop) {
+        throw new ApiError('Shop not found', 404);
+    }
+
+    res.json({
+        success: true,
+        message: `Shop ${verified ? 'verified' : 'unverified'} successfully`,
+        data: shop
+    });
+});
+
+const getUnverifiedShops = asyncHandler(async (req, res) => {
+    const shops = await Shop.find({ verified: false })
+        .populate('owner', 'name email')
+        .populate('barbers', 'name');
+    
+    res.json({
+        success: true,
+        count: shops.length,
+        data: shops
+    });
+});
+
 // Explicitly export all functions as an object
 module.exports = {
     registerAdmin,
@@ -201,5 +238,7 @@ module.exports = {
     deleteShop,
     getOwners, // Exported now
     getBarbers, // Exported now
-    getSystemAnalytics
+    getSystemAnalytics,
+    verifyShop,
+    getUnverifiedShops, 
 };

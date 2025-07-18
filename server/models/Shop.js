@@ -47,6 +47,12 @@ photos: [{
         max: 5,
         default: 0
     },
+
+    verified:{
+        type: Boolean,
+        required: false,
+        default: false
+    },
     
      services: [{
         name: {

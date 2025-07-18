@@ -12,6 +12,13 @@ router.post('/login', adminController.adminLogin);
 router.get('/profile', protect(['admin']), authorize('admin'), adminController.getAdminProfile);
 router.put('/profile', protect(['admin']), authorize('admin'), adminController.updateAdminProfile);
 
+// Admin management of Services
+router.route('/shops/unverified')
+    .get(protect, admin, adminController.getUnverifiedShops);
+router.route('/shops/:shopId/verify')
+    .put(protect, admin, adminController.verifyShop);
+
+
 // Admin management of Users
 router.get('/users', protect(['admin']), authorize('admin'), adminController.getUsers);
 router.delete('/users/:id', protect(['admin']), authorize('admin'), adminController.deleteUser);
