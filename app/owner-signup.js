@@ -24,6 +24,7 @@ export default function SignupScreen() {
   const [step, setStep] = useState(1); // 1: email entry, 2: OTP verification, 3: registration
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [addressText, setAddressText] = useState("");
@@ -130,10 +131,16 @@ export default function SignupScreen() {
   };
 
   const handleSignup = async () => {
-    if (!name || !password ) {
+    if (!name || !password || !phone ) {
       Alert.alert("Error", "Please fill in all required fields.");
       return;
     }
+
+      if (!/^[0-9]{10}$/.test(phone)) {
+    Alert.alert("Error", "Please enter a valid phone number (10 digits)");
+    return;
+  }
+
 
     setIsLoading(true);
     //console.log("nams and emial",name," ",email," pass",password);
@@ -141,7 +148,7 @@ export default function SignupScreen() {
       const response = await fetch(`${API_BASE}/api/owners/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, pass: password }),
+        body: JSON.stringify({ name, email, pass: password, phone }),
       });
 
       const data = await response.json();
@@ -242,6 +249,17 @@ export default function SignupScreen() {
         value={name}
         onChangeText={setName}
       />
+
+      
+    <TextInput
+      style={styles.input}
+      placeholder="Phone Number"
+      placeholderTextColor="rgb(0, 0, 0)"
+      keyboardType="phone-pad"
+      value={phone}
+      onChangeText={setPhone}
+      maxLength={15} // Adjust based on your needs
+    />
 
 
       <TextInput
