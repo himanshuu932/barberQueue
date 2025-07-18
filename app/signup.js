@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     color: "rgb(255, 255, 255)",
   },
   link: {
-    color: "rgb(3, 75, 163)",
+    color: "rgba(255, 255, 255, 1)",
     fontWeight: "900",
   },
   otpMessage: {
