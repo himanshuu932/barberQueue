@@ -22,7 +22,7 @@ import { getHours } from 'date-fns';
 import { LineChart, BarChart } from "react-native-chart-kit";
 import History from '../../components/owner/History';
 
-const API_BASE_URL = 'https://numbr-exq6.onrender.com';
+const API_BASE_URL = 'http://10.0.2.2:5000';
 const IST_TIMEZONE = "Asia/Kolkata";
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
